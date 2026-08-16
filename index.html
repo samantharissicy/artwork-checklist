@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artwork & Pack Copy Checklist — Paulig / Panesar</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">P</div>
+      <div>
+        <div class="header-title">Artwork & Pack Copy Checklist</div>
+        <div class="header-sub">BRCGS Product Labelling 5.2.1 | Multi-Site Aligned</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="badge">Site: All Sites</span>
+      <span class="badge">Version: v2.1</span>
+      <button class="btn-save" onclick="saveCheck()">Save Check</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left: Checklist -->
+    <div class="left-panel">
+      <div class="product-bar">
+        <div class="product-grid">
+          <input type="text" placeholder="Brand" id="inp-brand">
+          <input type="text" placeholder="Product Name / Legal Name" id="inp-name">
+          <input type="text" placeholder="Weight (g/ml)" id="inp-weight">
+          <input type="text" placeholder="SKU / Code" id="inp-sku">
+        </div>
+      </div>
+      
+      <div class="checklist-scroll" id="checklist">
+        <!-- Sections injected by JS -->
+      </div>
+      
+      <div class="progress-footer">
+        <div class="progress-label">
+          <span>Progress</span>
+          <span id="progress-text">0 / 0 checked</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Artwork Viewer -->
+    <div class="right-panel">
+      <div class="viewer-toolbar">
+        <div class="viewer-label">
+          Artwork Viewer
+          <span class="viewer-badge">Front & Back</span>
+        </div>
+        <div class="toolbar-actions">
+          <button onclick="zoom(-0.1)" title="Zoom Out">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12H4"/></svg>
+          </button>
+          <span class="zoom-text" id="zoom-level">100%</span>
+          <button onclick="zoom(0.1)" title="Zoom In">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+          </button>
+          <div class="divider"></div>
+          <button class="btn-clear" onclick="clearPins()">Clear Pins</button>
+        </div>
+      </div>
+      
+      <div class="canvas-area" id="canvas-area">
+        <div class="artwork-wrapper" id="artwork-wrapper">
+          <div class="artwork">
+            <!-- Front of Pack -->
+            <div class="pack-front">
+              <div class="pack-label">Front of Pack</div>
+              <div style="margin-top:16px;">
+                <div class="art-el brand-text" data-el="brand">PAULIG</div>
+                <div class="art-el product-title" data-el="product-name">Premium Basmati Rice</div>
+                <div class="art-el descriptor" data-el="descriptor">Steamed White Rice</div>
+              </div>
+              <div class="art-el serving-img" data-el="serving-image">🍚</div>
+              <div class="front-bottom">
+                <div class="art-el weight-box" data-el="weight">
+                  <div class="weight-label">Net Weight</div>
+                  <div class="weight-value">250g <span style="font-size:13px;">e</span></div>
+                </div>
+                <div class="art-el claims-box" data-el="claims">
+                  <span class="claim-tag">Suitable for Vegetarians</span>
+                  <span class="claim-tag">Gluten Free</span>
+                </div>
+              </div>
+              <div class="art-el nutrition-fop" data-el="nutrition-fop">
+                <div class="nut-col"><div class="nut-name">Energy</div><div class="nut-val">850kJ</div><div class="nut-val">200kcal</div></div>
+                <div class="nut-col"><div class="nut-name">Fat</div><div class="nut-val">0.5g</div><div class="nut-badge">Low</div></div>
+                <div class="nut-col"><div class="nut-name">Saturates</div><div class="nut-val">0.1g</div><div class="nut-badge">Low</div></div>
+                <div class="nut-col"><div class="nut-name">Sugars</div><div class="nut-val">0.2g</div><div class="nut-badge">Low</div></div>
+                <div class="nut-col"><div class="nut-name">Salt</div><div class="nut-val">0.01g</div><div class="nut-badge">Low</div></div>
+              </div>
+            </div>
+            
+            <!-- Back of Pack -->
+            <div class="pack-back">
+              <div class="pack-label">Back of Pack</div>
+              <div style="margin-top:14px;">
+                <div class="art-el back-section" data-el="ingredients">
+                  <div class="back-section-title">Ingredients</div>
+                  <div class="back-section-body">Basmati Rice (100%)</div>
+                </div>
+                <div class="art-el back-section" data-el="allergens">
+                  <div class="back-section-title">Allergy Advice</div>
+                  <div class="back-section-body">For allergens, see ingredients in bold.</div>
+                </div>
+                <div class="art-el back-section" data-el="nutrition-bop">
+                  <div class="back-section-title">Nutrition Information (per 100g)</div>
+                  <div class="back-section-body nut-table">
+                    <span>Energy</span><span>340kJ / 80kcal</span>
+                    <span>Fat</span><span>0.2g</span>
+                    <span>of which saturates</span><span>0.0g</span>
+                    <span>Carbohydrate</span><span>18g</span>
+                    <span>of which sugars</span><span>0.1g</span>
+                    <span>Fibre</span><span>0.5g</span>
+                    <span>Protein</span><span>1.8g</span>
+                    <span>Salt</span><span>0.01g</span>
+                  </div>
+                </div>
+                <div class="art-el back-section" data-el="storage">
+                  <div class="back-section-title">Storage</div>
+                  <div class="back-section-body">Store in a cool, dry place. Once opened, refrigerate and consume within 2 days.</div>
+                </div>
+                <div class="art-el back-section" data-el="cooking">
+                  <div class="back-section-title">Cooking Instructions</div>
+                  <div class="back-section-body">Microwave: Pierce film lid. Heat on full power for 2 minutes. Stir and serve.</div>
+                </div>
+                <div class="art-el back-section" data-el="address">
+                  <div class="back-section-title">Manufacturer</div>
+                  <div class="back-section-body">Panesar Foods Ltd, Unit 4, Industrial Estate, UK</div>
+                </div>
+                <div class="art-el back-footer" data-el="barcode-area">
+                  <div class="barcode-box">BARCODE</div>
+                  <div class="back-meta">Best Before: See lid<br>UK FR 036 EC</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pins-layer" id="pins-layer"></div>
+        </div>
+      </div>
+      
+      <div class="hint-bar">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <strong>Tip:</strong> Drag any checklist item onto the artwork to pin it. Hover over checked items to see their location. Click a pin to jump to its checklist item.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Checklist saved!</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
