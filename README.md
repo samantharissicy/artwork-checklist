@@ -8,95 +8,95 @@
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
 
-Ferramenta web de apoio à **revisão de artworks e textos de embalagens de produtos alimentícios**, alinhada ao padrão **BRCGS Product Labelling 5.2.1 | Multi-Site Aligned**.
+A web tool to support the review of **artworks and pack copy for food products**, aligned with the **BRCGS Product Labelling 5.2.1 | Multi-Site Aligned** standard.
 
-O projeto acompanha um workflow de revisão visual: cada item do checklist pode ser *fixado (pin)* diretamente sobre a arte da embalagem, criando a ponte entre o requisito regulatório e o local exato da artwork onde ele se aplica.
+The project follows a visual review workflow: each checklist item can be **pinned** directly onto the pack artwork, bridging the regulatory requirement and the exact spot on the artwork where it applies.
 
 ---
 
-## Índice
+## Table of Contents
 
-1. [Para que serve](#para-que-serve)
-2. [Funcionalidades atuais](#funcionalidades-atuais)
-3. [As 6 seções do checklist](#as-6-seções-do-checklist)
-4. [Os 49 itens de revisão](#os-49-itens-de-revisão)
-5. [Como executar](#como-executar)
-6. [Como usar — passo a passo](#como-usar--passo-a-passo)
-7. [Estrutura do projeto](#estrutura-do-projeto)
-8. [Como funciona por dentro](#como-funciona-por-dentro)
-9. [Limitações conhecidas](#limitações-conhecidas)
+1. [What it does](#what-it-does)
+2. [Current features](#current-features)
+3. [The 6 checklist sections](#the-6-checklist-sections)
+4. [The 49 review items](#the-49-review-items)
+5. [How to run](#how-to-run)
+6. [How to use — step by step](#how-to-use--step-by-step)
+7. [Project structure](#project-structure)
+8. [How it works under the hood](#how-it-works-under-the-hood)
+9. [Known limitations](#known-limitations)
 10. [Roadmap](#roadmap)
-11. [Workflow de desenvolvimento](#workflow-de-desenvolvimento)
-12. [Como contribuir](#como-contribuir)
+11. [Development workflow](#development-workflow)
+12. [Contributing](#contributing)
 
 ---
 
-## Para que serve
+## What it does
 
-Antes de uma embalagem ir para produção, alguém precisa conferir se cada texto impresso nela está correto:
+Before a pack goes into production, someone has to check every piece of copy printed on it:
 
-- o nome legal do produto;
-- a declaração de ingredientes em ordem decrescente de peso;
-- a tabela nutricional;
-- as alegações (glúten free, vegano, orgânico);
-- o código de barras, o lote, o peso líquido…
+- the legal product name;
+- the ingredients declaration in descending order of weight;
+- the nutrition table;
+- the claims (gluten free, vegan, organic);
+- the barcode, the lot, the net weight…
 
-Este aplicativo organiza essa conferência em um **checklist de 49 itens distribuídos em 6 seções** e permite marcar visualmente, sobre a artwork, exatamente onde cada ponto foi verificado.
+This app organizes that review into a **checklist of 49 items across 6 sections** and lets you visually mark exactly where each point was verified on the artwork.
 
-> **Obs.:** a revisão atual é um *protótipo funcional* — sem backend, sem banco de dados e sem framework. Ele evolui incrementalmente seguindo os arquivos [`prompt-mestre.md`](prompt-mestre.md) (especificação de engenharia) e [`roadmap.md`](roadmap.md) (plano por camadas).
+> **Note:** the current build is a *working prototype* — no backend, no database, no framework. It evolves incrementally according to the layer-based plan in [`roadmap.md`](roadmap.md).
 
 ---
 
-## Funcionalidades atuais
+## Current features
 
-Tudo documentado abaixo corresponde ao **baseline funcional** — nada pode quebrar entre uma evolução e outra.
+Everything below is part of the **working baseline** — nothing may break between one evolution and the next.
 
-| Funcionalidade | Descrição | Como testar |
+| Feature | Description | How to test |
 |---|---|---|
-| ✅ Checklist interativo | 49 itens com notas explicativas | Marcar/desmarcar checkboxes |
-| ✅ Seções recolhíveis | As 6 categorias abrem/fecham | Clicar no título da seção |
-| ✅ Dados do produto | Brand, Product Name, Weight, SKU | Digitar nos campos amarelos |
-| ✅ Barra de progresso | `X / 49 checked` + barra em % | Marcar/desmarcar itens |
-| ✅ Artwork de demonstração | Embalagem Frente e Verso em HTML/CSS puro | Abrir o painel direito |
-| ✅ Zoom | Escala de 50% a 200% | Botões `−` e `+` na toolbar |
-| ✅ Drag-and-drop | Arrastar um item do checklist até a artwork | `dragstart` no item → `drop` na artwork |
-| ✅ Criação de pins | Pin posicionado no local solto da artwork, com tooltip | Soltar item sobre a arte |
-| ✅ Pin → item | Clicar no pin rola o checklist até o item (expandindo a seção) | Clicar em qualquer pin |
-| ✅ Item → pin | Passar o mouse sobre um item "pulsa" o pin correspondente | Hover sobre item fixado |
-| ✅ Clear Pins | Remove todos os pins | Botão `Clear Pins` na toolbar |
-| ✅ Save Check | Exporta o estado completo em JSON (download) | Botão `Save Check` no header |
-| ✅ Toast | Feedback visual de ações (pin, clear, save) | Realizar ações acima |
+| ✅ Interactive checklist | 49 items with explanatory notes | Check/uncheck checkboxes |
+| ✅ Collapsible sections | The 6 categories open/close | Click a section title |
+| ✅ Product data | Brand, Product Name, Weight, SKU | Type in the yellow fields |
+| ✅ Progress bar | `X / 49 checked` + % bar | Check/uncheck items |
+| ✅ Demo artwork | Front & Back of Pack built in plain HTML/CSS | Open the right panel |
+| ✅ Zoom | Scale from 50% to 200% | `−` and `+` buttons on the toolbar |
+| ✅ Drag-and-drop | Drag a checklist item onto the artwork | `dragstart` on item → `drop` on artwork |
+| ✅ Pin creation | Pin placed where dropped, with tooltip | Drop an item on the art |
+| ✅ Pin → item | Clicking a pin scrolls the checklist to the item (auto-expanding the section) | Click any pin |
+| ✅ Item → pin | Hovering an item makes its pin "pulse" | Hover a pinned item |
+| ✅ Clear Pins | Removes all pins | `Clear Pins` button in the toolbar |
+| ✅ Save Check | Exports the full state as a JSON file (download) | `Save Check` button in the header |
+| ✅ Toast | Visual feedback on actions (pin, clear, save) | Perform the actions above |
 
-### O que **ainda não** existe neste baseline
+### What is **not** in this baseline (yet)
 
-- Upload de imagem real (a artwork atual é demo embutida no HTML);
-- Persistência em `localStorage` (recarregar a página perde o estado);
-- Importação de JSON (`Open Check`);
-- Estados `approved` / `rejected` (hoje só checked/unchecked);
-- Comentários, assinatura e relatório.
+- Real image upload (the current artwork is a demo embedded in HTML);
+- `localStorage` persistence (reloading the page loses state);
+- JSON import (`Open Check`);
+- `approved` / `rejected` states (currently just checked/unchecked);
+- Comments, signature and report.
 
-Isso é intencional: essas features são as próximas camadas do roadmap.
-
----
-
-## As 6 seções do checklist
-
-| # | Seção | Itens | Foco |
-|---|---|:---:|---|
-| 1 | **Legal Core (BRCGS 5.2.1)** | 10 | Identificação legal do produto |
-| 2 | **Ingredients & Allergens** | 5 | Declaração de ingredientes e alergênicos |
-| 3 | **Nutrition & Serving** | 10 | Tabela nutricional e porções |
-| 4 | **Storage & Cooking** | 4 | Conservação e instruções de preparo |
-| 5 | **Claims & Certifications** | 12 | Alegações e certificações |
-| 6 | **Packaging, Marks & Languages** | 8 | Marcas legais, idiomas e embalagem |
+This is intentional: those features are the next layers in the roadmap.
 
 ---
 
-## Os 49 itens de revisão
+## The 6 checklist sections
+
+| # | Section | Items | Focus |
+|---|---------|:---:|---|
+| 1 | **Legal Core (BRCGS 5.2.1)** | 10 | Legal identification of the product |
+| 2 | **Ingredients & Allergens** | 5 | Ingredients declaration and allergens |
+| 3 | **Nutrition & Serving** | 10 | Nutrition table and portions |
+| 4 | **Storage & Cooking** | 4 | Storage and preparation instructions |
+| 5 | **Claims & Certifications** | 12 | Claims and certifications |
+| 6 | **Packaging, Marks & Languages** | 8 | Legal marks, languages and packaging |
+
+---
+
+## The 49 review items
 
 ### 1. Legal Core (BRCGS 5.2.1)
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 1A | Product Name / Legal Name | Must be clear, not misleading, and reflect true nature of food |
 | 1B | Net Quantity (Weight / Volume) | g or ml, with e-mark where applicable |
@@ -111,7 +111,7 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ### 2. Ingredients & Allergens
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 2A | Ingredients Declaration | Descending order by weight; bolded allergens |
 | 2B | Allergy Advice Box | "For allergens, see ingredients in bold" (if contains allergens) |
@@ -121,7 +121,7 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ### 3. Nutrition & Serving
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 3A | Energy (kJ / kcal) | — |
 | 3B | Fat & Saturates | — |
@@ -136,7 +136,7 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ### 4. Storage & Cooking
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 4A | Storage Instructions | — |
 | 4B | Storage Instructions — Once Opened | — |
@@ -145,7 +145,7 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ### 5. Claims & Certifications
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 5A | Suitable for Vegetarians | — |
 | 5B | Suitable for Vegans / Vegan Certified | Certified requires registration number/logo |
@@ -162,7 +162,7 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ### 6. Packaging, Marks & Languages
 
-| ID | Item | Nota |
+| ID | Item | Note |
 |:--:|---|---|
 | 6A | Multilingual Wording | ES, FR, IT, DE etc. |
 | 6B | Customer Guarantee Statement | — |
@@ -175,16 +175,16 @@ Isso é intencional: essas features são as próximas camadas do roadmap.
 
 ---
 
-## Como executar
+## How to run
 
-O projeto **não precisa de instalação, npm, build ou servidor**.
+The project requires **no installation, npm, build or server**.
 
 ```text
-1. Baixe ou clone o repositório
-2. Abra o arquivo index.html em qualquer navegador moderno
+1. Download or clone the repository
+2. Open the index.html file in any modern browser
 ```
 
-Ou pelo terminal:
+Or from the terminal:
 
 ```bash
 git clone https://github.com/toled/artwork-checklist.git
@@ -192,75 +192,73 @@ cd artwork-checklist
 start index.html
 ```
 
-> Requisito mínimo: navegador com suporte a drag-and-drop e SVG inline (Chrome, Edge, Firefox, Safari).
+> Minimum requirement: a browser with drag-and-drop and inline SVG support (Chrome, Edge, Firefox, Safari).
 
 ---
 
-## Como usar — passo a passo
+## How to use — step by step
 
-1. **Preencha os dados do produto** (painel esquerdo, campos amarelos):
-   Brand, Product Name / Legal Name, Weight e SKU.
+1. **Fill in the product data** (left panel, yellow fields):
+   Brand, Product Name / Legal Name, Weight and SKU.
 
-2. **Revise cada seção**:
-   - Clique no título da seção para expandir/recolher;
-   - Cada item mostra uma **nota** com o critério a verificar;
-   - Marque o checkbox quando o requisito estiver conforme.
+2. **Review each section**:
+   - Click a section title to expand/collapse it;
+   - Each item shows a **note** with the criterion to verify;
+   - Tick the checkbox when the requirement is compliant.
 
-3. **Fixe itens na artwork**:
-   - Arraste um item do checklist e solte sobre a embalagem (frente ou verso);
-   - Um **pin** com a referência do item (ex.: `3A`) aparece no local exato.
+3. **Pin items onto the artwork**:
+   - Drag a checklist item and drop it onto the pack (front or back);
+   - A **pin** with the item reference (e.g. `3A`) appears at the exact spot.
 
-4. **Navegue entre pin ↔ item**:
-   - **Pin → item:** clique no pin e o checklist rola até o item (seções recolhidas abrem sozinhas);
-   - **Item → pin:** passe o mouse sobre um item para fazer seu pin "pulsar".
+4. **Navigate between pin ↔ item**:
+   - **Pin → item:** click the pin and the checklist scrolls to the item (collapsed sections expand on their own);
+   - **Item → pin:** hover an item to make its pin "pulse".
 
-5. **Ajuste o zoom** (botões `−` / `+` na toolbar do viewer) para inspecionar detalhes.
+5. **Use the zoom** (`−` / `+` buttons on the viewer toolbar) to inspect details.
 
-6. **Limpe os pins** quando quiser recomeçar (`Clear Pins`).
+6. **Clear the pins** whenever you want a fresh start (`Clear Pins`).
 
-7. **Exporte o resultado** (`Save Check`): um arquivo `.json` com dados do produto, checagens e pins é baixado automaticamente.
+7. **Export the result** (`Save Check`): a `.json` file with product data, checks and pins is downloaded automatically.
 
 ---
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 artwork-checklist/
-├── index.html          # Interface completa (HTML + referência à CSS/JS)
+├── index.html          # Full UI (HTML + references to CSS/JS)
 ├── css/
-│   └── style.css       # Estilos visuais (299 linhas)
+│   └── style.css       # Visual styles (299 lines)
 ├── js/
-│   └── app.js          # Toda a lógica em JavaScript puro (279 linhas)
-├── prompt-mestre.md    # Especificação de engenharia / regras de evolução
-├── roadmap.md          # Plano de desenvolvimento por camadas (A0 → N)
-└── README.md           # Este documento
+│   └── app.js          # All application logic in plain JavaScript (279 lines)
+└── README.md           # This document
 ```
 
-O estado atual ainda é a arquitetura "arquivo único": `index.html` + `app.js` + `style.css`, sem separação em módulos. A divisão progressiva em arquivos (state, storage, checklist, artwork, pins, products…) está prevista nas camadas finais do roadmap.
+The current state still uses the "single files" architecture: `index.html` + `app.js` + `style.css`, without module splitting. The progressive split into files (state, storage, checklist, artwork, pins, products…) is planned for the final layers of the roadmap.
 
 ---
 
-## Como funciona por dentro
+## How it works under the hood
 
-Entender o protótipo ajuda a acompanhar as próximas evoluções.
+Understanding the prototype helps you follow the upcoming evolutions.
 
-### Fonte dos dados
+### Data source
 
-As **6 seções e 49 itens** vivem em um único array `sections` (`js/app.js`), com `id`, `title` e `note`. O checklist é **renderizado por JavaScript** — o HTML só contém o container vazio `#checklist`.
+The **6 sections and 49 items** live in a single `sections` array (`js/app.js`), each with `id`, `title` and `note`. The checklist is **rendered by JavaScript** — the HTML only holds the empty `#checklist` container.
 
-### Estado atual: o DOM é a fonte da verdade
+### Current state: the DOM is the source of truth
 
-No baseline, o estado lógico fica espalhado no próprio DOM:
+In the baseline, logical state is spread across the DOM itself:
 
-| Estado | Onde vive | Exemplo |
+| State | Where it lives | Example |
 |---|---|---|
-| Item marcado | `input[type=checkbox].checked` | checkbox |
-| Aparência de concluído | classe CSS `.checked` | fundo do item |
-| Dados do produto | inputs `#inp-brand`, `#inp-name`… | valores dos campos |
-| Posição dos pins | objeto `pins[id] = {x, y}` | `{x: 723, y: 281}` |
-| Títulos dos itens | duplicados no array `sections` | `itemTitles` |
+| Checked item | `input[type=checkbox].checked` | checkbox |
+| "Done" look | `.checked` CSS class | item background |
+| Product data | inputs `#inp-brand`, `#inp-name`… | field values |
+| Pin positions | `pins[id] = {x, y}` object | `{x: 723, y: 281}` |
+| Item titles | duplicated in the `sections` array | `itemTitles` |
 
-Isso funciona no protótipo, mas **não é o modelo alvo**. A primeira grande evolução (Camada B do roadmap) é criar um estado central único:
+This works in the prototype, but it is **not the target model**. The first major evolution (roadmap Layer B) is a single central state:
 
 ```js
 const appState = {
@@ -270,7 +268,7 @@ const appState = {
 };
 ```
 
-E cada item convergir para:
+With each item converging to:
 
 ```js
 {
@@ -281,114 +279,115 @@ E cada item convergir para:
   note: "...",
   status: "pending",        // pending | approved | rejected
   comment: "",
-  pin: null                 // futuro: { xRatio: 0.42, yRatio: 0.18 }
+  pin: null                 // future: { xRatio: 0.42, yRatio: 0.18 }
 }
 ```
 
-### Como os pins funcionam hoje
+### How pins work today
 
-- O drop converte o ponto do mouse em **pixels relativos à artwork** (`wrapper.getBoundingClientRect()`), compensando o zoom atual;
-- Cada pin é um `<div>` com `data-pid` = id do item, tooltip e marcador;
-- `pins[id]` guarda `{x, y}` em pixels — limitação conhecida: posições fixas não acompanham outras dimensões de visualização (a normalização para **proporções** ± `xRatio/yRatio` é a Camada E).
+- On drop, the mouse point is converted into **pixels relative to the artwork** (`wrapper.getBoundingClientRect()`), compensating for the current zoom;
+- Each pin is a `<div>` with `data-pid` = item id, tooltip and marker;
+- `pins[id]` stores `{x, y}` in pixels — known limitation: fixed positions don't adapt to other viewing dimensions (normalization to **ratios** via `xRatio/yRatio` is Layer E).
 
-### Funcionalidades-chave no código
+### Key functions in the code
 
-| Função | Responsabilidade |
+| Function | Responsibility |
 |---|---|
-| `toggleCheck(cb)` | Alterna `.checked` e recalcula o progresso |
-| `updateProgress()` | Conta checkboxes marcados → texto + largura da barra |
-| `zoom(delta)` | Escala 0.5–2.0 no wrapper e atualiza o rótulo |
-| `addPin(id, x, y)` | Cria o pin e registra em `pins` |
-| `scrollToItem(id)` | Expande a seção recolhida e rola até o item |
-| `clearPins()` | Esvazia a camada de pins e o objeto `pins` |
-| `saveCheck()` | Será **exportação JSON** (product + checks + pins + timestamp) |
-| `showToast(msg)` | Feedback visual temporário |
+| `toggleCheck(cb)` | Toggles `.checked` and recalculates progress |
+| `updateProgress()` | Counts checked boxes → text + bar width |
+| `zoom(delta)` | Scales 0.5–2.0 on the wrapper and updates the label |
+| `addPin(id, x, y)` | Creates the pin and records it in `pins` |
+| `scrollToItem(id)` | Expands a collapsed section and scrolls to the item |
+| `clearPins()` | Empties the pin layer and the `pins` object |
+| `saveCheck()` | **Exports JSON** (product + checks + pins + timestamp) |
+| `showToast(msg)` | Temporary visual feedback |
 
 ---
 
-## Limitações conhecidas
+## Known limitations
 
-Documentadas para não causar surpresa durante o uso e o desenvolvimento:
+Documented so they cause no surprises during use and development:
 
-1. **Sem persistência** — recarregar a página perde checks, pins e dados do produto;
-2. **Sem upload real** — a artwork exibida é um mock em HTML/CSS (frente e verso);
-3. **Pins em pixels** — posições não se adaptam a redimensionamentos/zoom futuro;
-4. **Estado no DOM** — o DOM é a fonte da verdade, dificultando validações e restauração;
-5. **Sem importação** — o JSON exportado não pode ser reaberto no app;
-6. **Checagem binária** — sem distinção entre aprovado e rejeitado, sem comentários;
-7. **Essencialmente desktop** — sem otimização para touch/tablet.
+1. **No persistence** — reloading the page loses checks, pins and product data;
+2. **No real upload** — the artwork shown is an HTML/CSS mock (front and back);
+3. **Pins in pixels** — positions don't adapt to resizing/future zoom;
+4. **State in the DOM** — the DOM is the source of truth, which hampers validation and restoration;
+5. **No import** — the exported JSON cannot be reopened in the app;
+6. **Binary checking** — no distinction between approved and rejected, no comments;
+7. **Desktop-only** — no touch/tablet optimization.
 
-Cada limitação tem uma camada correspondente no roadmap — eliminá-las todas de uma vez violaria o princípio de evolução incremental do projeto.
+Each limitation maps to a roadmap layer — removing them all at once would violate the project's incremental-evolution principle.
 
 ---
 
 ## Roadmap
 
-Planos completos:
+Full plans in [`roadmap.md`](roadmap.md); summary:
 
-| Fase | Camada | Entrega |
-|:---:|---|---|
-| ✅ | **A0** | Baseline preservado + documentação (este README) |
-| 📋 | **B1** | Estado central `appState` (single source of truth) |
-| 📋 | **C1–C3** | Status tri-state, comentários, correções de copy |
-| 📋 | **D1–D4** | Persistência local, import/export versionado |
-| 📋 | **E1–E2** | Pins proporcionais, identidade da artwork |
-| 📋 | **F1** | Métricas de revisão (aprovados / rejeitados / pendentes) |
-| 📋 | **G1–G2** | Múltiplos produtos com abas |
-| 📋 | **H1–H2** | Revisor + assinatura |
-| 📋 | **I1–I2** | Alta resolução + responsividade |
-| 📋 | **J1–J3** | Relatório imprimível e PDF |
-| 📋 | **K1–K4** | UX, acessibilidade, touch, regressões |
-| 📋 | **L1** | Separação estrutural em módulos |
-| ⏳ | **M1–M4** | Backend, login, revisões, audit trail (só se houver uso real) |
+| Phase | Layer | Deliverable |
+|:---:|------|-------------|
+| ✅ | **A0** | Frozen baseline + documentation (this README) |
+| 📋 | **B1** | Central `appState` (single source of truth) |
+| 📋 | **C1–C3** | Tri-state status, comments, copy corrections |
+| 📋 | **D1–D4** | Local persistence, versioned import/export |
+| 📋 | **E1–E2** | Proportional pins, artwork identity |
+| 📋 | **F1** | Review metrics (approved / rejected / pending) |
+| 📋 | **G1–G2** | Multiple products with tabs |
+| 📋 | **H1–H2** | Reviewer + signature |
+| 📋 | **I1–I2** | High resolution + responsiveness |
+| 📋 | **J1–J3** | Printable report and PDF |
+| 📋 | **K1–K4** | UX, accessibility, touch, regressions |
+| 📋 | **L1** | Structural module split |
+| ⏳ | **M1–M4** | Backend, auth, revisions, audit trail (only with real usage) |
 
-**Regra de ouro:** implementar uma camada por vez, testar, revisar, commitar e só então avançar.
+**Golden rule:** implement one layer at a time, test, review, commit, then move on.
 
 ---
 
-## Workflow de desenvolvimento
+## Development workflow
 
-O projeto usa **desenvolvimento orientado por especificação**:
+The project uses **specification-driven development**:
 
 ```text
 AUDIT → SPEC → PLAN → TASKS → IMPLEMENT → VERIFY → REPORT
 ```
 
-Para cada nova feature, o ciclo é:
+For each new feature, the cycle is:
 
-1. **Current State** — como funciona hoje, funções/HTML envolvidos, riscos;
-2. **Requirements** — requisitos testáveis (`REQ-XXX-001…`);
-3. **Business Rules** — regras explícitas `IF … THEN …`;
-4. **Data Model** — dados necessários antes de codificar;
-5. **Design Decisions** — decisões com alternativas consideradas;
-6. **Impact Analysis** — o que será afetado;
-7. **Task Breakdown** — pequenas tasks verificáveis;
-8. **Implementation** — alterações cirúrgicas, nunca reescrita total;
-9. **Manual Tests** — casos `Precondition / Action / Expected`;
-10. **Regression Tests** — baseline deve permanecer 100% funcional;
-11. **Completion Report** — o que foi/não foi feito, limitações, próximo passo.
+1. **Current State** — how it works today, functions/HTML involved, risks;
+2. **Requirements** — testable requirements (`REQ-XXX-001…`);
+3. **Business Rules** — explicit `IF … THEN …` rules;
+4. **Data Model** — data needed before writing code;
+5. **Design Decisions** — decisions with alternatives considered;
+6. **Impact Analysis** — what will be affected;
+7. **Task Breakdown** — small verifiable tasks;
+8. **Implementation** — surgical changes, never a full rewrite;
+9. **Manual Tests** — `Precondition / Action / Expected` cases;
+10. **Regression Tests** — the baseline must stay 100% functional;
+11. **Completion Report** — what was/wasn't done, limitations, next step.
 
-Princípios inegociáveis: **incrementalidade** (uma feature por vez), **preservação** (nada pode quebrar), **simplicidade** (código legível e comentado), **compatibilidade** (sem framework, npm, build ou backend enquanto MVP) e **não misturar fases** (cada camada é um commit dedicado).
-
----
-
-## Como contribuir
-
-1. Trabalhe **uma camada por vez**, seguindo o workflow acima;
-2. Rode, teste, revise, verifique os critérios de aceite, corrija e commite (checkpoint com mensagem descritiva);
-3. Ao final de cada milestone: aplicação abre, console limpo, funcionalidades anteriores operacionais, testes manuais aprovados.
-
-**Critério global de aceite** (todo milestone):
-
-1. O projeto abre normalmente;
-2. Nenhum erro no console;
-3. Funcionalidades anteriores continuam operacionais;
-4. Requisitos da feature atendidos;
-5. Testes manuais passam;
-6. Nenhuma feature de fase posterior foi implementada acidentalmente.
+Non-negotiable principles: **incrementality** (one feature at a time), **preservation** (nothing may break), **simplicity** (readable, commented code), **compatibility** (no framework, npm, build or backend while in MVP) and **no phase mixing** (each layer is a dedicated commit).
 
 ---
 
-## Licença
+## Contributing
 
-Privado / uso interno. Este repositório é um protótipo educacional em evolução — consulte os responsáveis antes de distribuir.
+1. Work **one layer at a time**, following the workflow above;
+2. Never ask for "implement all phases" — ask for something like *"implement only C1. Do not touch features from C2 or later"*;
+3. Run, test, review, verify the acceptance criteria, fix and commit (checkpoint with a descriptive message);
+4. At the end of every milestone: app opens, console is clean, previous features still work, manual tests pass.
+
+**Global acceptance criteria** (every milestone):
+
+1. The app opens normally;
+2. No console errors;
+3. Previous features remain operational;
+4. Feature requirements are met;
+5. Manual tests pass;
+6. No later-phase feature was implemented by accident.
+
+---
+
+## License
+
+Private / internal use. This repository is an educational prototype in evolution — contact the owners before distributing.
