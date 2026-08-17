@@ -885,6 +885,8 @@ function handleReviewAction(itemId, requestedStatus) {
   renderItemState(itemId);
 
   updateProgress();
+
+  saveStateToStorage();
 }
 
 // ============================================================
