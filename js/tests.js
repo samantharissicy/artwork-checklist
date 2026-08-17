@@ -1,4 +1,4 @@
-// Artwork & Pack Copy Checklist — Layer B + C1 + C2 Test Suite
+// Artwork & Pack Copy Checklist — Layer B + C1 + C2 + C3 Test Suite
 // ============================================================
 //
 // Usage:
@@ -102,6 +102,8 @@
 
       openCommentItemIds: [...openCommentItemIds],
 
+      editingTitleItemId,
+
       items,
     };
   }
@@ -150,6 +152,10 @@
     item.status = REVIEW_STATUSES.PENDING;
     item.comment = "";
     item.pin = null;
+
+    if (editingTitleItemId === "1a") {
+      editingTitleItemId = null;
+    }
 
     openCommentItemIds.delete("1a");
     renderAppState();
@@ -553,6 +559,240 @@
     renderAppState();
 
     assertEqual(getItemById("1a").comment, "Keep this review note.");
+  });
+
+  // ============================================================
+  // C3 — Product Title Editing
+  // ============================================================
+
+  function getEditTitleButton(itemId) {
+    return (
+      getItemElement(itemId)?.querySelector('[data-action="edit-title"]') ||
+      null
+    );
+  }
+
+  function getTitleEditInput(itemId) {
+    return (
+      getItemElement(itemId)?.querySelector('[data-role="title-edit-input"]') ||
+      null
+    );
+  }
+
+  function getEditedBadge(itemId) {
+    return (
+      getItemElement(itemId)?.querySelector('[data-role="edited-badge"]') ||
+      null
+    );
+  }
+
+  function getRestoreTitleButton(itemId) {
+    return (
+      getItemElement(itemId)?.querySelector('[data-action="restore-title"]') ||
+      null
+    );
+  }
+
+  function getOriginalTitleElement(itemId) {
+    return (
+      getItemElement(itemId)?.querySelector('[data-role="original-title"]') ||
+      null
+    );
+  }
+
+  // ============================================================
+  // C3 — INLINE COPY CORRECTIONS
+  // ============================================================
+
+  test("every rendered item has an Edit control", () => {
+    document.querySelectorAll(".check-item").forEach((item) => {
+      assertExists(item.querySelector('[data-action="edit-title"]'));
+    });
+  });
+
+  test("clicking Edit opens a prefilled title input", () => {
+    resetItem1A();
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    assertEqual(input.hidden, false);
+
+    assertEqual(input.value, getItemById("1a").currentTitle);
+  });
+
+  test("Enter commits an inline title edit", () => {
+    resetItem1A();
+
+    const original = getItemById("1a").originalTitle;
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    input.value = "Tikka Masala Spices";
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+      }),
+    );
+
+    assertEqual(getItemById("1a").currentTitle, "Tikka Masala Spices");
+
+    assertEqual(getItemById("1a").originalTitle, original);
+  });
+
+  test("Escape cancels an inline title edit", () => {
+    resetItem1A();
+
+    const previousTitle = getItemById("1a").currentTitle;
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    input.value = "This must be cancelled";
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+      }),
+    );
+
+    assertEqual(getItemById("1a").currentTitle, previousTitle);
+  });
+
+  test("blur commits a valid inline edit", () => {
+    resetItem1A();
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    assertExists(input);
+
+    input.value = "Updated Legal Name";
+
+    input.dispatchEvent(
+      new FocusEvent("blur", {
+        bubbles: false,
+      }),
+    );
+
+    assertEqual(getItemById("1a").currentTitle, "Updated Legal Name");
+  });
+
+  test("edited item displays Edited and original title", () => {
+    resetItem1A();
+
+    setItemCurrentTitle("1a", "Suggested Product Name");
+
+    renderItemState("1a");
+
+    assertEqual(getEditedBadge("1a").hidden, false);
+
+    assertEqual(
+      getOriginalTitleElement("1a").textContent.trim(),
+      getItemById("1a").originalTitle,
+    );
+  });
+
+  test("Restore original restores currentTitle", () => {
+    resetItem1A();
+
+    setItemCurrentTitle("1a", "Changed Product Name");
+
+    renderItemState("1a");
+
+    getRestoreTitleButton("1a").click();
+
+    assertEqual(
+      getItemById("1a").currentTitle,
+      getItemById("1a").originalTitle,
+    );
+
+    assertEqual(getEditedBadge("1a").hidden, true);
+  });
+
+  test("editing a pinned item updates pin tooltip", () => {
+    resetItem1A();
+
+    setItemPin("1a", {
+      x: 100,
+      y: 100,
+    });
+
+    renderAppState();
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    input.value = "Updated Pin Copy";
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+      }),
+    );
+
+    const tooltip = document.querySelector('.pin[data-pid="1a"] .pin-tooltip');
+
+    assertEqual(tooltip.textContent.trim(), "Updated Pin Copy");
+  });
+
+  test("copy edit preserves status comment and pin", () => {
+    resetItem1A();
+
+    setItemStatus("1a", REVIEW_STATUSES.REJECTED);
+
+    setItemComment("1a", "Keep this comment.");
+
+    setItemPin("1a", {
+      x: 123,
+      y: 456,
+    });
+
+    setItemCurrentTitle("1a", "Changed Copy");
+
+    renderAppState();
+
+    const item = getItemById("1a");
+
+    assertEqual(item.status, REVIEW_STATUSES.REJECTED);
+
+    assertEqual(item.comment, "Keep this comment.");
+
+    assertDeepEqual(item.pin, {
+      x: 123,
+      y: 456,
+    });
+  });
+
+  test("empty inline edit does not replace currentTitle", () => {
+    resetItem1A();
+
+    const previous = getItemById("1a").currentTitle;
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    input.value = "   ";
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+      }),
+    );
+
+    assertEqual(getItemById("1a").currentTitle, previous);
   });
 
   // ============================================================
@@ -1102,7 +1342,7 @@
     RESULTS.length = 0;
 
     console.group(
-      "%cArtwork Checklist — Layer B + C1 + C2 Test Suite",
+      "%cArtwork Checklist — Layer B + C1 + C2 + C3 Test Suite",
       "font-size: 14px; font-weight: bold;",
     );
 
@@ -1189,6 +1429,6 @@
   };
 
   console.info(
-    "Artwork Layer B + C1 + C2 tests loaded. Run: runArtworkTests()",
+    "Artwork Layer B + C1 + C2 + C3 tests loaded. Run: runArtworkTests()",
   );
 })();

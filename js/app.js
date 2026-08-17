@@ -488,7 +488,13 @@ function setItemCurrentTitle(itemId, newTitle) {
     return false;
   }
 
-  item.currentTitle = String(newTitle);
+  const normalizedTitle = String(newTitle).trim();
+
+  if (!normalizedTitle) {
+    return false;
+  }
+
+  item.currentTitle = normalizedTitle;
 
   touchActiveProduct();
 
@@ -647,9 +653,37 @@ function renderChecklist() {
               ${item.id.toUpperCase()}
             </span>
 
-            <span class="check-item-title">
-              ${item.currentTitle}
-            </span>
+            <div class="copy-title-area">
+
+              <div class="copy-title-row">
+
+                <span
+                  class="check-item-title"
+                  data-role="current-title"
+                >
+                  ${item.currentTitle}
+                </span>
+
+                <span
+                  class="edited-badge"
+                  data-role="edited-badge"
+                  hidden
+                >
+                  Edited
+                </span>
+
+              </div>
+
+            <input
+              type="text"
+              class="title-edit-input"
+              data-role="title-edit-input"
+              aria-label="Edit title for ${item.id.toUpperCase()}"
+              draggable="false"
+              hidden
+            >
+
+          </div>
 
             <span
               class="review-status"
@@ -659,6 +693,25 @@ function renderChecklist() {
               ${getReviewStatusLabel(item.status)}
             </span>
 
+          </div>
+
+          <div
+            class="copy-correction-meta"
+            data-role="copy-correction-meta"
+            hidden
+          >
+            <span>
+              Original:
+              <span data-role="original-title"></span>
+            </span>
+
+            <button
+              type="button"
+              class="restore-title-btn"
+              data-action="restore-title"
+            >
+              Restore original
+            </button>
           </div>
 
           ${item.note ? `<div class="check-item-note">${item.note}</div>` : ""}
@@ -748,7 +801,14 @@ function renderChecklist() {
           </button>
         </div>
 
-        <div class="check-item-hint">
+        <button
+          type="button"
+          class="check-item-hint edit-title-btn"
+          data-action="edit-title"
+          title="Edit copy"
+          aria-label="Edit ${item.id.toUpperCase()}"
+          aria-pressed="false"
+        >
 
           <svg
             width="14"
@@ -765,7 +825,7 @@ function renderChecklist() {
             />
           </svg>
 
-        </div>
+        </button>
       `;
 
       const approveButton = itemElement.querySelector(
@@ -780,6 +840,18 @@ function renderChecklist() {
 
       const commentTextarea = itemElement.querySelector(
         '[data-role="comment-input"]',
+      );
+
+      const editTitleButton = itemElement.querySelector(
+        '[data-action="edit-title"]',
+      );
+
+      const titleEditInput = itemElement.querySelector(
+        '[data-role="title-edit-input"]',
+      );
+
+      const restoreTitleButton = itemElement.querySelector(
+        '[data-action="restore-title"]',
       );
 
       // ============================================================
@@ -804,6 +876,52 @@ function renderChecklist() {
 
       commentTextarea.addEventListener("click", (event) => {
         event.stopPropagation();
+      });
+
+      editTitleButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        if (editingTitleItemId === item.id) {
+          commitTitleEdit(item.id);
+          return;
+        }
+
+        beginTitleEdit(item.id);
+      });
+
+      titleEditInput.addEventListener("keydown", (event) => {
+        event.stopPropagation();
+
+        if (event.key === "Enter") {
+          event.preventDefault();
+
+          commitTitleEdit(item.id);
+          return;
+        }
+
+        if (event.key === "Escape") {
+          event.preventDefault();
+
+          cancelTitleEdit(item.id);
+        }
+      });
+
+      titleEditInput.addEventListener("blur", () => {
+        if (editingTitleItemId !== item.id) {
+          return;
+        }
+
+        commitTitleEdit(item.id);
+      });
+
+      titleEditInput.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+
+      restoreTitleButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        restoreOriginalTitle(item.id);
       });
 
       // ============================================================
@@ -873,6 +991,8 @@ function renderChecklist() {
 //
 
 const openCommentItemIds = new Set();
+
+let editingTitleItemId = null;
 
 let currentZoom = 1;
 
@@ -997,6 +1117,117 @@ function renderCommentState(itemId) {
 }
 
 // ============================================================
+// INLINE COPY EDITING
+// ============================================================
+
+function isItemTitleEdited(item) {
+  return item.currentTitle !== item.originalTitle;
+}
+
+function beginTitleEdit(itemId) {
+  const item = getItemById(itemId);
+
+  if (!item) {
+    return;
+  }
+
+  editingTitleItemId = itemId;
+
+  renderItemState(itemId);
+
+  const itemElement = document.querySelector(
+    `.check-item[data-id="${itemId}"]`,
+  );
+
+  const input = itemElement?.querySelector('[data-role="title-edit-input"]');
+
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+function commitTitleEdit(itemId) {
+  const item = getItemById(itemId);
+
+  if (!item) {
+    return false;
+  }
+
+  const itemElement = document.querySelector(
+    `.check-item[data-id="${itemId}"]`,
+  );
+
+  const input = itemElement?.querySelector('[data-role="title-edit-input"]');
+
+  if (!input) {
+    return false;
+  }
+
+  const proposedTitle = input.value.trim();
+
+  if (!proposedTitle) {
+    editingTitleItemId = null;
+
+    renderItemState(itemId);
+
+    showToast("Title cannot be empty. Edit cancelled.");
+
+    return false;
+  }
+
+  const updated = setItemCurrentTitle(itemId, proposedTitle);
+
+  if (!updated) {
+    return false;
+  }
+
+  editingTitleItemId = null;
+
+  renderItemState(itemId);
+
+  if (item.pin) {
+    renderPin(itemId);
+  }
+
+  return true;
+}
+
+function cancelTitleEdit(itemId) {
+  if (editingTitleItemId !== itemId) {
+    return;
+  }
+
+  editingTitleItemId = null;
+
+  renderItemState(itemId);
+}
+
+function restoreOriginalTitle(itemId) {
+  const item = getItemById(itemId);
+
+  if (!item) {
+    return false;
+  }
+
+  const restored = setItemCurrentTitle(itemId, item.originalTitle);
+
+  if (!restored) {
+    return false;
+  }
+
+  editingTitleItemId = null;
+
+  renderItemState(itemId);
+
+  if (item.pin) {
+    renderPin(itemId);
+  }
+
+  return true;
+}
+
+// ============================================================
 // ITEM STATE RENDERING
 // ============================================================
 
@@ -1017,6 +1248,30 @@ function renderItemState(itemId) {
 
   const titleElement = itemElement.querySelector(".check-item-title");
 
+  const titleEditInput = itemElement.querySelector(
+    '[data-role="title-edit-input"]',
+  );
+
+  const editedBadge = itemElement.querySelector('[data-role="edited-badge"]');
+
+  const correctionMeta = itemElement.querySelector(
+    '[data-role="copy-correction-meta"]',
+  );
+
+  const originalTitleElement = itemElement.querySelector(
+    '[data-role="original-title"]',
+  );
+
+  const editTitleButton = itemElement.querySelector(
+    '[data-action="edit-title"]',
+  );
+
+  const isEditing = editingTitleItemId === itemId;
+
+  const isEdited = isItemTitleEdited(item);
+
+  itemElement.dataset.edited = String(isEdited);
+
   const statusLabel = itemElement.querySelector('[data-role="status-label"]');
 
   const approveButton = itemElement.querySelector('[data-action="approve"]');
@@ -1031,6 +1286,34 @@ function renderItemState(itemId) {
 
   if (titleElement) {
     titleElement.textContent = item.currentTitle;
+
+    titleElement.hidden = isEditing;
+  }
+
+  if (titleEditInput) {
+    titleEditInput.hidden = !isEditing;
+
+    if (!isEditing || document.activeElement !== titleEditInput) {
+      titleEditInput.value = item.currentTitle;
+    }
+  }
+
+  if (editedBadge) {
+    editedBadge.hidden = !isEdited;
+  }
+
+  if (correctionMeta) {
+    correctionMeta.hidden = !isEdited;
+  }
+
+  if (originalTitleElement) {
+    originalTitleElement.textContent = item.originalTitle;
+  }
+
+  if (editTitleButton) {
+    editTitleButton.classList.toggle("active", isEditing);
+
+    editTitleButton.setAttribute("aria-pressed", String(isEditing));
   }
 
   if (statusLabel) {
