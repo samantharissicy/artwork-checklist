@@ -231,7 +231,11 @@ artwork-checklist/
 │   └── style.css       # Visual styles (299 lines)
 ├── js/
 │   └── app.js          # All application logic in plain JavaScript (279 lines)
-└── README.md           # This document
+├── roadmap.md          # Layer-based development plan (A0 → N)
+├── baseline.pt-BR.md   # Baseline behavior record (pt-BR)
+├── baseline.en.md      # Baseline behavior record (EN)
+├── README.md           # This document (EN)
+└── README.pt-BR.md     # This document (pt-BR)
 ```
 
 The current state still uses the "single files" architecture: `index.html` + `app.js` + `style.css`, without module splitting. The progressive split into files (state, storage, checklist, artwork, pins, products…) is planned for the final layers of the roadmap.
