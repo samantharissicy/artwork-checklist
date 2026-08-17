@@ -506,6 +506,8 @@ function setItemComment(itemId, comment) {
 
   touchActiveProduct();
 
+  saveStateToStorage();
+
   return true;
 }
 
