@@ -1256,6 +1256,21 @@ function validateState(state) {
 
   return true;
 }
+function migrateState(state) {
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  if (state.schemaVersion === 1) {
+    return state;
+  }
+
+  console.warn(
+    `Unsupported schema version: ${state.schemaVersion}`,
+  );
+
+  return null;
+}
 // ============================================================
 // LEGACY EXPORT
 // ============================================================
