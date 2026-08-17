@@ -1279,6 +1279,42 @@ function migrateState(state) {
 
   return null;
 }
+function loadStateFromStorage() {
+  try {
+    const serializedState = localStorage.getItem("artworkChecklist:v1");
+
+    if (!serializedState) {
+      return false;
+    }
+
+    const parsedState = deserializeState(serializedState);
+
+    if (!parsedState) {
+      return false;
+    }
+
+    const migratedState = migrateState(parsedState);
+
+    if (!migratedState) {
+      return false;
+    }
+
+    if (!validateState(migratedState)) {
+      console.warn("Saved state failed validation.");
+      return false;
+    }
+
+    appState.schemaVersion = migratedState.schemaVersion;
+    appState.activeProductId = migratedState.activeProductId;
+    appState.products = migratedState.products;
+
+    return true;
+  } catch (error) {
+    console.error("Failed to load state from storage:", error);
+
+    return false;
+  }
+}
 function saveStateToStorage() {
   try {
     const serializedState = serializeState();
@@ -1421,6 +1457,8 @@ function renderAppState() {
 // ============================================================
 
 function initializeApp() {
+  loadStateFromStorage();
+
   renderChecklist();
 
   bindProductInputs();
