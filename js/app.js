@@ -1237,6 +1237,25 @@ function deserializeState(serializedState) {
     return null;
   }
 }
+function validateState(state) {
+  if (!state || typeof state !== "object") {
+    return false;
+  }
+
+  if (state.schemaVersion !== 1) {
+    return false;
+  }
+
+  if (!state.activeProductId) {
+    return false;
+  }
+
+  if (!state.products || typeof state.products !== "object") {
+    return false;
+  }
+
+  return true;
+}
 // ============================================================
 // LEGACY EXPORT
 // ============================================================
