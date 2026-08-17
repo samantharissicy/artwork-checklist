@@ -1,4 +1,4 @@
-// Artwork & Pack Copy Checklist — Layer B + C1 Test Suite
+// Artwork & Pack Copy Checklist — Layer B + C1 + C2 Test Suite
 // ============================================================
 //
 // Usage:
@@ -99,6 +99,9 @@
       weight: product.weight,
       sku: product.sku,
       updatedAt: product.updatedAt,
+
+      openCommentItemIds: [...openCommentItemIds],
+
       items,
     };
   }
@@ -125,6 +128,12 @@
       item.pin = clonePin(saved.pin);
     });
 
+    openCommentItemIds.clear();
+
+    snapshot.openCommentItemIds.forEach((itemId) => {
+      openCommentItemIds.add(itemId);
+    });
+
     renderAppState();
   }
 
@@ -142,6 +151,7 @@
     item.comment = "";
     item.pin = null;
 
+    openCommentItemIds.delete("1a");
     renderAppState();
   }
 
@@ -167,6 +177,46 @@
     }
 
     return element.querySelector('[data-role="status-label"]');
+  }
+
+  function getCommentButton(itemId) {
+    const element = getItemElement(itemId);
+
+    if (!element) {
+      return null;
+    }
+
+    return element.querySelector('[data-action="comment"]');
+  }
+
+  function getCommentPanel(itemId) {
+    const element = getItemElement(itemId);
+
+    if (!element) {
+      return null;
+    }
+
+    return element.querySelector('[data-role="comment-panel"]');
+  }
+
+  function getCommentTextarea(itemId) {
+    const element = getItemElement(itemId);
+
+    if (!element) {
+      return null;
+    }
+
+    return element.querySelector('[data-role="comment-input"]');
+  }
+
+  function getCommentError(itemId) {
+    const element = getItemElement(itemId);
+
+    if (!element) {
+      return null;
+    }
+
+    return element.querySelector('[data-role="comment-error"]');
   }
 
   // ============================================================
@@ -322,6 +372,188 @@
 
     return element.querySelector(".check-item-title");
   }
+
+  // ============================================================
+  // C2 — REVIEW COMMENTS
+  // ============================================================
+
+  test("every rendered item has a comment control", () => {
+    const items = document.querySelectorAll(".check-item");
+
+    assertEqual(items.length, 49);
+
+    items.forEach((item) => {
+      assertExists(item.querySelector('[data-action="comment"]'));
+
+      assertExists(item.querySelector('[data-role="comment-input"]'));
+    });
+  });
+
+  test("comment button opens the textarea", () => {
+    resetItem1A();
+
+    const button = getCommentButton("1a");
+
+    const panel = getCommentPanel("1a");
+
+    assertExists(button);
+    assertExists(panel);
+
+    assertEqual(panel.hidden, true);
+
+    button.click();
+
+    assertEqual(panel.hidden, false);
+  });
+
+  test("comment button collapses the textarea when clicked again", () => {
+    resetItem1A();
+
+    const button = getCommentButton("1a");
+
+    const panel = getCommentPanel("1a");
+
+    button.click();
+
+    assertEqual(panel.hidden, false);
+
+    button.click();
+
+    assertEqual(panel.hidden, true);
+  });
+
+  test("typing a comment updates appState", () => {
+    resetItem1A();
+
+    getCommentButton("1a").click();
+
+    const textarea = getCommentTextarea("1a");
+
+    textarea.value = "Incorrect legal product name.";
+
+    textarea.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
+
+    assertEqual(getItemById("1a").comment, "Incorrect legal product name.");
+  });
+
+  test("comment persists after collapsing and reopening", () => {
+    resetItem1A();
+
+    const button = getCommentButton("1a");
+
+    const textarea = getCommentTextarea("1a");
+
+    button.click();
+
+    textarea.value = "Review comment test.";
+
+    textarea.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
+
+    button.click();
+
+    assertEqual(getCommentPanel("1a").hidden, true);
+
+    button.click();
+
+    assertEqual(getCommentTextarea("1a").value, "Review comment test.");
+
+    assertEqual(getItemById("1a").comment, "Review comment test.");
+  });
+
+  test("rejecting an item automatically opens its comment editor", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "reject").click();
+
+    assertEqual(getCommentPanel("1a").hidden, false);
+  });
+
+  test("rejected item without comment is invalid in state and UI", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "reject").click();
+
+    const item = getItemById("1a");
+
+    const element = getItemElement("1a");
+
+    const error = getCommentError("1a");
+
+    const validation = validateItemState(item);
+
+    assertEqual(validation.valid, false);
+
+    assertEqual(element.dataset.valid, "false");
+
+    assertEqual(error.hidden, false);
+
+    assert(error.textContent.includes("Comment required"));
+  });
+
+  test("rejected item becomes valid after entering a comment", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "reject").click();
+
+    const textarea = getCommentTextarea("1a");
+
+    textarea.value = "Net quantity does not match the approved specification.";
+
+    textarea.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
+
+    const validation = validateItemState(getItemById("1a"));
+
+    assertEqual(validation.valid, true);
+
+    assertEqual(getItemElement("1a").dataset.valid, "true");
+
+    assertEqual(getCommentError("1a").hidden, true);
+  });
+
+  test("approved item does not require a comment", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "approve").click();
+
+    const item = getItemById("1a");
+
+    assertEqual(item.comment, "");
+
+    const validation = validateItemState(item);
+
+    assertEqual(validation.valid, true);
+  });
+
+  test("comment remains after changing other item properties", () => {
+    resetItem1A();
+
+    setItemComment("1a", "Keep this review note.");
+
+    setItemCurrentTitle("1a", "Updated Product Name");
+
+    setItemStatus("1a", REVIEW_STATUSES.APPROVED);
+
+    setItemPin("1a", {
+      x: 100,
+      y: 100,
+    });
+
+    renderAppState();
+
+    assertEqual(getItemById("1a").comment, "Keep this review note.");
+  });
 
   // ============================================================
   // 1. APP STATE / DOMAIN SHAPE
@@ -617,7 +849,6 @@
     assertEqual(input.value, "TEST BRAND");
   });
 
-
   // ============================================================
   // 7. PIN STATE -> UI
   // ============================================================
@@ -871,7 +1102,7 @@
     RESULTS.length = 0;
 
     console.group(
-      "%cArtwork Checklist — Layer B + C1 Test Suite",
+      "%cArtwork Checklist — Layer B + C1 + C2 Test Suite",
       "font-size: 14px; font-weight: bold;",
     );
 
@@ -957,5 +1188,7 @@
     return [...RESULTS];
   };
 
-  console.info("Artwork Layer B tests loaded. Run: runArtworkTests()");
+  console.info(
+    "Artwork Layer B + C1 + C2 tests loaded. Run: runArtworkTests()",
+  );
 })();

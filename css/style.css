@@ -319,6 +319,104 @@ body {
   color: white;
 }
 
+/* Comment action */
+
+.review-btn-comment:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.review-btn-comment.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.review-btn-comment.has-comment:not(.active) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.review-btn-comment.invalid {
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+
+/* Review comments */
+
+.comment-panel {
+  margin-top: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.comment-panel[hidden] {
+  display: none;
+}
+
+.comment-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: 66px;
+  resize: vertical;
+
+  padding: 7px 8px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+
+  background: white;
+  color: #1e293b;
+
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+
+  outline: none;
+}
+
+.comment-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.comment-textarea[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.comment-error {
+  margin-top: 5px;
+
+  color: #b91c1c;
+
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.comment-error[hidden] {
+  display: none;
+}
+
+.check-item[data-valid="false"],
+.check-item[data-valid="false"]:hover {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.08);
+}
+
 .progress-footer {
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;

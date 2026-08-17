@@ -663,9 +663,68 @@ function renderChecklist() {
 
           ${item.note ? `<div class="check-item-note">${item.note}</div>` : ""}
 
+          <div
+            class="comment-panel"
+            id="comment-panel-${item.id}"
+            data-role="comment-panel"
+            hidden
+          >
+            <label
+              class="comment-label"
+              for="comment-${item.id}"
+            >
+              Review comment
+            </label>
+
+            <textarea
+              id="comment-${item.id}"
+              class="comment-textarea"
+              data-role="comment-input"
+              rows="3"
+              placeholder="Add a review comment..."
+              aria-describedby="comment-error-${item.id}"
+              aria-invalid="false"
+              draggable="false"
+            ></textarea>
+          </div>
+
+          <div
+            class="comment-error"
+            id="comment-error-${item.id}"
+            data-role="comment-error"
+            role="alert"
+            hidden
+          ></div>
+
         </div>
 
         <div class="review-actions">
+          <button
+            type="button"
+            class="review-btn review-btn-comment"
+            data-action="comment"
+            title="Add comment"
+            aria-label="Add comment to ${item.id.toUpperCase()}"
+            aria-controls="comment-panel-${item.id}"
+            aria-expanded="false"
+          >
+            <svg
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"
+              />
+            </svg>
+          </button>
+
           <button
             type="button"
             class="review-btn review-btn-approve"
@@ -715,6 +774,42 @@ function renderChecklist() {
 
       const rejectButton = itemElement.querySelector('[data-action="reject"]');
 
+      const commentButton = itemElement.querySelector(
+        '[data-action="comment"]',
+      );
+
+      const commentTextarea = itemElement.querySelector(
+        '[data-role="comment-input"]',
+      );
+
+      // ============================================================
+      // COMMENT EVENTS
+      // ============================================================
+
+      commentButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        toggleCommentPanel(item.id);
+      });
+
+      commentTextarea.addEventListener("input", (event) => {
+        setItemComment(item.id, event.target.value);
+
+        renderCommentState(item.id);
+      });
+
+      commentTextarea.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+
+      commentTextarea.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      // ============================================================
+      // REVIEW ACTION EVENTS
+      // ============================================================
+
       approveButton.addEventListener("click", (event) => {
         event.stopPropagation();
 
@@ -727,7 +822,20 @@ function renderChecklist() {
         handleReviewAction(item.id, REVIEW_STATUSES.REJECTED);
       });
 
+      // ============================================================
+      // DRAG ITEM TO ARTWORK
+      // ============================================================
+
       itemElement.addEventListener("dragstart", (event) => {
+        /*
+         * Interactive controls inside the checklist item must not
+         * start an artwork drag operation.
+         */
+        if (event.target.closest("button, textarea, input, label")) {
+          event.preventDefault();
+          return;
+        }
+
         event.dataTransfer.setData("text/plain", item.id);
 
         event.dataTransfer.effectAllowed = "copy";
@@ -760,9 +868,11 @@ function renderChecklist() {
 // UI STATE
 // ============================================================
 //
-// Zoom is UI state.
-// It does not describe the reviewed product.
+// These values describe temporary interface state.
+// They are not part of the product/review domain.
 //
+
+const openCommentItemIds = new Set();
 
 let currentZoom = 1;
 
@@ -783,6 +893,106 @@ function zoom(delta) {
 
   if (zoomLevel) {
     zoomLevel.textContent = Math.round(currentZoom * 100) + "%";
+  }
+}
+
+// ============================================================
+// COMMENT UI
+// ============================================================
+
+function toggleCommentPanel(itemId) {
+  if (openCommentItemIds.has(itemId)) {
+    openCommentItemIds.delete(itemId);
+  } else {
+    openCommentItemIds.add(itemId);
+  }
+
+  renderCommentState(itemId);
+}
+
+function openCommentPanel(itemId, shouldFocus = false) {
+  openCommentItemIds.add(itemId);
+
+  renderCommentState(itemId);
+
+  if (shouldFocus) {
+    const itemElement = document.querySelector(
+      `.check-item[data-id="${itemId}"]`,
+    );
+
+    const textarea = itemElement?.querySelector('[data-role="comment-input"]');
+
+    if (textarea) {
+      textarea.focus();
+    }
+  }
+}
+
+function renderCommentState(itemId) {
+  const item = getItemById(itemId);
+
+  if (!item) {
+    return;
+  }
+
+  const itemElement = document.querySelector(
+    `.check-item[data-id="${itemId}"]`,
+  );
+
+  if (!itemElement) {
+    return;
+  }
+
+  const commentButton = itemElement.querySelector('[data-action="comment"]');
+
+  const commentPanel = itemElement.querySelector('[data-role="comment-panel"]');
+
+  const textarea = itemElement.querySelector('[data-role="comment-input"]');
+
+  const errorElement = itemElement.querySelector('[data-role="comment-error"]');
+
+  const isOpen = openCommentItemIds.has(itemId);
+
+  const hasComment = item.comment.trim().length > 0;
+
+  const validation = validateItemState(item);
+
+  const commentRequired = validation.errors.includes(
+    "Rejected items require a comment.",
+  );
+
+  itemElement.dataset.valid = String(validation.valid);
+
+  if (commentPanel) {
+    commentPanel.hidden = !isOpen;
+  }
+
+  if (textarea && textarea.value !== item.comment) {
+    textarea.value = item.comment;
+  }
+
+  if (textarea) {
+    textarea.setAttribute("aria-invalid", String(commentRequired));
+  }
+
+  if (commentButton) {
+    commentButton.classList.toggle("active", isOpen);
+
+    commentButton.classList.toggle("has-comment", hasComment);
+
+    commentButton.classList.toggle("invalid", commentRequired);
+
+    commentButton.setAttribute("aria-expanded", String(isOpen));
+
+    commentButton.title = hasComment ? "View or edit comment" : "Add comment";
+  }
+
+  if (errorElement) {
+    errorElement.hidden = !commentRequired;
+
+    errorElement.textContent = commentRequired
+      ? "Comment required: explain why this item was rejected."
+      : "";
   }
 }
 
@@ -840,20 +1050,8 @@ function renderItemState(itemId) {
 
     rejectButton.setAttribute("aria-pressed", String(isRejected));
   }
+  renderCommentState(itemId);
 }
-
-// ============================================================
-// CHECKBOX
-// ============================================================
-//
-// User interaction
-//      ↓
-// domain state
-//      ↓
-// render function
-//      ↓
-// DOM
-//
 
 // ============================================================
 // REVIEW STATUS ACTIONS
@@ -882,9 +1080,25 @@ function handleReviewAction(itemId, requestedStatus) {
     return;
   }
 
+  if (nextStatus === REVIEW_STATUSES.REJECTED) {
+    openCommentItemIds.add(itemId);
+  }
+
   renderItemState(itemId);
 
   updateProgress();
+
+  if (nextStatus === REVIEW_STATUSES.REJECTED) {
+    const itemElement = document.querySelector(
+      `.check-item[data-id="${itemId}"]`,
+    );
+
+    const textarea = itemElement?.querySelector('[data-role="comment-input"]');
+
+    if (textarea) {
+      textarea.focus();
+    }
+  }
 }
 
 // ============================================================
