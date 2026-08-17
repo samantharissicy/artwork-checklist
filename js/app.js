@@ -1224,6 +1224,20 @@ function serializeState() {
   return JSON.stringify(appState);
 }
 // ============================================================
+// LAYER D — PERSISTENCE
+// D1 — DESERIALIZATION
+// ============================================================
+
+function deserializeState(serializedState) {
+  try {
+    return JSON.parse(serializedState);
+  } catch (error) {
+    console.error("Failed to deserialize state:", error);
+
+    return null;
+  }
+}
+// ============================================================
 // LEGACY EXPORT
 // ============================================================
 //
