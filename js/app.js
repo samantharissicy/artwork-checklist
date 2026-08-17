@@ -1277,6 +1277,19 @@ function migrateState(state) {
 
   return null;
 }
+function saveStateToStorage() {
+  try {
+    const serializedState = serializeState();
+
+    localStorage.setItem(STORAGE_KEY, serializedState);
+
+    return true;
+  } catch (error) {
+    console.error("Failed to save state to localStorage:", error);
+
+    return false;
+  }
+}
 // ============================================================
 // LEGACY EXPORT
 // ============================================================
