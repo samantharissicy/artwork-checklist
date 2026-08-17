@@ -871,7 +871,7 @@
     RESULTS.length = 0;
 
     console.group(
-      "%cArtwork Checklist — Layer B Test Suite",
+      "%cArtwork Checklist — Layer B + C1 Test Suite",
       "font-size: 14px; font-weight: bold;",
     );
 
