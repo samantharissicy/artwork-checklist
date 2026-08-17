@@ -1320,6 +1320,8 @@ function saveStateToStorage() {
     const serializedState = serializeState();
 
     localStorage.setItem(STORAGE_KEY, serializedState);
+   
+    showToast("Saved locally");
 
     return true;
   } catch (error) {
