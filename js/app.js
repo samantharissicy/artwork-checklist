@@ -981,6 +981,8 @@ function bindProductInputs() {
       product.brand = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 
@@ -992,9 +994,11 @@ function bindProductInputs() {
         return;
       }
 
-      product.productName = event.target.value;
+    product.productName = event.target.value;
 
-      touchActiveProduct();
+touchActiveProduct();
+
+saveStateToStorage();
     });
   }
 
@@ -1009,6 +1013,8 @@ function bindProductInputs() {
       product.weight = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 
@@ -1023,6 +1029,8 @@ function bindProductInputs() {
       product.sku = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 }
