@@ -241,10 +241,18 @@ body {
 .back-meta { font-size: 8px; color: #9ca3af; text-align: right; line-height: 1.6; }
 
 /* Pins */
-.pins-layer { position: absolute; inset: 0; pointer-events: none; }
+.pins-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  z-index: 10;
+}
 .pin {
-  position: absolute; pointer-events: auto; cursor: pointer;
-  transform: translate(-50%, -100%); z-index: 10;
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translate(-50%, -100%);
+  z-index: 20;
 }
 .pin-marker {
   width: 26px; height: 26px; background: #2563eb;
