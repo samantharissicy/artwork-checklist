@@ -2,18 +2,10 @@
 // ============================================================
 //
 // Usage:
-// 1. Save this file as: js/tests.js
-// 2. Load it AFTER js/app.js in index.html:
-//      <script src="js/app.js"></script>
-//      <script src="js/tests.js"></script>
-// 3. Open the app, press F12 -> Console
-// 4. Run:
+// 1. Open the app, press F12 -> Console
+// 2. Run:
 //      runArtworkTests()
 //
-// The suite snapshots the current product state before testing and restores
-// it at the end, so it should not leave test data in the application.
-//
-// No external libraries are required.
 // ============================================================
 
 (function () {
