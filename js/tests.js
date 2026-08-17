@@ -1,4 +1,4 @@
-// Artwork & Pack Copy Checklist — Layer B Test Suite
+// Artwork & Pack Copy Checklist — Layer B + C1 Test Suite
 // ============================================================
 //
 // Usage:
@@ -27,7 +27,7 @@
     if (actual !== expected) {
       throw new Error(
         message ||
-          `Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+          `Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`,
       );
     }
   }
@@ -35,8 +35,7 @@
   function assertNotEqual(actual, expected, message = "") {
     if (actual === expected) {
       throw new Error(
-        message ||
-          `Expected value to differ from ${JSON.stringify(expected)}`
+        message || `Expected value to differ from ${JSON.stringify(expected)}`,
       );
     }
   }
@@ -47,8 +46,7 @@
 
     if (actualJson !== expectedJson) {
       throw new Error(
-        message ||
-          `Expected ${expectedJson}, received ${actualJson}`
+        message || `Expected ${expectedJson}, received ${actualJson}`,
       );
     }
   }
@@ -148,18 +146,174 @@
   }
 
   function getItemElement(itemId) {
-    return document.querySelector(
-      `.check-item[data-id="${itemId}"]`
-    );
+    return document.querySelector(`.check-item[data-id="${itemId}"]`);
   }
 
-  function getItemCheckbox(itemId) {
+  function getReviewButton(itemId, action) {
     const element = getItemElement(itemId);
 
-    if (!element) return null;
+    if (!element) {
+      return null;
+    }
 
-    return element.querySelector('input[type="checkbox"]');
+    return element.querySelector(`[data-action="${action}"]`);
   }
+
+  function getStatusLabel(itemId) {
+    const element = getItemElement(itemId);
+
+    if (!element) {
+      return null;
+    }
+
+    return element.querySelector('[data-role="status-label"]');
+  }
+
+  // ============================================================
+  // C1 — TRI-STATE REVIEW WORKFLOW
+  // ============================================================
+
+  test("all items start as pending", () => {
+    const freshItems = createInitialItems();
+
+    const allPending = Object.values(freshItems).every(
+      (item) => item.status === REVIEW_STATUSES.PENDING,
+    );
+
+    assert(allPending);
+  });
+
+  test("every rendered item has Approve and Reject controls", () => {
+    const items = document.querySelectorAll(".check-item");
+
+    assertEqual(items.length, 49);
+
+    items.forEach((item) => {
+      assertExists(item.querySelector('[data-action="approve"]'));
+
+      assertExists(item.querySelector('[data-action="reject"]'));
+    });
+  });
+
+  test("Pending -> Approved through Approve button", () => {
+    resetItem1A();
+
+    const approveButton = getReviewButton("1a", "approve");
+
+    assertExists(approveButton);
+
+    approveButton.click();
+
+    assertEqual(getItemById("1a").status, REVIEW_STATUSES.APPROVED);
+  });
+
+  test("Approved -> Rejected through Reject button", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "approve").click();
+
+    getReviewButton("1a", "reject").click();
+
+    assertEqual(getItemById("1a").status, REVIEW_STATUSES.REJECTED);
+  });
+
+  test("Rejected -> Approved through Approve button", () => {
+    resetItem1A();
+
+    getReviewButton("1a", "reject").click();
+
+    getReviewButton("1a", "approve").click();
+
+    assertEqual(getItemById("1a").status, REVIEW_STATUSES.APPROVED);
+  });
+
+  test("Approved -> Pending by clicking Approve again", () => {
+    resetItem1A();
+
+    const approveButton = getReviewButton("1a", "approve");
+
+    approveButton.click();
+
+    approveButton.click();
+
+    assertEqual(getItemById("1a").status, REVIEW_STATUSES.PENDING);
+  });
+
+  test("Rejected -> Pending by clicking Reject again", () => {
+    resetItem1A();
+
+    const rejectButton = getReviewButton("1a", "reject");
+
+    rejectButton.click();
+
+    rejectButton.click();
+
+    assertEqual(getItemById("1a").status, REVIEW_STATUSES.PENDING);
+  });
+
+  test("Approved state is reflected in the UI", () => {
+    resetItem1A();
+
+    setItemStatus("1a", REVIEW_STATUSES.APPROVED);
+
+    renderItemState("1a");
+
+    const item = getItemElement("1a");
+
+    const approveButton = getReviewButton("1a", "approve");
+
+    const label = getStatusLabel("1a");
+
+    assertEqual(item.dataset.status, REVIEW_STATUSES.APPROVED);
+
+    assert(approveButton.classList.contains("active"));
+
+    assertEqual(approveButton.getAttribute("aria-pressed"), "true");
+
+    assertEqual(label.textContent.trim(), "Approved");
+  });
+
+  test("Rejected state is reflected in the UI", () => {
+    resetItem1A();
+
+    setItemStatus("1a", REVIEW_STATUSES.REJECTED);
+
+    renderItemState("1a");
+
+    const item = getItemElement("1a");
+
+    const rejectButton = getReviewButton("1a", "reject");
+
+    const label = getStatusLabel("1a");
+
+    assertEqual(item.dataset.status, REVIEW_STATUSES.REJECTED);
+
+    assert(rejectButton.classList.contains("active"));
+
+    assertEqual(rejectButton.getAttribute("aria-pressed"), "true");
+
+    assertEqual(label.textContent.trim(), "Rejected");
+  });
+
+  test("progress counts both approved and rejected as reviewed", () => {
+    const product = getActiveProduct();
+
+    Object.values(product.items).forEach((item) => {
+      item.status = REVIEW_STATUSES.PENDING;
+    });
+
+    product.items["1a"].status = REVIEW_STATUSES.APPROVED;
+
+    product.items["1b"].status = REVIEW_STATUSES.APPROVED;
+
+    product.items["1c"].status = REVIEW_STATUSES.REJECTED;
+
+    updateProgress();
+
+    const progressText = document.getElementById("progress-text");
+
+    assertEqual(progressText.textContent.trim(), "3 / 49 reviewed");
+  });
 
   function getItemTitleElement(itemId) {
     const element = getItemElement(itemId);
@@ -181,12 +335,12 @@
   test("activeProductId points to an existing product", () => {
     assert(
       typeof appState.activeProductId === "string",
-      "activeProductId must be a string."
+      "activeProductId must be a string.",
     );
 
     assertExists(
       appState.products[appState.activeProductId],
-      "activeProductId must reference an existing product."
+      "activeProductId must reference an existing product.",
     );
   });
 
@@ -210,7 +364,7 @@
     ].forEach((field) => {
       assert(
         Object.prototype.hasOwnProperty.call(product, field),
-        `Product must contain "${field}".`
+        `Product must contain "${field}".`,
       );
     });
   });
@@ -221,7 +375,7 @@
     assertEqual(
       Object.keys(product.items).length,
       49,
-      "Expected exactly 49 checklist items."
+      "Expected exactly 49 checklist items.",
     );
   });
 
@@ -229,7 +383,7 @@
     assertEqual(
       sectionDefinitions.length,
       6,
-      "Expected exactly 6 section definitions."
+      "Expected exactly 6 section definitions.",
     );
   });
 
@@ -250,7 +404,7 @@
     ].forEach((field) => {
       assert(
         Object.prototype.hasOwnProperty.call(item, field),
-        `Item 1A must contain "${field}".`
+        `Item 1A must contain "${field}".`,
       );
     });
 
@@ -271,13 +425,13 @@
     Object.values(getActiveProduct().items).forEach((item) => {
       assert(
         validStatuses.has(item.status),
-        `${item.id} has invalid status "${item.status}".`
+        `${item.id} has invalid status "${item.status}".`,
       );
 
       assertEqual(
         typeof item.status,
         "string",
-        `${item.id} status must be a single string value.`
+        `${item.id} status must be a single string value.`,
       );
     });
   });
@@ -288,12 +442,12 @@
     assertEqual(Object.keys(freshItems).length, 49);
 
     const allPending = Object.values(freshItems).every(
-      (item) => item.status === REVIEW_STATUSES.PENDING
+      (item) => item.status === REVIEW_STATUSES.PENDING,
     );
 
     assert(
       allPending,
-      "Every newly created checklist item must start as pending."
+      "Every newly created checklist item must start as pending.",
     );
   });
 
@@ -310,12 +464,12 @@
 
     assert(
       !Object.prototype.hasOwnProperty.call(item, "approved"),
-      "Item should not have a separate approved boolean."
+      "Item should not have a separate approved boolean.",
     );
 
     assert(
       !Object.prototype.hasOwnProperty.call(item, "rejected"),
-      "Item should not have a separate rejected boolean."
+      "Item should not have a separate rejected boolean.",
     );
   });
 
@@ -345,10 +499,8 @@
     assertEqual(result.valid, false);
 
     assert(
-      result.errors.some((error) =>
-        error.toLowerCase().includes("comment")
-      ),
-      "Validation error should mention the required comment."
+      result.errors.some((error) => error.toLowerCase().includes("comment")),
+      "Validation error should mention the required comment.",
     );
   });
 
@@ -356,10 +508,7 @@
     resetItem1A();
 
     setItemStatus("1a", REVIEW_STATUSES.REJECTED);
-    setItemComment(
-      "1a",
-      "Legal product name needs correction."
-    );
+    setItemComment("1a", "Legal product name needs correction.");
 
     const result = validateItemState(getItemById("1a"));
 
@@ -376,17 +525,14 @@
 
     const original = item.originalTitle;
 
-    const descriptor = Object.getOwnPropertyDescriptor(
-      item,
-      "originalTitle"
-    );
+    const descriptor = Object.getOwnPropertyDescriptor(item, "originalTitle");
 
     assertExists(descriptor);
 
     assertEqual(
       descriptor.writable,
       false,
-      "originalTitle should be non-writable."
+      "originalTitle should be non-writable.",
     );
 
     let assignmentFailed = false;
@@ -410,19 +556,14 @@
 
     const original = getItemById("1a").originalTitle;
 
-    assert(
-      setItemCurrentTitle("1a", "Tikka Masala Spices")
-    );
+    assert(setItemCurrentTitle("1a", "Tikka Masala Spices"));
 
-    assertEqual(
-      getItemById("1a").currentTitle,
-      "Tikka Masala Spices"
-    );
+    assertEqual(getItemById("1a").currentTitle, "Tikka Masala Spices");
 
     assertEqual(
       getItemById("1a").originalTitle,
       original,
-      "Changing currentTitle must not change originalTitle."
+      "Changing currentTitle must not change originalTitle.",
     );
   });
 
@@ -433,10 +574,7 @@
   test("changing currentTitle in appState and rendering updates the DOM", () => {
     resetItem1A();
 
-    setItemCurrentTitle(
-      "1a",
-      "Tikka Masala Spices"
-    );
+    setItemCurrentTitle("1a", "Tikka Masala Spices");
 
     renderAppState();
 
@@ -444,99 +582,11 @@
 
     assertExists(title);
 
-    assertEqual(
-      title.textContent.trim(),
-      "Tikka Masala Spices"
-    );
-  });
-
-  test("changing status in appState and rendering updates checkbox/UI", () => {
-    resetItem1A();
-
-    setItemStatus(
-      "1a",
-      REVIEW_STATUSES.APPROVED
-    );
-
-    renderAppState();
-
-    const checkbox = getItemCheckbox("1a");
-    const itemElement = getItemElement("1a");
-
-    assertExists(checkbox);
-    assertExists(itemElement);
-
-    assertEqual(checkbox.checked, true);
-
-    assert(
-      itemElement.classList.contains("checked"),
-      "Approved item should have the checked CSS class."
-    );
-
-    assertEqual(
-      itemElement.dataset.status,
-      REVIEW_STATUSES.APPROVED
-    );
+    assertEqual(title.textContent.trim(), "Tikka Masala Spices");
   });
 
   // ============================================================
-  // 6. DOM IS NOT THE SOURCE OF TRUTH
-  // ============================================================
-
-  test("changing checkbox DOM alone does not change appState", () => {
-    resetItem1A();
-
-    const checkbox = getItemCheckbox("1a");
-
-    assertExists(checkbox);
-
-    assertEqual(
-      getItemById("1a").status,
-      REVIEW_STATUSES.PENDING
-    );
-
-    // Deliberately mutate only the DOM without calling toggleCheck().
-    checkbox.checked = true;
-
-    assertEqual(
-      getItemById("1a").status,
-      REVIEW_STATUSES.PENDING,
-      "Direct DOM mutation must not become the official state."
-    );
-
-    renderItemState("1a");
-
-    assertEqual(
-      checkbox.checked,
-      false,
-      "Re-render should restore DOM from appState."
-    );
-  });
-
-  test("checkbox interaction updates appState through toggleCheck", () => {
-    resetItem1A();
-
-    const checkbox = getItemCheckbox("1a");
-
-    checkbox.checked = true;
-    toggleCheck(checkbox);
-
-    assertEqual(
-      getItemById("1a").status,
-      REVIEW_STATUSES.APPROVED
-    );
-
-    checkbox.checked = false;
-    toggleCheck(checkbox);
-
-    assertEqual(
-      getItemById("1a").status,
-      REVIEW_STATUSES.PENDING
-    );
-  });
-
-  // ============================================================
-  // 7. PRODUCT INPUTS
+  // 6. PRODUCT INPUTS
   // ============================================================
 
   test("product input event updates appState", () => {
@@ -549,13 +599,10 @@
     input.dispatchEvent(
       new Event("input", {
         bubbles: true,
-      })
+      }),
     );
 
-    assertEqual(
-      getActiveProduct().brand,
-      "Paulig Test"
-    );
+    assertEqual(getActiveProduct().brand, "Paulig Test");
   });
 
   test("changing product state and rendering updates product input DOM", () => {
@@ -570,36 +617,9 @@
     assertEqual(input.value, "TEST BRAND");
   });
 
-  // ============================================================
-  // 8. PROGRESS FROM STATE
-  // ============================================================
-
-  test("progress is calculated from appState, not checkbox queries", () => {
-    const product = getActiveProduct();
-
-    Object.values(product.items).forEach((item) => {
-      item.status = REVIEW_STATUSES.PENDING;
-    });
-
-    product.items["1a"].status = REVIEW_STATUSES.APPROVED;
-    product.items["1b"].status = REVIEW_STATUSES.APPROVED;
-    product.items["1c"].status = REVIEW_STATUSES.APPROVED;
-
-    updateProgress();
-
-    const progressText =
-      document.getElementById("progress-text");
-
-    assertExists(progressText);
-
-    assertEqual(
-      progressText.textContent.trim(),
-      "3 / 49 checked"
-    );
-  });
 
   // ============================================================
-  // 9. PIN STATE -> UI
+  // 7. PIN STATE -> UI
   // ============================================================
 
   test("setItemPin stores pin coordinates in appState", () => {
@@ -610,13 +630,10 @@
       y: 100,
     });
 
-    assertDeepEqual(
-      getItemById("1a").pin,
-      {
-        x: 100,
-        y: 100,
-      }
-    );
+    assertDeepEqual(getItemById("1a").pin, {
+      x: 100,
+      y: 100,
+    });
   });
 
   test("renderAppState renders a pin stored in appState", () => {
@@ -629,23 +646,15 @@
 
     renderAppState();
 
-    const pin = document.querySelector(
-      '.pin[data-pid="1a"]'
-    );
+    const pin = document.querySelector('.pin[data-pid="1a"]');
 
-    assertExists(
-      pin,
-      "Pin 1A should be rendered from appState."
-    );
+    assertExists(pin, "Pin 1A should be rendered from appState.");
   });
 
   test("pin tooltip uses currentTitle from appState", () => {
     resetItem1A();
 
-    setItemCurrentTitle(
-      "1a",
-      "New Legal Product Name"
-    );
+    setItemCurrentTitle("1a", "New Legal Product Name");
 
     setItemPin("1a", {
       x: 100,
@@ -654,16 +663,11 @@
 
     renderAppState();
 
-    const tooltip = document.querySelector(
-      '.pin[data-pid="1a"] .pin-tooltip'
-    );
+    const tooltip = document.querySelector('.pin[data-pid="1a"] .pin-tooltip');
 
     assertExists(tooltip);
 
-    assertEqual(
-      tooltip.textContent.trim(),
-      "New Legal Product Name"
-    );
+    assertEqual(tooltip.textContent.trim(), "New Legal Product Name");
   });
 
   test("clearPins clears both appState and rendered pins", () => {
@@ -678,113 +682,78 @@
 
     clearPins();
 
-    assertEqual(
-      getItemById("1a").pin,
-      null
-    );
+    assertEqual(getItemById("1a").pin, null);
 
-    const pin = document.querySelector(
-      '.pin[data-pid="1a"]'
-    );
+    const pin = document.querySelector('.pin[data-pid="1a"]');
 
-    assertEqual(
-      pin,
-      null,
-      "Pin element should disappear after clearPins()."
-    );
+    assertEqual(pin, null, "Pin element should disappear after clearPins().");
   });
 
   // ============================================================
-  // 10. MANUAL DRAG/DROP SUPPORT
+  // 8. MANUAL DRAG/DROP SUPPORT
   // ============================================================
 
   test("pins layer can receive pointer/drag events", () => {
-    const layer =
-      document.getElementById("pins-layer");
+    const layer = document.getElementById("pins-layer");
 
     assertExists(layer);
 
-    const computed =
-      window.getComputedStyle(layer);
+    const computed = window.getComputedStyle(layer);
 
     assertNotEqual(
       computed.pointerEvents,
       "none",
-      'The CSS for .pins-layer must not use "pointer-events: none".'
+      'The CSS for .pins-layer must not use "pointer-events: none".',
     );
   });
 
   test("drop event path writes pin coordinates to appState", () => {
     resetItem1A();
 
-    const layer =
-      document.getElementById("pins-layer");
+    const layer = document.getElementById("pins-layer");
 
-    const wrapper =
-      document.getElementById("artwork-wrapper");
+    const wrapper = document.getElementById("artwork-wrapper");
 
     assertExists(layer);
     assertExists(wrapper);
 
-    const rect =
-      wrapper.getBoundingClientRect();
+    const rect = wrapper.getBoundingClientRect();
 
-    const fakeDrop =
-      new Event("drop", {
-        bubbles: true,
-        cancelable: true,
-      });
+    const fakeDrop = new Event("drop", {
+      bubbles: true,
+      cancelable: true,
+    });
 
-    Object.defineProperty(
-      fakeDrop,
-      "dataTransfer",
-      {
-        value: {
-          getData(type) {
-            return type === "text/plain"
-              ? "1a"
-              : "";
-          },
+    Object.defineProperty(fakeDrop, "dataTransfer", {
+      value: {
+        getData(type) {
+          return type === "text/plain" ? "1a" : "";
         },
-      }
-    );
+      },
+    });
 
-    Object.defineProperty(
-      fakeDrop,
-      "clientX",
-      {
-        value: rect.left + 100,
-      }
-    );
+    Object.defineProperty(fakeDrop, "clientX", {
+      value: rect.left + 100,
+    });
 
-    Object.defineProperty(
-      fakeDrop,
-      "clientY",
-      {
-        value: rect.top + 100,
-      }
-    );
+    Object.defineProperty(fakeDrop, "clientY", {
+      value: rect.top + 100,
+    });
 
     layer.dispatchEvent(fakeDrop);
 
     assertExists(
       getItemById("1a").pin,
-      "Drop handler should store a pin in appState."
+      "Drop handler should store a pin in appState.",
     );
 
-    const renderedPin =
-      document.querySelector(
-        '.pin[data-pid="1a"]'
-      );
+    const renderedPin = document.querySelector('.pin[data-pid="1a"]');
 
-    assertExists(
-      renderedPin,
-      "Drop handler should render the pin."
-    );
+    assertExists(renderedPin, "Drop handler should render the pin.");
   });
 
   // ============================================================
-  // 11. LEGACY SAVE EXPORT
+  // 9. LEGACY SAVE EXPORT
   // ============================================================
 
   test("legacy export reads product data from appState", () => {
@@ -797,55 +766,29 @@
 
     const data = buildLegacyCheckData();
 
-    assertEqual(
-      data.product.brand,
-      "Unit Test Brand"
-    );
+    assertEqual(data.product.brand, "Unit Test Brand");
 
-    assertEqual(
-      data.product.name,
-      "Unit Test Product"
-    );
+    assertEqual(data.product.name, "Unit Test Product");
 
-    assertEqual(
-      data.product.weight,
-      "250g"
-    );
+    assertEqual(data.product.weight, "250g");
 
-    assertEqual(
-      data.product.sku,
-      "UT-001"
-    );
+    assertEqual(data.product.sku, "UT-001");
   });
 
   test("legacy export reads checks from appState", () => {
     resetItem1A();
 
-    setItemStatus(
-      "1a",
-      REVIEW_STATUSES.APPROVED
-    );
+    setItemStatus("1a", REVIEW_STATUSES.APPROVED);
 
-    const data =
-      buildLegacyCheckData();
+    const data = buildLegacyCheckData();
 
-    assertEqual(
-      data.checks["1a"],
-      true
-    );
+    assertEqual(data.checks["1a"], true);
 
-    setItemStatus(
-      "1a",
-      REVIEW_STATUSES.PENDING
-    );
+    setItemStatus("1a", REVIEW_STATUSES.PENDING);
 
-    const data2 =
-      buildLegacyCheckData();
+    const data2 = buildLegacyCheckData();
 
-    assertEqual(
-      data2.checks["1a"],
-      false
-    );
+    assertEqual(data2.checks["1a"], false);
   });
 
   test("legacy export reads pins from appState", () => {
@@ -856,92 +799,67 @@
       y: 222,
     });
 
-    const data =
-      buildLegacyCheckData();
+    const data = buildLegacyCheckData();
 
-    assertDeepEqual(
-      data.pins["1a"],
-      {
-        x: 111,
-        y: 222,
-      }
-    );
+    assertDeepEqual(data.pins["1a"], {
+      x: 111,
+      y: 222,
+    });
   });
 
   // ============================================================
-  // 12. DUPLICATED itemTitles REMOVED
+  // 10. DUPLICATED itemTitles REMOVED
   // ============================================================
 
   test("legacy itemTitles object is no longer used", () => {
     assertEqual(
       typeof itemTitles,
       "undefined",
-      "itemTitles should be removed; titles should come from appState."
+      "itemTitles should be removed; titles should come from appState.",
     );
   });
 
   // ============================================================
-  // 13. BASELINE DOM REGRESSION SMOKE TESTS
+  // 11. BASELINE DOM REGRESSION SMOKE TESTS
   // ============================================================
 
   test("49 checklist elements are rendered", () => {
-    assertEqual(
-      document.querySelectorAll(
-        ".check-item"
-      ).length,
-      49
-    );
+    assertEqual(document.querySelectorAll(".check-item").length, 49);
   });
 
   test("6 section buttons are rendered", () => {
-    assertEqual(
-      document.querySelectorAll(
-        ".section-btn"
-      ).length,
-      6
-    );
+    assertEqual(document.querySelectorAll(".section-btn").length, 6);
   });
 
   test("zoom controls still operate the artwork wrapper", () => {
-    const wrapper =
-      document.getElementById(
-        "artwork-wrapper"
-      );
+    const wrapper = document.getElementById("artwork-wrapper");
 
     assertExists(wrapper);
 
-    const previousZoom =
-      currentZoom;
+    const previousZoom = currentZoom;
 
     zoom(0.1);
 
     assertNotEqual(
       currentZoom,
       previousZoom,
-      "zoom() should change currentZoom."
+      "zoom() should change currentZoom.",
     );
 
     assert(
-      wrapper.style.transform.includes(
-        "scale("
-      ),
-      "zoom() should update artwork wrapper transform."
+      wrapper.style.transform.includes("scale("),
+      "zoom() should update artwork wrapper transform.",
     );
 
     // Restore the original zoom level.
     currentZoom = previousZoom;
 
-    wrapper.style.transform =
-      `scale(${currentZoom})`;
+    wrapper.style.transform = `scale(${currentZoom})`;
 
-    const zoomLevel =
-      document.getElementById(
-        "zoom-level"
-      );
+    const zoomLevel = document.getElementById("zoom-level");
 
     if (zoomLevel) {
-      zoomLevel.textContent =
-        Math.round(currentZoom * 100) + "%";
+      zoomLevel.textContent = Math.round(currentZoom * 100) + "%";
     }
   });
 
@@ -954,7 +872,7 @@
 
     console.group(
       "%cArtwork Checklist — Layer B Test Suite",
-      "font-size: 14px; font-weight: bold;"
+      "font-size: 14px; font-weight: bold;",
     );
 
     let snapshot;
@@ -962,10 +880,7 @@
     try {
       snapshot = createSnapshot();
     } catch (error) {
-      console.error(
-        "Unable to start test suite:",
-        error
-      );
+      console.error("Unable to start test suite:", error);
 
       console.groupEnd();
 
@@ -976,10 +891,7 @@
       try {
         const result = fn();
 
-        if (
-          result &&
-          typeof result.then === "function"
-        ) {
+        if (result && typeof result.then === "function") {
           await result;
         }
 
@@ -992,7 +904,7 @@
         console.log(
           `%cPASS%c ${name}`,
           "color: #059669; font-weight: bold;",
-          ""
+          "",
         );
       } catch (error) {
         RESULTS.push({
@@ -1001,10 +913,7 @@
           error,
         });
 
-        console.error(
-          `FAIL ${name}`,
-          error
-        );
+        console.error(`FAIL ${name}`, error);
       }
     }
 
@@ -1012,42 +921,25 @@
     try {
       restoreSnapshot(snapshot);
     } catch (error) {
-      console.error(
-        "Failed to restore the original application state:",
-        error
-      );
+      console.error("Failed to restore the original application state:", error);
     }
 
-    const passed =
-      RESULTS.filter(
-        (result) => result.passed
-      ).length;
+    const passed = RESULTS.filter((result) => result.passed).length;
 
-    const failed =
-      RESULTS.length - passed;
+    const failed = RESULTS.length - passed;
 
     console.log("");
     console.log(
       `%c${passed}/${RESULTS.length} tests passed`,
-      `font-weight: bold; color: ${
-        failed === 0
-          ? "#059669"
-          : "#dc2626"
-      };`
+      `font-weight: bold; color: ${failed === 0 ? "#059669" : "#dc2626"};`,
     );
 
     if (failed > 0) {
       console.log("");
-      console.log(
-        "Failed tests:"
-      );
+      console.log("Failed tests:");
 
-      RESULTS.filter(
-        (result) => !result.passed
-      ).forEach((result) => {
-        console.log(
-          `- ${result.name}: ${result.error.message}`
-        );
+      RESULTS.filter((result) => !result.passed).forEach((result) => {
+        console.log(`- ${result.name}: ${result.error.message}`);
       });
     }
 
@@ -1061,12 +953,9 @@
     };
   };
 
-  window.getArtworkTestResults =
-    function getArtworkTestResults() {
-      return [...RESULTS];
-    };
+  window.getArtworkTestResults = function getArtworkTestResults() {
+    return [...RESULTS];
+  };
 
-  console.info(
-    'Artwork Layer B tests loaded. Run: runArtworkTests()'
-  );
+  console.info("Artwork Layer B tests loaded. Run: runArtworkTests()");
 })();

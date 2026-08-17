@@ -13,6 +13,16 @@ const REVIEW_STATUSES = Object.freeze({
   REJECTED: "rejected",
 });
 
+const REVIEW_STATUS_LABELS = Object.freeze({
+  [REVIEW_STATUSES.PENDING]: "Pending",
+  [REVIEW_STATUSES.APPROVED]: "Approved",
+  [REVIEW_STATUSES.REJECTED]: "Rejected",
+});
+
+function getReviewStatusLabel(status) {
+  return REVIEW_STATUS_LABELS[status] || "Unknown";
+}
+
 const VALID_REVIEW_STATUSES = new Set(Object.values(REVIEW_STATUSES));
 
 // ============================================================
@@ -629,12 +639,6 @@ function renderChecklist() {
       itemElement.dataset.status = item.status;
 
       itemElement.innerHTML = `
-        <input
-          type="checkbox"
-          ${item.status === REVIEW_STATUSES.APPROVED ? "checked" : ""}
-          onchange="toggleCheck(this)"
-        >
-
         <div class="check-item-body">
 
           <div class="check-item-top">
@@ -647,10 +651,42 @@ function renderChecklist() {
               ${item.currentTitle}
             </span>
 
+            <span
+              class="review-status"
+              data-role="status-label"
+              data-status="${item.status}"
+            >
+              ${getReviewStatusLabel(item.status)}
+            </span>
+
           </div>
 
           ${item.note ? `<div class="check-item-note">${item.note}</div>` : ""}
 
+        </div>
+
+        <div class="review-actions">
+          <button
+            type="button"
+            class="review-btn review-btn-approve"
+            data-action="approve"
+            title="Approve"
+            aria-label="Approve ${item.id.toUpperCase()}"
+            aria-pressed="false"
+          >
+            ✓
+          </button>
+
+          <button
+            type="button"
+            class="review-btn review-btn-reject"
+            data-action="reject"
+            title="Reject"
+            aria-label="Reject ${item.id.toUpperCase()}"
+            aria-pressed="false"
+          >
+            ×
+          </button>
         </div>
 
         <div class="check-item-hint">
@@ -672,6 +708,24 @@ function renderChecklist() {
 
         </div>
       `;
+
+      const approveButton = itemElement.querySelector(
+        '[data-action="approve"]',
+      );
+
+      const rejectButton = itemElement.querySelector('[data-action="reject"]');
+
+      approveButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        handleReviewAction(item.id, REVIEW_STATUSES.APPROVED);
+      });
+
+      rejectButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        handleReviewAction(item.id, REVIEW_STATUSES.REJECTED);
+      });
 
       itemElement.addEventListener("dragstart", (event) => {
         event.dataTransfer.setData("text/plain", item.id);
@@ -751,23 +805,40 @@ function renderItemState(itemId) {
     return;
   }
 
-  const checkbox = itemElement.querySelector('input[type="checkbox"]');
-
   const titleElement = itemElement.querySelector(".check-item-title");
+
+  const statusLabel = itemElement.querySelector('[data-role="status-label"]');
+
+  const approveButton = itemElement.querySelector('[data-action="approve"]');
+
+  const rejectButton = itemElement.querySelector('[data-action="reject"]');
+
+  const isApproved = item.status === REVIEW_STATUSES.APPROVED;
+
+  const isRejected = item.status === REVIEW_STATUSES.REJECTED;
 
   itemElement.dataset.status = item.status;
 
-  if (checkbox) {
-    checkbox.checked = item.status === REVIEW_STATUSES.APPROVED;
-  }
-
-  itemElement.classList.toggle(
-    "checked",
-    item.status === REVIEW_STATUSES.APPROVED,
-  );
-
   if (titleElement) {
     titleElement.textContent = item.currentTitle;
+  }
+
+  if (statusLabel) {
+    statusLabel.textContent = getReviewStatusLabel(item.status);
+
+    statusLabel.dataset.status = item.status;
+  }
+
+  if (approveButton) {
+    approveButton.classList.toggle("active", isApproved);
+
+    approveButton.setAttribute("aria-pressed", String(isApproved));
+  }
+
+  if (rejectButton) {
+    rejectButton.classList.toggle("active", isRejected);
+
+    rejectButton.setAttribute("aria-pressed", String(isRejected));
   }
 }
 
@@ -784,20 +855,30 @@ function renderItemState(itemId) {
 // DOM
 //
 
-function toggleCheck(checkbox) {
-  const itemElement = checkbox.closest(".check-item");
+// ============================================================
+// REVIEW STATUS ACTIONS
+// ============================================================
+//
+// User action
+//      ↓
+// domain state
+//      ↓
+// render
+//      ↓
+// UI
+//
 
-  if (!itemElement) {
+function handleReviewAction(itemId, requestedStatus) {
+  const item = getItemById(itemId);
+
+  if (!item) {
     return;
   }
 
-  const itemId = itemElement.dataset.id;
+  const nextStatus =
+    item.status === requestedStatus ? REVIEW_STATUSES.PENDING : requestedStatus;
 
-  const newStatus = checkbox.checked
-    ? REVIEW_STATUSES.APPROVED
-    : REVIEW_STATUSES.PENDING;
-
-  if (!setItemStatus(itemId, newStatus)) {
+  if (!setItemStatus(itemId, nextStatus)) {
     return;
   }
 
@@ -823,22 +904,21 @@ function updateProgress() {
 
   const items = Object.values(product.items);
 
-  const approvedCount = items.filter(
-    (item) => item.status === REVIEW_STATUSES.APPROVED,
+  const reviewedCount = items.filter(
+    (item) => item.status !== REVIEW_STATUSES.PENDING,
   ).length;
 
   const progressText = document.getElementById("progress-text");
-
   const progressBar = document.getElementById("progress-bar");
 
   if (progressText) {
-    progressText.textContent = `${approvedCount} / ${items.length} checked`;
+    progressText.textContent = `${reviewedCount} / ${items.length} reviewed`;
   }
 
-  if (progressBar) {
-    const percentage =
-      items.length === 0 ? 0 : (approvedCount / items.length) * 100;
+  const percentage =
+    items.length === 0 ? 0 : (reviewedCount / items.length) * 100;
 
+  if (progressBar) {
     progressBar.style.width = percentage + "%";
   }
 }
