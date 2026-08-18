@@ -256,3 +256,14 @@
   text-align: right;
   line-height: 1.6;
 }
+.demo-front-content {
+  margin-top: 16px;
+}
+
+.demo-back-content {
+  margin-top: 14px;
+}
+
+.weight-unit-mark {
+  font-size: 13px;
+}

@@ -6,7 +6,6 @@
  * Displays completion progress for the active product review.
  */
 
- 
 .progress-footer {
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;
@@ -31,4 +30,7 @@
   height: 100%;
   border-radius: 999px;
   transition: width 0.3s ease;
+}
+.progress-fill {
+  width: 0;
 }
