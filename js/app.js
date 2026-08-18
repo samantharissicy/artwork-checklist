@@ -4932,8 +4932,7 @@ async function handleArtworkFileChange(event) {
       const confirmed = await showConfirmDialog({
         tone: "warning",
         title: "Replace artwork",
-        message:
-          "Replacing this artwork will invalidate existing pins. Do you want to continue?",
+        message: ARTWORK_REPLACEMENT_MESSAGE,
         confirmText: "Replace",
         cancelText: "Cancel",
       });
