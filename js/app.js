@@ -2154,6 +2154,22 @@ function updateProgress() {
 // MULTI-PRODUCT WORKSPACE — G1
 // ============================================================
 
+/**
+ * Creates a completely new product review and makes it the active product.
+ *
+ * The new product receives:
+ * - a permanent unique ID;
+ * - a fresh 49-item checklist;
+ * - empty product fields;
+ * - no artwork;
+ * - no comments, review decisions or pins.
+ *
+ * After creation the function resets transient review UI state, persists the
+ * complete workspace, refreshes the product tabs and active product interface,
+ * scrolls the new tab into view and displays user feedback.
+ *
+ * @returns {string} Permanent ID of the newly created product.
+ */
 function createNewProduct() {
   const productId = generateProductId();
 
@@ -2178,6 +2194,21 @@ function createNewProduct() {
   return productId;
 }
 
+/**
+ * Changes which product is currently active in the workspace.
+ *
+ * Switching products does not modify the product itself and therefore does
+ * not update its updatedAt timestamp.
+ *
+ * Temporary checklist UI state is cleared to prevent open comment panels or
+ * inline-edit sessions from one product appearing in another product.
+ *
+ * The selected product ID is persisted so that the same product remains active
+ * after the page is reloaded.
+ *
+ * @param {string} productId - Permanent ID of the product to activate.
+ * @returns {boolean} True when the product exists and is active after the call.
+ */
 function switchProduct(productId) {
   const product = getProductById(productId);
 
@@ -2206,6 +2237,26 @@ function switchProduct(productId) {
   return true;
 }
 
+/**
+ * Changes the Product Name of a specific product.
+ *
+ * The supplied name is converted to a string and trimmed. Empty names are
+ * rejected so that explicit rename operations cannot produce a blank label.
+ *
+ * A successful rename:
+ * - updates product.productName;
+ * - refreshes the product modification timestamp;
+ * - persists the workspace;
+ * - refreshes product tabs;
+ * - refreshes product inputs when the renamed product is currently active.
+ *
+ * This is the reusable product-level operation. User interaction for obtaining
+ * the new name is handled separately by renameActiveProduct().
+ *
+ * @param {string} productId - Permanent ID of the product to rename.
+ * @param {*} newName - Proposed new product name.
+ * @returns {boolean} True when the product was successfully renamed.
+ */
 function renameProduct(productId, newName) {
   const product = getProductById(productId);
 
@@ -2234,6 +2285,19 @@ function renameProduct(productId, newName) {
   return true;
 }
 
+/**
+ * Opens the rename dialog for the currently active product.
+ *
+ * This function belongs to the UI interaction layer. It requests the new
+ * product name through the custom application dialog and delegates the actual
+ * domain mutation to renameProduct().
+ *
+ * Cancelling the dialog leaves the product unchanged. An empty submitted name
+ * is rejected and produces user feedback.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ */
 async function renameActiveProduct() {
   const product = getActiveProduct();
 
@@ -2264,6 +2328,36 @@ async function renameActiveProduct() {
   showToast("Product renamed.");
 }
 
+/**
+ * Creates an independent duplicate of an existing product review.
+ *
+ * The duplicated product copies the source review data, including:
+ * - product fields;
+ * - review statuses;
+ * - comments;
+ * - current copy corrections;
+ * - artwork metadata;
+ * - normalized pins;
+ * - reviewer information.
+ *
+ * The duplicate receives:
+ * - a new permanent product ID;
+ * - a new creation timestamp;
+ * - a new modification timestamp;
+ * - a Product Name suffixed with "Copy".
+ *
+ * The serialized clone is passed through rehydrateProduct() so canonical item
+ * properties such as immutable originalTitle are reconstructed correctly.
+ *
+ * Artwork metadata is duplicated, but the runtime Object URL for the actual
+ * image file is intentionally not shared between products.
+ *
+ * The duplicate becomes the active product and the workspace is persisted
+ * and re-rendered.
+ *
+ * @param {string} productId - Permanent ID of the product to duplicate.
+ * @returns {string|null} New product ID, or null when the source does not exist.
+ */
 function duplicateProduct(productId) {
   const sourceProduct = getProductById(productId);
 
@@ -2316,6 +2410,14 @@ function duplicateProduct(productId) {
   return newProductId;
 }
 
+/**
+ * Duplicates the currently active product.
+ *
+ * This is a convenience UI wrapper around duplicateProduct(). The actual
+ * duplication rules remain centralized in the reusable product-level function.
+ *
+ * @returns {void}
+ */
 function duplicateActiveProduct() {
   const product = getActiveProduct();
 
@@ -2326,6 +2428,28 @@ function duplicateActiveProduct() {
   duplicateProduct(product.id);
 }
 
+/**
+ * Deletes a product and all review data associated with it.
+ *
+ * The workspace must always contain at least one product, so deletion is
+ * rejected when the supplied product is the last remaining product.
+ *
+ * Before deletion, the supplied confirmation callback is executed. Keeping
+ * confirmation injectable allows this domain operation to be tested without
+ * depending on the browser's native confirmation dialog.
+ *
+ * When deletion succeeds:
+ * - the product's session artwork Object URL is released;
+ * - the product is removed from appState;
+ * - another product becomes active when the deleted product was active;
+ * - transient review UI state is reset when necessary;
+ * - the workspace is persisted and re-rendered.
+ *
+ * @param {string} productId - Permanent ID of the product to delete.
+ * @param {Function} [confirmDelete=window.confirm] - Synchronous callback that
+ *   receives the confirmation message and returns true to allow deletion.
+ * @returns {boolean} True when the product was deleted.
+ */
 function deleteProduct(productId, confirmDelete = window.confirm) {
   const product = getProductById(productId);
 
@@ -2380,6 +2504,22 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
   return true;
 }
 
+/**
+ * Runs the interactive deletion flow for the currently active product.
+ *
+ * The function performs preliminary UI checks and displays the custom danger
+ * confirmation dialog. If the reviewer confirms the operation, deletion is
+ * delegated to deleteProduct().
+ *
+ * A confirmation callback that always returns true is supplied to
+ * deleteProduct() because the user has already confirmed through the custom
+ * asynchronous dialog.
+ *
+ * The last remaining product cannot enter the destructive deletion flow.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after deletion is completed or cancelled.
+ */
 async function deleteActiveProduct() {
   const product = getActiveProduct();
 
@@ -2416,6 +2556,22 @@ async function deleteActiveProduct() {
 // PRODUCT INPUTS
 // ============================================================
 
+/**
+ * Synchronizes the product-information form with the currently active product.
+ *
+ * The function copies the active product's persisted domain values into the
+ * Brand, Product Name, Weight and SKU inputs.
+ *
+ * It performs one-way rendering only:
+ *
+ *     appState → form inputs
+ *
+ * User edits in the opposite direction are handled by bindProductInputs().
+ *
+ * No domain state is modified or persisted by this function.
+ *
+ * @returns {void}
+ */
 function renderProductInputs() {
   const product = getActiveProduct();
 
@@ -2448,6 +2604,26 @@ function renderProductInputs() {
   }
 }
 
+/**
+ * Connects product-information form inputs to the active product domain state.
+ *
+ * Input listeners are registered for:
+ * - Brand;
+ * - Product Name;
+ * - Weight;
+ * - SKU.
+ *
+ * Each change updates the currently active product, refreshes its updatedAt
+ * timestamp and immediately persists the workspace.
+ *
+ * Product Name changes also re-render the product tabs because tab labels are
+ * derived from product.productName.
+ *
+ * This function should normally be called once during application
+ * initialization to avoid registering duplicate input listeners.
+ *
+ * @returns {void}
+ */
 function bindProductInputs() {
   const brandInput = document.getElementById("inp-brand");
 
@@ -2532,10 +2708,32 @@ const pinsLayer = document.getElementById("pins-layer");
 
 const artworkWrapper = document.getElementById("artwork-wrapper");
 
+/**
+ * Restricts a numeric ratio to the normalized coordinate range from 0 to 1.
+ *
+ * Values below zero become 0 and values above one become 1.
+ *
+ * This prevents artwork pin coordinates from being persisted outside the
+ * visible normalized artwork area.
+ *
+ * @param {number} value - Ratio to normalize.
+ * @returns {number} Value clamped between 0 and 1.
+ */
 function clampRatio(value) {
   return Math.min(1, Math.max(0, value));
 }
 
+/**
+ * Validates the canonical normalized artwork-pin structure.
+ *
+ * A valid pin must be a plain object containing finite xRatio and yRatio
+ * values, both within the inclusive range from 0 to 1.
+ *
+ * This is the current persisted pin format used by schema version 2.
+ *
+ * @param {*} pin - Value to validate.
+ * @returns {boolean} True when the value is a valid NormalizedPin.
+ */
 function isNormalizedPin(pin) {
   if (!isPlainObject(pin)) {
     return false;
@@ -2551,6 +2749,18 @@ function isNormalizedPin(pin) {
   );
 }
 
+/**
+ * Detects the pixel-based pin format used by legacy review data.
+ *
+ * Legacy pins contain finite numeric x and y coordinates instead of the
+ * normalized xRatio and yRatio fields used by the current schema.
+ *
+ * This helper exists only for backward-compatible migration and should not be
+ * used when creating new pin state.
+ *
+ * @param {*} pin - Value to inspect.
+ * @returns {boolean} True when the value matches the legacy pixel-pin shape.
+ */
 function isLegacyPixelPin(pin) {
   if (!isPlainObject(pin)) {
     return false;
@@ -2559,6 +2769,23 @@ function isLegacyPixelPin(pin) {
   return Number.isFinite(pin.x) && Number.isFinite(pin.y);
 }
 
+/**
+ * Converts browser pointer coordinates into normalized coordinates relative to
+ * the currently rendered artwork rectangle.
+ *
+ * The returned ratios are independent from absolute pixel size and therefore
+ * remain meaningful when the artwork is zoomed or rendered at another size.
+ *
+ * Coordinates outside the rectangle are clamped to the valid 0–1 range.
+ * Rectangles without positive width or height cannot produce valid geometry.
+ *
+ * @param {number} clientX - Horizontal browser viewport coordinate.
+ * @param {number} clientY - Vertical browser viewport coordinate.
+ * @param {DOMRect|Object} rectangle - Artwork bounding rectangle containing
+ *   left, top, width and height values.
+ * @returns {NormalizedPin|null} Normalized pin coordinates, or null when the
+ *   rectangle cannot be used.
+ */
 function calculatePinRatios(clientX, clientY, rectangle) {
   if (!rectangle || rectangle.width <= 0 || rectangle.height <= 0) {
     return null;
@@ -2571,6 +2798,16 @@ function calculatePinRatios(clientX, clientY, rectangle) {
   };
 }
 
+/**
+ * Reads the current untransformed layout dimensions of the artwork wrapper.
+ *
+ * offsetWidth and offsetHeight are used instead of the transformed bounding
+ * rectangle so that legacy pixel coordinates can be interpreted relative to
+ * the artwork's base layout size rather than the current zoom level.
+ *
+ * @returns {{width: number, height: number}|null} Positive artwork dimensions,
+ *   or null when the wrapper is unavailable or has no usable size.
+ */
 function getArtworkBaseDimensions() {
   if (!artworkWrapper) {
     return null;
@@ -2590,6 +2827,22 @@ function getArtworkBaseDimensions() {
   };
 }
 
+/**
+ * Converts a legacy pixel-based artwork pin into the current normalized format.
+ *
+ * Legacy x/y coordinates are divided by the artwork's base width and height.
+ * The resulting ratios are clamped so migrated data always conforms to the
+ * canonical normalized coordinate range.
+ *
+ * This function is used by schema migration and should not normally be needed
+ * during regular user interaction.
+ *
+ * @param {{x: number, y: number}} pin - Legacy pixel-based pin.
+ * @param {number} width - Base artwork width used by the legacy coordinates.
+ * @param {number} height - Base artwork height used by the legacy coordinates.
+ * @returns {NormalizedPin|null} Migrated normalized pin, or null when the
+ *   supplied legacy data or dimensions are invalid.
+ */
 function convertLegacyPixelPin(pin, width, height) {
   if (!isLegacyPixelPin(pin) || width <= 0 || height <= 0) {
     return null;
@@ -2628,6 +2881,24 @@ if (pinsLayer) {
   });
 }
 
+/**
+ * Creates the DOM representation of a pinned checklist item.
+ *
+ * The element is positioned using percentage values derived from the item's
+ * normalized xRatio and yRatio coordinates. This allows the marker to remain
+ * attached to the same relative artwork location as display dimensions change.
+ *
+ * The pin contains:
+ * - the checklist item identifier;
+ * - a tooltip using the item's currentTitle.
+ *
+ * currentTitle is HTML-escaped before insertion into the template.
+ *
+ * Clicking the pin navigates back to the corresponding checklist item.
+ *
+ * @param {ReviewItem} item - Pinned checklist item to render.
+ * @returns {HTMLDivElement} Newly created pin element.
+ */
 function createPinElement(item) {
   const pinElement = document.createElement("div");
 
@@ -2656,6 +2927,19 @@ function createPinElement(item) {
   return pinElement;
 }
 
+/**
+ * Re-renders a single checklist pin from the active product state.
+ *
+ * Any existing DOM pin for the supplied item is removed first. If the item
+ * exists and still contains pin data, a fresh element is created and appended
+ * to the pin layer.
+ *
+ * This replacement approach also ensures that changes such as currentTitle
+ * edits are immediately reflected in the pin tooltip.
+ *
+ * @param {string} itemId - Checklist item whose pin should be refreshed.
+ * @returns {void}
+ */
 function renderPin(itemId) {
   if (!pinsLayer) {
     return;
@@ -2678,6 +2962,19 @@ function renderPin(itemId) {
   pinsLayer.appendChild(pinElement);
 }
 
+/**
+ * Rebuilds every artwork pin belonging to the currently active product.
+ *
+ * The existing pin layer is cleared first and only items whose domain state
+ * contains a pin are rendered.
+ *
+ * Because each product owns an independent items collection, switching products
+ * followed by this render automatically displays only the active product's pins.
+ *
+ * No pin state is created, changed or persisted by this function.
+ *
+ * @returns {void}
+ */
 function renderPins() {
   if (!pinsLayer) {
     return;
@@ -2700,6 +2997,22 @@ function renderPins() {
   });
 }
 
+/**
+ * Assigns a normalized artwork location to a checklist item and immediately
+ * reflects the change in the application.
+ *
+ * Pin mutation is delegated to setItemPin() so coordinate validation and
+ * timestamp updates remain centralized in the domain layer.
+ *
+ * On success the function:
+ * - renders the new pin;
+ * - persists the workspace;
+ * - displays confirmation feedback.
+ *
+ * @param {string} itemId - Checklist item to pin to the artwork.
+ * @param {NormalizedPin} pin - Normalized artwork coordinates.
+ * @returns {boolean} True when the pin was successfully stored and rendered.
+ */
 function addPin(itemId, pin) {
   const item = getItemById(itemId);
 
@@ -2724,6 +3037,21 @@ function addPin(itemId, pin) {
 // PIN ↔ CHECKLIST NAVIGATION
 // ============================================================
 
+/**
+ * Navigates from an artwork pin to its corresponding checklist item.
+ *
+ * If the checklist item belongs to a collapsed section, the section is
+ * automatically expanded before scrolling.
+ *
+ * The item is centered in the viewport using smooth scrolling and receives a
+ * temporary background highlight so the reviewer can quickly identify it.
+ *
+ * This function changes only presentation state. It does not mutate appState
+ * or persist any review data.
+ *
+ * @param {string} itemId - Checklist item to reveal and highlight.
+ * @returns {void}
+ */
 function scrollToItem(itemId) {
   const element = document.querySelector(`.check-item[data-id="${itemId}"]`);
 
@@ -2753,6 +3081,18 @@ function scrollToItem(itemId) {
   }, 1200);
 }
 
+/**
+ * Applies the temporary highlight animation to an artwork pin.
+ *
+ * This is used when the reviewer hovers over a pinned checklist item,
+ * providing visual navigation from checklist item to artwork location.
+ *
+ * The function has no effect when the corresponding pin is not currently
+ * rendered.
+ *
+ * @param {string} itemId - Checklist item whose artwork pin should be highlighted.
+ * @returns {void}
+ */
 function highlightPin(itemId) {
   const pin = document.querySelector(`.pin[data-pid="${itemId}"]`);
 
@@ -2761,6 +3101,15 @@ function highlightPin(itemId) {
   }
 }
 
+/**
+ * Removes the temporary highlight animation from an artwork pin.
+ *
+ * This complements highlightPin() and is normally called when the pointer
+ * leaves the corresponding checklist item.
+ *
+ * @param {string} itemId - Checklist item whose artwork pin should stop highlighting.
+ * @returns {void}
+ */
 function unhighlightPin(itemId) {
   const pin = document.querySelector(`.pin[data-pid="${itemId}"]`);
 
@@ -2769,6 +3118,38 @@ function unhighlightPin(itemId) {
   }
 }
 
+/**
+ * Applies artwork metadata to a product while protecting existing pin geometry.
+ *
+ * The function compares the candidate artwork with the product's current
+ * artwork identity.
+ *
+ * When the artwork is different and the product already contains pins, the
+ * supplied confirmation callback must approve the replacement before any
+ * destructive change occurs.
+ *
+ * If replacement is approved:
+ * - existing pins are cleared when the artwork identity changed;
+ * - artwork metadata is copied into the product domain;
+ * - the product modification timestamp is updated;
+ * - the workspace is persisted.
+ *
+ * Selecting the same artwork does not clear existing pins.
+ *
+ * Only persistable artwork metadata is stored here. The actual image file and
+ * its Object URL are handled separately by the artwork-session functions.
+ *
+ * @param {ArtworkMetadata} metadata - Valid artwork metadata to apply.
+ * @param {Function} [confirmReplacement=window.confirm] - Synchronous callback
+ *   used when replacing an artwork that already contains pins.
+ * @param {string} [productId=appState.activeProductId] - Product receiving the artwork.
+ * @returns {{
+ *   applied: boolean,
+ *   reason?: string,
+ *   sameArtwork?: boolean,
+ *   pinsCleared?: number
+ * }} Result describing whether the artwork was applied.
+ */
 function applyArtworkIdentity(
   metadata,
   confirmReplacement = window.confirm,
@@ -2825,6 +3206,20 @@ function applyArtworkIdentity(
   };
 }
 
+/**
+ * Builds the persistable artwork metadata object from a browser File and its
+ * natural image dimensions.
+ *
+ * The returned object intentionally contains only lightweight information that
+ * can safely be stored in appState, localStorage and exported JSON.
+ *
+ * The File object itself is not persisted.
+ *
+ * @param {File} file - Browser file selected by the reviewer.
+ * @param {number} width - Natural image width in pixels.
+ * @param {number} height - Natural image height in pixels.
+ * @returns {ArtworkMetadata} Persistable artwork identity metadata.
+ */
 function createArtworkMetadata(file, width, height) {
   return {
     name: file.name,
@@ -2835,6 +3230,25 @@ function createArtworkMetadata(file, width, height) {
   };
 }
 
+/**
+ * Retrieves the temporary artwork session associated with a product.
+ *
+ * Artwork sessions contain runtime-only information such as the Object URL
+ * required to display a locally selected image. They are stored separately
+ * from appState because Object URLs are valid only during the current browser
+ * session and must never be persisted.
+ *
+ * When createIfMissing is true, a new empty session is created for the product
+ * when one does not already exist.
+ *
+ * Each product owns an independent session so switching between products does
+ * not cause one product's loaded artwork to replace another product's image.
+ *
+ * @param {string} [productId=appState.activeProductId] - Product whose session is requested.
+ * @param {boolean} [createIfMissing=false] - Whether to create an empty session when absent.
+ * @returns {{metadata: ArtworkMetadata|null, objectUrl: string|null}|null}
+ *   Existing or newly created session, or null when unavailable.
+ */
 function getArtworkSession(
   productId = appState.activeProductId,
   createIfMissing = false,
@@ -2853,6 +3267,20 @@ function getArtworkSession(
   return artworkSessions.get(productId) || null;
 }
 
+/**
+ * Releases all runtime artwork resources associated with one product.
+ *
+ * If the session contains an Object URL, URL.revokeObjectURL() is called before
+ * the session is removed from artworkSessions.
+ *
+ * Revoking Object URLs is important because browsers retain the underlying
+ * binary data while those URLs remain active.
+ *
+ * Persisted product.artwork metadata is intentionally left unchanged.
+ *
+ * @param {string} [productId=appState.activeProductId] - Product whose runtime artwork should be released.
+ * @returns {void}
+ */
 function releaseSessionArtwork(productId = appState.activeProductId) {
   const session = getArtworkSession(productId, false);
 
@@ -2867,12 +3295,41 @@ function releaseSessionArtwork(productId = appState.activeProductId) {
   artworkSessions.delete(productId);
 }
 
+/**
+ * Releases every temporary artwork session currently held by the application.
+ *
+ * Each registered product session is delegated to releaseSessionArtwork() so
+ * its Object URL is properly revoked before being removed.
+ *
+ * This function is primarily useful during application shutdown or page unload
+ * to avoid leaving browser-managed Object URLs unnecessarily allocated.
+ *
+ * @returns {void}
+ */
 function releaseAllSessionArtworks() {
   [...artworkSessions.keys()].forEach((productId) => {
     releaseSessionArtwork(productId);
   });
 }
 
+/**
+ * Associates a loaded artwork Object URL with a product's runtime session.
+ *
+ * If the product already has another Object URL, the previous URL is revoked
+ * before the new one is adopted. This prevents stale browser resources from
+ * accumulating when artwork files are replaced or reselected.
+ *
+ * Artwork metadata is cloned before being stored in the session so the runtime
+ * session does not depend on the caller's object reference.
+ *
+ * This function affects session-only state and does not mutate product.artwork
+ * or persist anything.
+ *
+ * @param {ArtworkMetadata} metadata - Metadata identifying the loaded artwork.
+ * @param {string} objectUrl - Browser Object URL used to display the image.
+ * @param {string} [productId=appState.activeProductId] - Product that owns the session.
+ * @returns {boolean} True when the artwork session was successfully adopted.
+ */
 function adoptSessionArtwork(
   metadata,
   objectUrl,
@@ -2895,6 +3352,22 @@ function adoptSessionArtwork(
   return true;
 }
 
+/**
+ * Determines whether the requested artwork is currently available as a loaded
+ * browser-session image for a product.
+ *
+ * A product is considered loaded only when:
+ * - its runtime session contains an Object URL; and
+ * - the session metadata matches the requested artwork identity.
+ *
+ * This distinction allows persisted artwork metadata to survive page reloads
+ * while still correctly reporting that the original local file must be
+ * selected again.
+ *
+ * @param {ArtworkMetadata|null} metadata - Persisted artwork identity to compare.
+ * @param {string} [productId=appState.activeProductId] - Product whose session should be checked.
+ * @returns {boolean} True when the corresponding image is available this session.
+ */
 function isArtworkLoadedInSession(
   metadata,
   productId = appState.activeProductId,
@@ -2907,6 +3380,29 @@ function isArtworkLoadedInSession(
   );
 }
 
+/**
+ * Loads and inspects a browser File selected as artwork.
+ *
+ * The file must use an image MIME type. A temporary Object URL is created and
+ * assigned to an Image instance so the browser can determine its natural
+ * width and height.
+ *
+ * Once the image loads successfully, persistable artwork metadata is built and
+ * validated before the Promise resolves.
+ *
+ * If image loading or metadata validation fails, the temporary Object URL is
+ * revoked before the Promise is rejected.
+ *
+ * Ownership of a successfully returned Object URL passes to the caller. The
+ * caller must either adopt it into an artwork session or revoke it when the
+ * artwork is not used.
+ *
+ * @param {File} file - Browser image file selected by the reviewer.
+ * @returns {Promise<{metadata: ArtworkMetadata, objectUrl: string}>}
+ *   Resolves with validated metadata and a temporary Object URL.
+ * @throws {Error} Rejects when the file is not an image, cannot be loaded,
+ *   or produces invalid artwork metadata.
+ */
 function inspectArtworkFile(file) {
   return new Promise((resolve, reject) => {
     if (
@@ -2954,6 +3450,21 @@ function inspectArtworkFile(file) {
   });
 }
 
+/**
+ * Converts a file size in bytes into a compact human-readable string.
+ *
+ * Values are formatted as:
+ * - bytes below 1 KB;
+ * - kilobytes below 1 MB;
+ * - megabytes otherwise.
+ *
+ * KB and MB values are rounded to one decimal place.
+ *
+ * Invalid or non-finite values produce an empty string instead of throwing.
+ *
+ * @param {number} bytes - File size in bytes.
+ * @returns {string} Human-readable file size.
+ */
 function formatFileSize(bytes) {
   if (!Number.isFinite(bytes)) {
     return "";
@@ -2970,6 +3481,23 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Creates the compact artwork description displayed in the viewer toolbar.
+ *
+ * The summary combines:
+ * - file name;
+ * - natural image dimensions;
+ * - formatted file size.
+ *
+ * Example:
+ *
+ *     package-front.png · 1600×2400 · 2.4 MB
+ *
+ * Invalid metadata produces an empty string.
+ *
+ * @param {ArtworkMetadata} metadata - Artwork metadata to summarize.
+ * @returns {string} Human-readable artwork summary.
+ */
 function formatArtworkSummary(metadata) {
   if (!isValidArtworkMetadata(metadata)) {
     return "";
@@ -2982,6 +3510,43 @@ function formatArtworkSummary(metadata) {
   ].join(" · ");
 }
 
+/**
+ * Synchronizes the artwork viewer with the active product's persisted metadata
+ * and current browser-session image availability.
+ *
+ * The viewer supports three distinct states:
+ *
+ * 1. Demo
+ *    No artwork metadata exists for the product. The built-in demonstration
+ *    artwork is shown and pins remain available.
+ *
+ * 2. Loaded
+ *    Valid artwork metadata exists and the matching local image is available
+ *    in the product's runtime artwork session. The real image and pins are shown.
+ *
+ * 3. File required
+ *    Artwork metadata exists but the browser no longer has access to the local
+ *    file, typically after reload or JSON import. A placeholder is displayed
+ *    asking the reviewer to select the artwork again.
+ *
+ * Pins remain persisted in appState during the File required state, but they
+ * are intentionally hidden because displaying them over a placeholder would
+ * give a misleading visual reference.
+ *
+ * The function also updates:
+ * - artwork metadata summary;
+ * - artwork status badge;
+ * - Set/Replace Artwork button text;
+ * - demo artwork visibility;
+ * - real image visibility;
+ * - missing-file message;
+ * - pin-layer visibility.
+ *
+ * This function only renders existing state and does not mutate or persist the
+ * product domain.
+ *
+ * @returns {void}
+ */
 function renderArtworkState() {
   const product = getActiveProduct();
 
@@ -3120,6 +3685,23 @@ function renderArtworkState() {
 // CLEAR PINS
 // ============================================================
 
+/**
+ * Removes all artwork pins from the currently active product.
+ *
+ * Pin removal is delegated to clearProductPins() so the domain mutation remains
+ * reusable independently from UI and persistence concerns.
+ *
+ * After clearing the pins, the function:
+ * - updates the active product's modification timestamp;
+ * - persists the workspace;
+ * - re-renders the pin layer;
+ * - displays confirmation feedback.
+ *
+ * Review statuses, comments, copy corrections and artwork metadata are left
+ * unchanged.
+ *
+ * @returns {void}
+ */
 function clearPins() {
   const product = getActiveProduct();
 
@@ -3150,6 +3732,46 @@ const LEGACY_STORAGE_KEYS = ["artworkChecklist:v1"];
 // STATE SERIALIZATION
 // ============================================================
 
+/*
+ * Persisted-state restoration pipeline:
+ *
+ * serialized JSON
+ *      ↓
+ * deserialize
+ *      ↓
+ * migrate
+ *      ↓
+ * validate
+ *      ↓
+ * rehydrate
+ *      ↓
+ * appState
+ *
+ * Each step has a separate responsibility and should remain independent.
+ */
+
+/**
+ * Serializes the complete application workspace into JSON.
+ *
+ * The entire appState is converted into a JSON string, including:
+ * - schema version;
+ * - active product ID;
+ * - every product;
+ * - checklist review state;
+ * - comments;
+ * - copy corrections;
+ * - normalized pins;
+ * - artwork metadata;
+ * - reviewer data;
+ * - timestamps.
+ *
+ * Runtime-only UI state and browser-session resources are intentionally absent
+ * because they are stored outside appState.
+ *
+ * The resulting string is used by local persistence and state-based tests.
+ *
+ * @returns {string} JSON representation of the complete application state.
+ */
 function serializeState() {
   return JSON.stringify(appState);
 }
@@ -3158,6 +3780,24 @@ function serializeState() {
 // D1 — DESERIALIZATION
 // ============================================================
 
+/**
+ * Parses a serialized JSON string into a plain JavaScript state object.
+ *
+ * This function performs syntax parsing only. It does not validate schema
+ * compatibility, migrate older versions or restore canonical domain
+ * properties.
+ *
+ * Those responsibilities belong respectively to:
+ * - migrateState();
+ * - validateState();
+ * - rehydrateState().
+ *
+ * Malformed JSON is caught defensively, logged to the console and converted
+ * into null so corrupted persisted data cannot crash application startup.
+ *
+ * @param {string} serializedState - JSON string to parse.
+ * @returns {Object|null} Parsed plain object, or null when parsing fails.
+ */
 function deserializeState(serializedState) {
   try {
     return JSON.parse(serializedState);
@@ -3168,10 +3808,38 @@ function deserializeState(serializedState) {
   }
 }
 
+/**
+ * Checks whether a value is a non-null object that is not an Array.
+ *
+ * Persistence validation uses this helper to distinguish expected JSON object
+ * structures from primitives, null values and arrays.
+ *
+ * This is intentionally a lightweight structural check rather than a strict
+ * prototype inspection because persisted JSON objects are ordinary parsed
+ * object literals.
+ *
+ * @param {*} value - Value to inspect.
+ * @returns {boolean} True when the value is a non-array object.
+ */
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Finds the canonical static checklist definition for an item ID.
+ *
+ * Persisted review data is mutable, but checklist structure comes from
+ * sectionDefinitions. This helper allows validation and rehydration logic to
+ * compare saved data against that canonical template.
+ *
+ * The result includes both:
+ * - the parent section definition;
+ * - the checklist item definition.
+ *
+ * @param {string} itemId - Permanent checklist item identifier.
+ * @returns {{section: Object, definition: Object}|null}
+ *   Canonical section and item definition, or null when the ID is unknown.
+ */
 function getChecklistDefinition(itemId) {
   for (const section of sectionDefinitions) {
     const definition = section.items.find((item) => item.id === itemId);
@@ -3187,6 +3855,19 @@ function getChecklistDefinition(itemId) {
   return null;
 }
 
+/**
+ * Validates the persisted pin value allowed by the current schema.
+ *
+ * A checklist item may either:
+ * - have no pin, represented by null; or
+ * - contain a valid normalized xRatio/yRatio pin.
+ *
+ * Legacy pixel-based pins are intentionally not accepted here because they
+ * must first be converted by the migration layer.
+ *
+ * @param {*} pin - Persisted pin value to validate.
+ * @returns {boolean} True when the value is null or a valid normalized pin.
+ */
 function isValidStoredPin(pin) {
   if (pin === null) {
     return true;
@@ -3195,6 +3876,33 @@ function isValidStoredPin(pin) {
   return isNormalizedPin(pin);
 }
 
+/**
+ * Validates the persisted structure of one checklist review item.
+ *
+ * The saved item is checked against the canonical checklist definition to
+ * ensure that external JSON or corrupted storage cannot silently redefine
+ * protected checklist structure.
+ *
+ * Validation confirms:
+ * - the value is a plain object;
+ * - item.id matches the expected item ID;
+ * - sectionId matches the canonical section;
+ * - originalTitle matches the canonical checklist title;
+ * - currentTitle is a non-empty string;
+ * - comment is a string;
+ * - status is a supported ReviewStatus;
+ * - pin is null or a valid normalized pin.
+ *
+ * This function validates persisted structure, not complete review business
+ * validity. In particular, a Rejected item with an empty comment may still be
+ * persisted because incomplete review work must survive autosave and reload.
+ * The rejected-comment business rule is evaluated separately by
+ * validateItemState().
+ *
+ * @param {*} item - Persisted checklist item to validate.
+ * @param {string} expectedItemId - Canonical checklist item ID expected here.
+ * @returns {boolean} True when the persisted item structure is acceptable.
+ */
 function validateSerializedItem(item, expectedItemId) {
   if (!isPlainObject(item)) {
     return false;
@@ -3240,6 +3948,27 @@ function validateSerializedItem(item, expectedItemId) {
   return true;
 }
 
+/**
+ * Validates the persisted structure of a complete product review.
+ *
+ * A valid persisted product must contain:
+ * - a non-empty permanent ID;
+ * - string product fields;
+ * - the complete canonical checklist item collection;
+ * - valid serialized state for every checklist item;
+ * - null or valid artwork metadata;
+ * - a reviewer object;
+ * - string timestamps when timestamps are present.
+ *
+ * The checklist item set is validated against sectionDefinitions so missing,
+ * additional or structurally altered checklist items are rejected.
+ *
+ * This function validates storage/import compatibility. It does not determine
+ * whether the review itself is ready for final approval.
+ *
+ * @param {*} product - Persisted product object to validate.
+ * @returns {boolean} True when the product can safely enter rehydration.
+ */
 function validateSerializedProduct(product) {
   if (!isPlainObject(product)) {
     return false;
@@ -3303,6 +4032,28 @@ function validateSerializedProduct(product) {
   return true;
 }
 
+/**
+ * Validates the complete persisted workspace against the current application
+ * schema.
+ *
+ * Validation requires:
+ * - a plain top-level state object;
+ * - the current schemaVersion;
+ * - a non-empty activeProductId;
+ * - a non-empty products object;
+ * - activeProductId to reference an existing product;
+ * - every product key to match product.id;
+ * - every product to pass validateSerializedProduct().
+ *
+ * This function intentionally accepts only the current schema version.
+ * Older compatible versions must be processed by migrateState() before this
+ * validation step.
+ *
+ * The function is side-effect free and does not mutate appState.
+ *
+ * @param {*} state - Candidate workspace state to validate.
+ * @returns {boolean} True when the state matches the current persisted schema.
+ */
 function validateState(state) {
   if (!isPlainObject(state)) {
     return false;
@@ -3344,6 +4095,28 @@ function validateState(state) {
   });
 }
 
+/**
+ * Reconstructs canonical runtime checklist items from validated saved data.
+ *
+ * Fresh items are first created through createInitialItems(). This restores
+ * domain characteristics that JSON serialization cannot preserve, especially
+ * the non-writable originalTitle property.
+ *
+ * Only mutable review values are then copied from the saved state:
+ * - currentTitle;
+ * - status;
+ * - comment;
+ * - normalized pin.
+ *
+ * Static properties such as id, sectionId, note and originalTitle come from
+ * the current canonical checklist definitions rather than from the persisted
+ * object's property descriptors.
+ *
+ * The input is expected to have already passed structural validation.
+ *
+ * @param {Object.<string, Object>} savedItems - Validated persisted item data.
+ * @returns {Object.<string, ReviewItem>} Reconstructed canonical review items.
+ */
 function rehydrateItems(savedItems) {
   const hydratedItems = createInitialItems();
 
@@ -3363,6 +4136,26 @@ function rehydrateItems(savedItems) {
   return hydratedItems;
 }
 
+/**
+ * Reconstructs a canonical Product instance from validated persisted data.
+ *
+ * A fresh product is created first through createProduct() so default domain
+ * structure is restored. Persisted mutable values are then copied into it.
+ *
+ * Rehydration includes:
+ * - product identification fields;
+ * - cloned artwork metadata;
+ * - canonical checklist-item reconstruction;
+ * - reviewer data merged over reviewer defaults;
+ * - signature data;
+ * - preserved creation and update timestamps when valid.
+ *
+ * The function intentionally creates new nested objects instead of reusing the
+ * parsed JSON object directly.
+ *
+ * @param {Object} savedProduct - Validated persisted product data.
+ * @returns {Product} Reconstructed product suitable for appState.
+ */
 function rehydrateProduct(savedProduct) {
   const product = createProduct(savedProduct.id);
 
@@ -3398,6 +4191,20 @@ function rehydrateProduct(savedProduct) {
   return product;
 }
 
+/**
+ * Reconstructs the complete runtime workspace from validated persisted state.
+ *
+ * Top-level schemaVersion and activeProductId are preserved while every saved
+ * product is independently rebuilt through rehydrateProduct().
+ *
+ * Rehydration deliberately produces a new object graph rather than assigning
+ * the parsed JSON structure directly to appState.
+ *
+ * The input must already have been migrated to the current schema and validated.
+ *
+ * @param {Object} savedState - Validated current-schema persisted state.
+ * @returns {Object} Fully rehydrated workspace state.
+ */
 function rehydrateState(savedState) {
   const hydratedState = {
     schemaVersion: savedState.schemaVersion,
@@ -3414,6 +4221,26 @@ function rehydrateState(savedState) {
   return hydratedState;
 }
 
+/**
+ * Migrates a persisted checklist-item collection to schema v2 pin geometry.
+ *
+ * Each item's pin is handled according to its stored representation:
+ * - null remains null;
+ * - an already normalized pin is copied unchanged;
+ * - a legacy pixel pin is converted into xRatio/yRatio coordinates;
+ * - unsupported pin data causes migration to fail.
+ *
+ * The function returns a new items object and does not mutate the supplied
+ * item collection.
+ *
+ * Conversion depends on the artwork base dimensions that were used by the
+ * legacy pixel coordinate system.
+ *
+ * @param {Object.<string, Object>} items - Persisted checklist items to migrate.
+ * @param {{width: number, height: number}} dimensions - Base artwork dimensions.
+ * @returns {Object.<string, Object>} Migrated item collection.
+ * @throws {Error} When a legacy pin cannot be safely converted.
+ */
 function migrateItemsPinsToV2(items, dimensions) {
   const migratedItems = {};
 
@@ -3449,6 +4276,27 @@ function migrateItemsPinsToV2(items, dimensions) {
   return migratedItems;
 }
 
+/**
+ * Converts compatible persisted workspace versions into the current schema.
+ *
+ * Migration is performed before validateState().
+ *
+ * Behavior:
+ * - current-schema state is returned unchanged;
+ * - schema v1 is cloned and its legacy pixel pins are migrated to normalized
+ *   schema-v2 coordinates;
+ * - unsupported schema versions are rejected.
+ *
+ * The original supplied state is not modified during v1 migration because a
+ * deep JSON clone is created before transformation.
+ *
+ * Migration may depend on current artwork base dimensions. If those dimensions
+ * cannot be determined, migration safely fails instead of producing incorrect
+ * pin coordinates.
+ *
+ * @param {*} state - Parsed persisted state from any potentially supported version.
+ * @returns {Object|null} Current-schema state, or null when migration is impossible.
+ */
 function migrateState(state) {
   if (!isPlainObject(state)) {
     return null;
@@ -3491,6 +4339,20 @@ function migrateState(state) {
   return null;
 }
 
+/**
+ * Locates persisted workspace data in browser localStorage.
+ *
+ * The current schema-specific storage key is checked first. If no current
+ * record exists, known legacy storage keys are searched in order.
+ *
+ * Returning both the key and serialized value allows loadStateFromStorage()
+ * to know whether the loaded state must later replace a legacy storage entry.
+ *
+ * This function does not deserialize, migrate, validate or modify storage.
+ *
+ * @returns {{key: string, serializedState: string}|null}
+ *   Located storage record, or null when no persisted state exists.
+ */
 function getStoredStateRecord() {
   const currentState = localStorage.getItem(STORAGE_KEY);
 
@@ -3515,6 +4377,35 @@ function getStoredStateRecord() {
   return null;
 }
 
+/**
+ * Restores the application workspace from browser localStorage.
+ *
+ * The restoration pipeline is deliberately performed in separate stages:
+ *
+ *     locate stored record
+ *          ↓
+ *     deserialize JSON
+ *          ↓
+ *     migrate compatible schema
+ *          ↓
+ *     validate persisted structure
+ *          ↓
+ *     rehydrate canonical domain objects
+ *          ↓
+ *     replace appState contents
+ *
+ * If the state originated from a legacy storage key and migration succeeds,
+ * the canonical state is saved under the current STORAGE_KEY and the old key
+ * is removed.
+ *
+ * Corrupted JSON, invalid structure, unsupported schema versions and migration
+ * errors all fail safely without replacing the existing in-memory appState.
+ *
+ * This function restores domain state only. Rendering is handled separately
+ * by application initialization.
+ *
+ * @returns {boolean} True when persisted state was successfully restored.
+ */
 function loadStateFromStorage() {
   try {
     const storedRecord = getStoredStateRecord();
@@ -3575,6 +4466,22 @@ function loadStateFromStorage() {
     return false;
   }
 }
+
+/**
+ * Persists the complete current workspace to browser localStorage.
+ *
+ * appState is first serialized through serializeState() and stored under the
+ * schema-specific STORAGE_KEY.
+ *
+ * A successful save displays lightweight user feedback through showToast().
+ * Storage failures are caught and logged so quota, browser restrictions or
+ * serialization problems do not crash the application.
+ *
+ * Because appState contains all products, this operation persists the complete
+ * multi-product workspace rather than only the active product.
+ *
+ * @returns {boolean} True when the workspace was successfully written.
+ */
 function saveStateToStorage() {
   try {
     const serializedState = serializeState();
@@ -3590,10 +4497,36 @@ function saveStateToStorage() {
     return false;
   }
 }
+
 // ============================================================
 // VERSIONED JSON EXPORT — D3
 // ============================================================
 
+/**
+ * Builds the versioned JSON export representation of the active product review.
+ *
+ * Unlike serializeState(), which represents the complete multi-product
+ * workspace, this function intentionally exports only the currently active
+ * product review.
+ *
+ * The export contains:
+ * - current schema version;
+ * - export timestamp;
+ * - product identification fields;
+ * - product creation and modification timestamps;
+ * - complete checklist review items;
+ * - artwork metadata;
+ * - reviewer information.
+ *
+ * Runtime-only artwork resources, UI state and other workspace products are
+ * intentionally excluded.
+ *
+ * Artwork metadata is cloned so the exported structure does not share the
+ * original metadata object reference stored in appState.
+ *
+ * @returns {Object|null} Versioned active-product export data, or null when
+ *   no active product exists.
+ */
 function buildExportData() {
   const product = getActiveProduct();
 
@@ -3623,6 +4556,24 @@ function buildExportData() {
     reviewer: product.reviewer,
   };
 }
+
+/**
+ * Downloads the active product review as a versioned JSON file.
+ *
+ * Export data is first produced by buildExportData(). The resulting structure
+ * is formatted as readable JSON and wrapped in a temporary Blob.
+ *
+ * A temporary Object URL and anchor element are used to trigger the browser
+ * download without requiring a backend.
+ *
+ * The Object URL is revoked immediately after the download is triggered so the
+ * browser does not retain the generated file resource unnecessarily.
+ *
+ * The downloaded file name contains the current timestamp to reduce accidental
+ * filename collisions between exported reviews.
+ *
+ * @returns {void}
+ */
 function exportReviewAsJson() {
   const data = buildExportData();
 
@@ -3659,6 +4610,23 @@ function exportReviewAsJson() {
 // Versioned serialization belongs to Layer D.
 //
 
+/**
+ * Converts a current normalized artwork pin back into legacy pixel coordinates.
+ *
+ * The conversion exists only to support the historical export representation
+ * that stored pin positions as absolute x/y values.
+ *
+ * Current normalized ratios are multiplied by the artwork's base dimensions:
+ *
+ *     x = xRatio × width
+ *     y = yRatio × height
+ *
+ * This function does not modify the original pin.
+ *
+ * @param {NormalizedPin} pin - Current normalized artwork pin.
+ * @returns {{x: number, y: number}|null} Legacy pixel coordinates, or null
+ *   when the pin or artwork dimensions are invalid.
+ */
 function normalizedPinToPixels(pin) {
   if (!isNormalizedPin(pin)) {
     return null;
@@ -3677,6 +4645,26 @@ function normalizedPinToPixels(pin) {
   };
 }
 
+/**
+ * Builds the historical baseline-compatible checklist export structure.
+ *
+ * This representation predates the versioned persistence model and therefore
+ * intentionally simplifies current review state.
+ *
+ * In the legacy format:
+ * - product information uses the original field names;
+ * - each checklist item becomes a boolean check;
+ * - only Approved items become true;
+ * - normalized pins are converted back into pixel coordinates;
+ * - comments, rejection state, copy corrections and artwork metadata are not
+ *   represented.
+ *
+ * This function exists for backward compatibility and should not be used as
+ * the canonical application persistence format.
+ *
+ * @returns {Object|null} Legacy checklist export data, or null when no active
+ *   product exists.
+ */
 function buildLegacyCheckData() {
   const product = getActiveProduct();
 
@@ -3723,6 +4711,19 @@ function buildLegacyCheckData() {
 // SAVE CHECK
 // ============================================================
 
+/**
+ * Downloads the active product using the historical baseline-compatible JSON
+ * representation.
+ *
+ * The legacy data is generated by buildLegacyCheckData(), converted into
+ * readable JSON and downloaded through a temporary Blob/Object URL.
+ *
+ * This function is maintained for backward compatibility. New review export
+ * workflows should prefer exportReviewAsJson(), which preserves the complete
+ * versioned review model.
+ *
+ * @returns {void}
+ */
 function saveCheck() {
   const data = buildLegacyCheckData();
 
@@ -3755,6 +4756,21 @@ function saveCheck() {
 // TOAST
 // ============================================================
 
+/**
+ * Displays a temporary non-blocking feedback message to the reviewer.
+ *
+ * The supplied message is written into the shared toast element and the
+ * "show" CSS class is applied to make it visible.
+ *
+ * The toast automatically disappears after approximately 2.5 seconds.
+ *
+ * Toasts are intended for lightweight status feedback such as saves, imports,
+ * pin creation and successful user actions. They do not modify application
+ * state.
+ *
+ * @param {string} message - Text to display in the toast.
+ * @returns {void}
+ */
 function showToast(message) {
   const toast = document.getElementById("toast");
 
@@ -3775,6 +4791,29 @@ function showToast(message) {
 // COMPLETE STATE RENDER
 // ============================================================
 
+/**
+ * Synchronizes the main application interface with the currently active product.
+ *
+ * This function acts as the high-level render coordinator after major state
+ * changes such as product switching, loading persisted data or importing a
+ * review.
+ *
+ * Rendering is delegated to specialized functions:
+ *
+ * - renderProductInputs() updates product fields;
+ * - renderArtworkState() updates the artwork viewer;
+ * - renderItemState() updates each checklist item;
+ * - renderPins() rebuilds artwork pins;
+ * - updateProgress() recalculates review progress.
+ *
+ * The function reads existing domain state and does not perform business
+ * mutations itself.
+ *
+ * Product tabs are intentionally rendered separately by renderProductTabs()
+ * because they represent the workspace rather than only the active product.
+ *
+ * @returns {void}
+ */
 function renderAppState() {
   const product = getActiveProduct();
 
@@ -3795,6 +4834,18 @@ function renderAppState() {
   updateProgress();
 }
 
+/**
+ * Opens the browser file picker used to select or replace an artwork image.
+ *
+ * The hidden artwork file input is reset before being clicked so selecting the
+ * same local file again still produces a change event.
+ *
+ * This function only initiates file selection. File inspection, validation,
+ * replacement confirmation and domain updates are handled later by
+ * handleArtworkFileChange().
+ *
+ * @returns {void}
+ */
 function selectArtwork() {
   const fileInput = document.getElementById("artwork-file-input");
 
@@ -3809,6 +4860,40 @@ function selectArtwork() {
   fileInput.click();
 }
 
+/**
+ * Handles a local artwork image selected through the browser file input.
+ *
+ * The active product ID is captured immediately when the change event begins.
+ * This protects the asynchronous workflow from accidentally applying a slowly
+ * loaded image to another product if the reviewer switches tabs while the file
+ * is being inspected.
+ *
+ * Processing follows these steps:
+ *
+ * 1. obtain the selected file;
+ * 2. reject non-image files;
+ * 3. inspect the image and create validated metadata;
+ * 4. confirm that the original target product still exists;
+ * 5. compare the selected artwork with the product's current artwork identity;
+ * 6. warn the reviewer when replacing different artwork that already has pins;
+ * 7. apply the persisted artwork identity;
+ * 8. adopt the Object URL into the target product's runtime session;
+ * 9. re-render the artwork when the target product is still active;
+ * 10. display feedback describing the result.
+ *
+ * If replacement is cancelled or any later step fails, temporary Object URLs
+ * that were not adopted into a session are revoked.
+ *
+ * Existing pins are preserved when the same artwork is selected again.
+ * Replacing a different artwork clears pins only after explicit confirmation.
+ *
+ * The file input value is always reset in the finally block so the same file
+ * may be selected again later.
+ *
+ * @async
+ * @param {Event} event - Change event emitted by the artwork file input.
+ * @returns {Promise<void>} Resolves after the artwork-selection workflow ends.
+ */
 async function handleArtworkFileChange(event) {
   const file = event.target.files?.[0];
 
@@ -3900,6 +4985,17 @@ async function handleArtworkFileChange(event) {
   }
 }
 
+/**
+ * Connects the hidden artwork file input to the artwork-loading workflow.
+ *
+ * A change listener is registered so every selected file is processed by
+ * handleArtworkFileChange().
+ *
+ * This function should normally be called once during application
+ * initialization to avoid registering duplicate listeners.
+ *
+ * @returns {void}
+ */
 function bindArtworkInput() {
   const fileInput = document.getElementById("artwork-file-input");
 
@@ -3910,6 +5006,28 @@ function bindArtworkInput() {
   fileInput.addEventListener("change", handleArtworkFileChange);
 }
 
+/**
+ * Rebuilds the multi-product tab bar from the current workspace state.
+ *
+ * One tab is generated for every product stored in appState.products.
+ *
+ * Each tab:
+ * - stores its permanent product ID in data-product-id;
+ * - receives the tab accessibility role;
+ * - exposes aria-selected according to activeProductId;
+ * - displays Product Name or the configured fallback label;
+ * - switches the active product when clicked.
+ *
+ * The active tab receives the "active" CSS class for visual identification.
+ *
+ * Tab labels are assigned with textContent rather than innerHTML so product
+ * names are always rendered as text instead of executable markup.
+ *
+ * The complete tab container is rebuilt on each call, which ensures renamed,
+ * created, deleted and imported products are reflected consistently.
+ *
+ * @returns {void}
+ */
 function renderProductTabs() {
   const container = document.getElementById("product-tabs");
 
@@ -3954,6 +5072,18 @@ function renderProductTabs() {
   });
 }
 
+/**
+ * Ensures that the currently active product tab is visible inside the
+ * horizontally scrollable product-tab container.
+ *
+ * This is particularly useful after creating, duplicating or importing a
+ * product when the new active tab may exist outside the visible tab area.
+ *
+ * Scrolling is smooth and restricted to the nearest required position so the
+ * page itself is not unnecessarily repositioned.
+ *
+ * @returns {void}
+ */
 function scrollActiveProductTabIntoView() {
   const activeTab = document.querySelector(".product-tab.active");
 
@@ -3978,6 +5108,37 @@ const appDialogState = {
   type: "confirm",
 };
 
+/**
+ * Retrieves the DOM elements that compose the reusable application dialog.
+ *
+ * Centralizing these element lookups avoids repeating document.getElementById()
+ * calls throughout the dialog workflow and keeps dialog behavior independent
+ * from the specific actions that invoke it.
+ *
+ * The returned references include:
+ * - overlay;
+ * - status icon;
+ * - title and message;
+ * - optional prompt input;
+ * - input label;
+ * - Confirm button;
+ * - Cancel button.
+ *
+ * Individual references may be null when the expected dialog markup is not
+ * available in the document.
+ *
+ * @returns {{
+ *   overlay: HTMLElement|null,
+ *   icon: HTMLElement|null,
+ *   title: HTMLElement|null,
+ *   message: HTMLElement|null,
+ *   inputWrapper: HTMLElement|null,
+ *   inputLabel: HTMLElement|null,
+ *   input: HTMLInputElement|null,
+ *   confirmButton: HTMLButtonElement|null,
+ *   cancelButton: HTMLButtonElement|null
+ * }} References to the reusable dialog DOM elements.
+ */
 function getAppDialogElements() {
   return {
     overlay: document.getElementById("app-dialog-overlay"),
@@ -3992,6 +5153,31 @@ function getAppDialogElements() {
   };
 }
 
+/**
+ * Closes the currently active application dialog and resolves its pending
+ * Promise with the supplied result.
+ *
+ * Dialog interactions are asynchronous from the caller's perspective.
+ * openAppDialog() stores the Promise resolver in appDialogState.resolve, and
+ * this function later invokes that resolver when the reviewer confirms,
+ * cancels or dismisses the dialog.
+ *
+ * Closing the dialog:
+ * - hides the overlay;
+ * - updates aria-hidden;
+ * - marks the dialog as closed;
+ * - removes the stored resolver reference;
+ * - resolves the original Promise.
+ *
+ * The result meaning depends on the dialog type:
+ * - confirm dialog: true or false;
+ * - prompt dialog: entered string or null;
+ * - null may also represent dismissal or unavailable input.
+ *
+ * @param {boolean|string|null} [result=null] - Value returned to the caller
+ *   waiting for the dialog result.
+ * @returns {void}
+ */
 function closeAppDialog(result = null) {
   const elements = getAppDialogElements();
 
@@ -4012,6 +5198,49 @@ function closeAppDialog(result = null) {
   }
 }
 
+/**
+ * Configures and opens the reusable application dialog.
+ *
+ * The same dialog component supports both confirmation and text-prompt
+ * workflows. Its appearance and behavior are configured through the supplied
+ * options object rather than by creating separate modal implementations.
+ *
+ * Supported dialog types:
+ * - "confirm" for boolean confirmation flows;
+ * - "prompt" for text-input flows.
+ *
+ * Supported tones determine the visual emphasis of the icon and primary
+ * action, including primary, warning, danger and success presentations.
+ *
+ * When opened, the function:
+ * - updates dialog title and message;
+ * - applies the requested visual tone;
+ * - configures button labels;
+ * - shows or hides the text input depending on dialog type;
+ * - reveals the overlay;
+ * - updates accessibility state;
+ * - stores a Promise resolver in appDialogState;
+ * - moves focus to the most relevant interactive control.
+ *
+ * Prompt dialogs focus and select the input value. Confirmation dialogs focus
+ * the primary confirmation button.
+ *
+ * The returned Promise remains pending until closeAppDialog() resolves it.
+ *
+ * @param {Object} options - Dialog configuration.
+ * @param {"confirm"|"prompt"} [options.type="confirm"] - Dialog interaction mode.
+ * @param {"primary"|"warning"|"danger"|"success"} [options.tone="primary"]
+ *   - Visual intent of the dialog.
+ * @param {string} [options.title="Confirm action"] - Dialog heading.
+ * @param {string} [options.message=""] - Supporting explanation.
+ * @param {string} [options.label="Value"] - Label used by prompt dialogs.
+ * @param {string} [options.initialValue=""] - Initial prompt input value.
+ * @param {string} [options.placeholder=""] - Prompt input placeholder.
+ * @param {string} [options.confirmText="Confirm"] - Primary action label.
+ * @param {string} [options.cancelText="Cancel"] - Secondary action label.
+ * @returns {Promise<boolean|string|null>} Promise resolved with the user's
+ *   confirmation result, entered text or cancellation value.
+ */
 function openAppDialog({
   type = "confirm",
   tone = "primary",
@@ -4089,6 +5318,37 @@ function openAppDialog({
   });
 }
 
+/**
+ * Registers the interaction handlers used by the reusable application dialog.
+ *
+ * This function connects:
+ * - the Confirm button;
+ * - the Cancel button;
+ * - clicks on the modal backdrop;
+ * - Escape-key dismissal;
+ * - Enter-key submission for prompt dialogs.
+ *
+ * Result semantics depend on the active dialog type:
+ *
+ * Confirm dialog:
+ *     Confirm → true
+ *     Cancel  → false
+ *     Escape  → false
+ *
+ * Prompt dialog:
+ *     Confirm → current input value
+ *     Enter   → current input value
+ *     Cancel  → null
+ *     Escape  → null
+ *
+ * Clicking inside the dialog itself does not dismiss it; only clicking the
+ * overlay backdrop does.
+ *
+ * This function should normally be called once during initialization to avoid
+ * registering duplicate event listeners.
+ *
+ * @returns {void}
+ */
 function bindAppDialog() {
   const elements = getAppDialogElements();
 
@@ -4153,6 +5413,19 @@ function bindAppDialog() {
   });
 }
 
+/**
+ * Opens the reusable application dialog in confirmation mode.
+ *
+ * This convenience wrapper fixes the dialog type to "confirm" while allowing
+ * callers to customize title, message, tone and action labels.
+ *
+ * It keeps destructive or warning workflows concise without exposing callers
+ * to the lower-level dialog configuration details.
+ *
+ * @param {Object} options - Confirmation-dialog options forwarded to openAppDialog().
+ * @returns {Promise<boolean|null>} Promise resolving to true when confirmed,
+ *   false when cancelled, or null if the dialog cannot be opened.
+ */
 function showConfirmDialog(options) {
   return openAppDialog({
     type: "confirm",
@@ -4160,6 +5433,19 @@ function showConfirmDialog(options) {
   });
 }
 
+/**
+ * Opens the reusable application dialog in text-prompt mode.
+ *
+ * This convenience wrapper fixes the dialog type to "prompt" while allowing
+ * callers to configure the title, message, input label, initial value,
+ * placeholder and button text.
+ *
+ * It is currently used by workflows such as product renaming.
+ *
+ * @param {Object} options - Prompt-dialog options forwarded to openAppDialog().
+ * @returns {Promise<string|null>} Promise resolving to the entered text, or
+ *   null when the prompt is cancelled or cannot be opened.
+ */
 function showPromptDialog(options) {
   return openAppDialog({
     type: "prompt",
@@ -4168,9 +5454,35 @@ function showPromptDialog(options) {
 }
 
 // ============================================================
-// INITIALIZATION
+// VERSIONED REVIEW IMPORT — D4
 // ============================================================
 
+/**
+ * Migrates an imported single-review file into the current export schema.
+ *
+ * This migration pipeline is separate from migrateState() because imported
+ * review files and complete persisted workspaces have different top-level
+ * structures.
+ *
+ * Behavior:
+ * - current-schema imports are returned unchanged;
+ * - schema-v1 imports have their legacy pixel pins converted to normalized
+ *   xRatio/yRatio coordinates;
+ * - unsupported or malformed versions are rejected.
+ *
+ * Version-1 migration deep-clones the imported structure before modifying it so
+ * the caller's original parsed data is not mutated.
+ *
+ * Legacy pin conversion requires usable artwork base dimensions. Migration
+ * safely fails when those dimensions cannot be determined.
+ *
+ * This function performs version conversion only. Structural compatibility is
+ * checked separately by validateImportData().
+ *
+ * @param {*} data - Parsed review-file data from a potentially supported version.
+ * @returns {Object|null} Current-schema import data, or null when migration
+ *   cannot be performed safely.
+ */
 function migrateImportData(data) {
   if (!isPlainObject(data)) {
     return null;
@@ -4205,6 +5517,30 @@ function migrateImportData(data) {
   return null;
 }
 
+/**
+ * Validates whether migrated review-file data is structurally compatible with
+ * the current single-review import format.
+ *
+ * Validation checks:
+ * - the top-level value is a plain object;
+ * - schemaVersion matches the current application schema;
+ * - product data exists;
+ * - the imported product has a non-empty permanent ID;
+ * - checklist items exist;
+ * - the reconstructed candidate product satisfies the normal persisted-product
+ *   validation rules.
+ *
+ * Optional import fields receive safe defaults before product validation so
+ * older compatible exports can omit non-essential values.
+ *
+ * This function does not modify appState and does not construct the final
+ * Product object. It only determines whether the imported representation is
+ * safe to continue processing.
+ *
+ * @param {*} data - Migrated review-file data to validate.
+ * @returns {{valid: boolean, message: string}} Validation result and
+ *   user-facing failure explanation when invalid.
+ */
 function validateImportData(data) {
   if (!isPlainObject(data)) {
     return {
@@ -4280,6 +5616,35 @@ function validateImportData(data) {
   };
 }
 
+/**
+ * Reconstructs a canonical Product object from validated review-import data.
+ *
+ * A fresh product is created through createProduct() so current domain
+ * defaults and canonical checklist behavior are restored.
+ *
+ * Imported values are then applied for:
+ * - Brand;
+ * - Product Name;
+ * - Weight;
+ * - SKU;
+ * - checklist review items;
+ * - artwork metadata;
+ * - reviewer information;
+ * - original creation timestamp when available.
+ *
+ * Checklist items are rebuilt through rehydrateItems() so immutable and
+ * canonical item properties are restored rather than trusting raw JSON object
+ * descriptors.
+ *
+ * Artwork metadata is cloned and the actual image file is not imported because
+ * browser File/Object URL resources cannot be represented by the review JSON.
+ *
+ * updatedAt is intentionally set to the current time because importing the
+ * review creates a new modification event in this workspace.
+ *
+ * @param {Object} importedData - Validated current-schema review import.
+ * @returns {Product} Canonical product reconstructed from the imported review.
+ */
 function buildImportedProduct(importedData) {
   const productId = importedData.product.id;
 
@@ -4313,6 +5678,45 @@ function buildImportedProduct(importedData) {
   return product;
 }
 
+/**
+ * Processes and adds an imported review to the current multi-product workspace.
+ *
+ * The import pipeline is:
+ *
+ *     parsed review data
+ *          ↓
+ *     migrateImportData()
+ *          ↓
+ *     validateImportData()
+ *          ↓
+ *     buildImportedProduct()
+ *          ↓
+ *     resolve product-ID collision
+ *          ↓
+ *     add product to workspace
+ *          ↓
+ *     persist and render
+ *
+ * Importing a review does not replace the complete workspace. Existing products
+ * remain available and the imported product is added to appState.products.
+ *
+ * If another product already uses the imported permanent ID, a new unique ID
+ * is generated before insertion so existing workspace data is never silently
+ * overwritten.
+ *
+ * After a successful import:
+ * - the imported product becomes active;
+ * - transient checklist UI state is cleared;
+ * - the complete workspace is persisted;
+ * - checklist, tabs and active product state are re-rendered;
+ * - the imported product tab is scrolled into view.
+ *
+ * Artwork metadata may be restored from the file, but the corresponding local
+ * image is not available until the reviewer selects that artwork again.
+ *
+ * @param {*} importedData - Parsed review data supplied by the Open Check workflow.
+ * @returns {{valid: boolean, message: string}} Import result.
+ */
 function applyImportedReview(importedData) {
   const migratedData = migrateImportData(importedData);
 
@@ -4343,8 +5747,6 @@ function applyImportedReview(importedData) {
     importedProduct.id = importedProductId;
   }
 
-  appState.schemaVersion = migratedData.schemaVersion;
-
   appState.products[importedProductId] = importedProduct;
 
   appState.activeProductId = importedProductId;
@@ -4371,6 +5773,31 @@ function applyImportedReview(importedData) {
   };
 }
 
+/**
+ * Opens the browser file picker and imports a previously exported JSON review.
+ *
+ * The hidden check-file input is reset before opening so selecting the same
+ * file repeatedly still triggers the import workflow.
+ *
+ * After file selection the function:
+ * - requires a .json filename;
+ * - reads the file as text using FileReader;
+ * - parses the JSON through deserializeState();
+ * - delegates migration, validation and workspace insertion to
+ *   applyImportedReview();
+ * - displays user feedback for success or failure.
+ *
+ * File-reading failures and malformed JSON are handled defensively without
+ * modifying the existing workspace.
+ *
+ * The FileReader callbacks are asynchronous, but the imported review is applied
+ * only after the complete file has been successfully read and parsed.
+ *
+ * This operation imports a single product review into the existing workspace;
+ * it does not replace the complete appState.
+ *
+ * @returns {void}
+ */
 function openCheck() {
   const fileInput = document.getElementById("check-file-input");
 
@@ -4431,10 +5858,56 @@ function openCheck() {
   fileInput.click();
 }
 
+
+/*
+ * Release all session-only artwork Object URLs before the document
+ * is unloaded. Persisted artwork metadata remains in appState/localStorage.
+ */
 window.addEventListener("beforeunload", () => {
   releaseAllSessionArtworks();
 });
 
+// ============================================================
+// APPLICATION INITIALIZATION
+// ============================================================
+
+/**
+ * Initializes the complete application after the script has loaded.
+ *
+ * Startup is deliberately ordered so persisted domain state is restored before
+ * the interface is rendered and interactive listeners are attached.
+ *
+ * Initialization performs:
+ *
+ * 1. loadStateFromStorage()
+ *    Attempts to restore a migrated, validated and rehydrated workspace.
+ *
+ * 2. renderChecklist()
+ *    Creates the checklist DOM for the active product.
+ *
+ * 3. bindProductInputs()
+ *    Connects product form fields to domain state.
+ *
+ * 4. bindArtworkInput()
+ *    Connects artwork file selection to the artwork-loading workflow.
+ *
+ * 5. bindAppDialog()
+ *    Activates the reusable custom modal interactions.
+ *
+ * 6. renderProductTabs()
+ *    Builds the multi-product workspace navigation.
+ *
+ * 7. renderAppState()
+ *    Synchronizes the remaining interface with the active product.
+ *
+ * If no valid persisted state exists, the application continues using the
+ * default product created during initial domain setup.
+ *
+ * This function should execute only once during normal page startup because
+ * several binding functions register persistent DOM event listeners.
+ *
+ * @returns {void}
+ */
 function initializeApp() {
   loadStateFromStorage();
 
