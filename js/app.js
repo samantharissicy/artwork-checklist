@@ -1368,7 +1368,7 @@ function buildExportData() {
 
     artwork: product.artwork,
 
-    reviwer: product.reviwer,
+    reviewer: product.reviewer,
   };
 }
 // ============================================================
