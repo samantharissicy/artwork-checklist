@@ -278,6 +278,42 @@
 
   <div class="toast" id="toast">Checklist saved!</div>
 
+  <!-- App Dialog -->
+  <div id="app-dialog-overlay" class="app-dialog-overlay hidden" aria-hidden="true">
+    <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title"
+      aria-describedby="app-dialog-message">
+      <div class="app-dialog-header">
+        <div class="app-dialog-icon" id="app-dialog-icon">?</div>
+        <div class="app-dialog-header-text">
+          <h3 id="app-dialog-title" class="app-dialog-title">
+            Dialog
+          </h3>
+          <p id="app-dialog-message" class="app-dialog-message">
+            Message goes here.
+          </p>
+        </div>
+      </div>
+
+      <div id="app-dialog-input-wrapper" class="app-dialog-input-wrapper hidden">
+        <label for="app-dialog-input" id="app-dialog-input-label" class="app-dialog-label">
+          Value
+        </label>
+
+        <input id="app-dialog-input" class="app-dialog-input" type="text" />
+      </div>
+
+      <div class="app-dialog-actions">
+        <button type="button" id="app-dialog-cancel" class="app-dialog-btn app-dialog-btn-secondary">
+          Cancel
+        </button>
+
+        <button type="button" id="app-dialog-confirm" class="app-dialog-btn app-dialog-btn-primary">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
   <script src="js/tests.js"></script>
 </body>

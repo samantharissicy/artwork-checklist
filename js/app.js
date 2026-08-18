@@ -1670,14 +1670,23 @@ function renameProduct(productId, newName) {
   return true;
 }
 
-function renameActiveProduct() {
+async function renameActiveProduct() {
   const product = getActiveProduct();
 
   if (!product) {
     return;
   }
 
-  const proposedName = window.prompt("Product name:", product.productName);
+  const proposedName = await showPromptDialog({
+    tone: "primary",
+    title: "Rename product",
+    message: "Enter the new product name.",
+    label: "Product name",
+    initialValue: product.productName,
+    placeholder: "Type the product name",
+    confirmText: "Save",
+    cancelText: "Cancel",
+  });
 
   if (proposedName === null) {
     return;
@@ -1685,7 +1694,6 @@ function renameActiveProduct() {
 
   if (!renameProduct(product.id, proposedName)) {
     showToast("Product name cannot be empty.");
-
     return;
   }
 
@@ -1808,14 +1816,36 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
   return true;
 }
 
-function deleteActiveProduct() {
+async function deleteActiveProduct() {
   const product = getActiveProduct();
 
   if (!product) {
     return;
   }
 
-  deleteProduct(product.id);
+  const productIds = getProductIds();
+
+  if (productIds.length <= 1) {
+    showToast("At least one product must remain.");
+    return;
+  }
+
+  const productIndex = productIds.indexOf(product.id);
+  const displayName = getProductDisplayName(product, productIndex);
+
+  const confirmed = await showConfirmDialog({
+    tone: "danger",
+    title: "Delete product",
+    message: `Delete "${displayName}" and all of its review data? This action cannot be undone.`,
+    confirmText: "Delete",
+    cancelText: "Cancel",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  deleteProduct(product.id, () => true);
 }
 
 // ============================================================
@@ -3233,11 +3263,36 @@ async function handleArtworkFileChange(event) {
 
     const { metadata, objectUrl } = await inspectArtworkFile(file);
 
-    const result = applyArtworkIdentity(
-      metadata,
-      window.confirm,
-      targetProductId,
-    );
+    const targetProduct = getProductById(targetProductId);
+
+    if (!targetProduct) {
+      URL.revokeObjectURL(objectUrl);
+      showToast("Unable to find the target product.");
+      return;
+    }
+
+    const sameArtwork = isSameArtworkIdentity(targetProduct.artwork, metadata);
+
+    const hasPins = productHasPins(targetProduct);
+
+    if (!sameArtwork && hasPins) {
+      const confirmed = await showConfirmDialog({
+        tone: "warning",
+        title: "Replace artwork",
+        message:
+          "Replacing this artwork will invalidate existing pins. Do you want to continue?",
+        confirmText: "Replace",
+        cancelText: "Cancel",
+      });
+
+      if (!confirmed) {
+        URL.revokeObjectURL(objectUrl);
+        showToast("Artwork replacement cancelled.");
+        return;
+      }
+    }
+
+    const result = applyArtworkIdentity(metadata, () => true, targetProductId);
 
     if (!result.applied) {
       URL.revokeObjectURL(objectUrl);
@@ -3346,6 +3401,205 @@ function scrollActiveProductTabIntoView() {
     behavior: "smooth",
     block: "nearest",
     inline: "nearest",
+  });
+}
+
+// ============================================================
+// APP DIALOG
+// ============================================================
+
+const appDialogState = {
+  isOpen: false,
+  resolve: null,
+  type: "confirm",
+};
+
+function getAppDialogElements() {
+  return {
+    overlay: document.getElementById("app-dialog-overlay"),
+    icon: document.getElementById("app-dialog-icon"),
+    title: document.getElementById("app-dialog-title"),
+    message: document.getElementById("app-dialog-message"),
+    inputWrapper: document.getElementById("app-dialog-input-wrapper"),
+    inputLabel: document.getElementById("app-dialog-input-label"),
+    input: document.getElementById("app-dialog-input"),
+    confirmButton: document.getElementById("app-dialog-confirm"),
+    cancelButton: document.getElementById("app-dialog-cancel"),
+  };
+}
+
+function closeAppDialog(result = null) {
+  const elements = getAppDialogElements();
+
+  if (!elements.overlay || !appDialogState.isOpen) {
+    return;
+  }
+
+  elements.overlay.classList.add("hidden");
+  elements.overlay.setAttribute("aria-hidden", "true");
+
+  appDialogState.isOpen = false;
+
+  const resolver = appDialogState.resolve;
+  appDialogState.resolve = null;
+
+  if (typeof resolver === "function") {
+    resolver(result);
+  }
+}
+
+function openAppDialog({
+  type = "confirm",
+  tone = "primary",
+  title = "Confirm action",
+  message = "",
+  label = "Value",
+  initialValue = "",
+  placeholder = "",
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+}) {
+  const elements = getAppDialogElements();
+
+  if (!elements.overlay) {
+    console.error("App dialog elements not found.");
+
+    return Promise.resolve(null);
+  }
+
+  appDialogState.type = type;
+
+  elements.title.textContent = title;
+  elements.message.textContent = message;
+
+  elements.icon.className = "app-dialog-icon";
+  elements.confirmButton.className = "app-dialog-btn";
+
+  if (tone === "danger") {
+    elements.icon.classList.add("danger");
+    elements.icon.textContent = "!";
+    elements.confirmButton.classList.add("app-dialog-btn-danger");
+  } else if (tone === "warning") {
+    elements.icon.classList.add("warning");
+    elements.icon.textContent = "!";
+    elements.confirmButton.classList.add("app-dialog-btn-warning");
+  } else if (tone === "success") {
+    elements.icon.classList.add("success");
+    elements.icon.textContent = "✓";
+    elements.confirmButton.classList.add("app-dialog-btn-primary");
+  } else {
+    elements.icon.textContent = "?";
+    elements.confirmButton.classList.add("app-dialog-btn-primary");
+  }
+
+  elements.confirmButton.textContent = confirmText;
+  elements.cancelButton.textContent = cancelText;
+
+  if (type === "prompt") {
+    elements.inputWrapper.classList.remove("hidden");
+    elements.inputLabel.textContent = label;
+    elements.input.value = initialValue ?? "";
+    elements.input.placeholder = placeholder ?? "";
+  } else {
+    elements.inputWrapper.classList.add("hidden");
+    elements.input.value = "";
+    elements.input.placeholder = "";
+  }
+
+  elements.overlay.classList.remove("hidden");
+  elements.overlay.setAttribute("aria-hidden", "false");
+
+  appDialogState.isOpen = true;
+
+  return new Promise((resolve) => {
+    appDialogState.resolve = resolve;
+
+    requestAnimationFrame(() => {
+      if (type === "prompt") {
+        elements.input.focus();
+        elements.input.select();
+      } else {
+        elements.confirmButton.focus();
+      }
+    });
+  });
+}
+
+function bindAppDialog() {
+  const elements = getAppDialogElements();
+
+  if (!elements.overlay) {
+    return;
+  }
+
+  elements.confirmButton.addEventListener("click", () => {
+    if (appDialogState.type === "prompt") {
+      closeAppDialog(elements.input.value);
+      return;
+    }
+
+    closeAppDialog(true);
+  });
+
+  elements.cancelButton.addEventListener("click", () => {
+    if (appDialogState.type === "prompt") {
+      closeAppDialog(null);
+      return;
+    }
+
+    closeAppDialog(false);
+  });
+
+  elements.overlay.addEventListener("click", (event) => {
+    if (event.target !== elements.overlay) {
+      return;
+    }
+
+    if (appDialogState.type === "prompt") {
+      closeAppDialog(null);
+      return;
+    }
+
+    closeAppDialog(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!appDialogState.isOpen) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+
+      if (appDialogState.type === "prompt") {
+        closeAppDialog(null);
+      } else {
+        closeAppDialog(false);
+      }
+    }
+
+    if (event.key === "Enter" && appDialogState.type === "prompt") {
+      const activeElement = document.activeElement;
+
+      if (activeElement?.id === "app-dialog-input") {
+        event.preventDefault();
+        closeAppDialog(elements.input.value);
+      }
+    }
+  });
+}
+
+function showConfirmDialog(options) {
+  return openAppDialog({
+    type: "confirm",
+    ...options,
+  });
+}
+
+function showPromptDialog(options) {
+  return openAppDialog({
+    type: "prompt",
+    ...options,
   });
 }
 
@@ -3625,6 +3879,8 @@ function initializeApp() {
   bindProductInputs();
 
   bindArtworkInput();
+
+  bindAppDialog();
 
   renderProductTabs();
 
