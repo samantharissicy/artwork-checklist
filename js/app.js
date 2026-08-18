@@ -588,6 +588,15 @@ function validateActiveProduct() {
 // CHECKLIST RENDERING
 // ============================================================
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function renderChecklist() {
   const checklistElement = document.getElementById("checklist");
 
@@ -663,7 +672,7 @@ function renderChecklist() {
                   class="check-item-title"
                   data-role="current-title"
                 >
-                  ${item.currentTitle}
+                  ${escapeHtml(item.currentTitle)}
                 </span>
 
                 <span
@@ -1192,6 +1201,8 @@ function commitTitleEdit(itemId) {
     renderPin(itemId);
   }
 
+  saveStateToStorage();
+
   return true;
 }
 
@@ -1225,6 +1236,8 @@ function restoreOriginalTitle(itemId) {
   if (item.pin) {
     renderPin(itemId);
   }
+
+  saveStateToStorage();
 
   return true;
 }
@@ -1373,21 +1386,19 @@ function handleReviewAction(itemId, requestedStatus) {
 
   updateProgress();
 
-if (nextStatus === REVIEW_STATUSES.REJECTED) {
-  const itemElement = document.querySelector(
-    `.check-item[data-id="${itemId}"]`,
-  );
+  if (nextStatus === REVIEW_STATUSES.REJECTED) {
+    const itemElement = document.querySelector(
+      `.check-item[data-id="${itemId}"]`,
+    );
 
-  const textarea = itemElement?.querySelector(
-    '[data-role="comment-input"]',
-  );
+    const textarea = itemElement?.querySelector('[data-role="comment-input"]');
 
-  if (textarea) {
-    textarea.focus();
+    if (textarea) {
+      textarea.focus();
+    }
   }
-}
 
-saveStateToStorage();
+  saveStateToStorage();
 }
 
 // ============================================================
@@ -1495,11 +1506,11 @@ function bindProductInputs() {
         return;
       }
 
-    product.productName = event.target.value;
+      product.productName = event.target.value;
 
-touchActiveProduct();
+      touchActiveProduct();
 
-saveStateToStorage();
+      saveStateToStorage();
     });
   }
 
@@ -1581,7 +1592,7 @@ function createPinElement(item) {
 
   pinElement.innerHTML = `
     <div class="pin-tooltip">
-      ${item.currentTitle}
+      ${escapeHtml(item.currentTitle)}
     </div>
 
     <div class="pin-marker">
@@ -1654,6 +1665,8 @@ function addPin(itemId, x, y) {
 
   renderPin(itemId);
 
+  saveStateToStorage();
+
   showToast(`Pinned ${itemId.toUpperCase()} to artwork`);
 }
 
@@ -1723,6 +1736,8 @@ function clearPins() {
 
   touchActiveProduct();
 
+  saveStateToStorage();
+
   renderPins();
 
   showToast("All pins cleared");
@@ -1754,8 +1769,144 @@ function deserializeState(serializedState) {
     return null;
   }
 }
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function getChecklistDefinition(itemId) {
+  for (const section of sectionDefinitions) {
+    const definition = section.items.find((item) => item.id === itemId);
+
+    if (definition) {
+      return {
+        section,
+        definition,
+      };
+    }
+  }
+
+  return null;
+}
+
+function isValidStoredPin(pin) {
+  if (pin === null) {
+    return true;
+  }
+
+  return isPlainObject(pin) && Number.isFinite(pin.x) && Number.isFinite(pin.y);
+}
+
+function validateSerializedItem(item, expectedItemId) {
+  if (!isPlainObject(item)) {
+    return false;
+  }
+
+  const canonical = getChecklistDefinition(expectedItemId);
+
+  if (!canonical) {
+    return false;
+  }
+
+  if (item.id !== expectedItemId) {
+    return false;
+  }
+
+  if (item.sectionId !== canonical.section.id) {
+    return false;
+  }
+
+  if (item.originalTitle !== canonical.definition.title) {
+    return false;
+  }
+
+  if (
+    typeof item.currentTitle !== "string" ||
+    item.currentTitle.trim() === ""
+  ) {
+    return false;
+  }
+
+  if (typeof item.comment !== "string") {
+    return false;
+  }
+
+  if (!isValidReviewStatus(item.status)) {
+    return false;
+  }
+
+  if (!isValidStoredPin(item.pin)) {
+    return false;
+  }
+
+  return true;
+}
+
+function validateSerializedProduct(product) {
+  if (!isPlainObject(product)) {
+    return false;
+  }
+
+  if (typeof product.id !== "string" || product.id.trim() === "") {
+    return false;
+  }
+
+  if (
+    typeof product.brand !== "string" ||
+    typeof product.productName !== "string" ||
+    typeof product.weight !== "string" ||
+    typeof product.sku !== "string"
+  ) {
+    return false;
+  }
+
+  if (!isPlainObject(product.items)) {
+    return false;
+  }
+
+  const expectedItemIds = sectionDefinitions.flatMap((section) =>
+    section.items.map((item) => item.id),
+  );
+
+  if (Object.keys(product.items).length !== expectedItemIds.length) {
+    return false;
+  }
+
+  const itemsAreValid = expectedItemIds.every((itemId) =>
+    validateSerializedItem(product.items[itemId], itemId),
+  );
+
+  if (!itemsAreValid) {
+    return false;
+  }
+
+  if (product.artwork !== null && !isPlainObject(product.artwork)) {
+    return false;
+  }
+
+  if (!isPlainObject(product.reviewer)) {
+    return false;
+  }
+
+  if (
+    product.createdAt !== undefined &&
+    typeof product.createdAt !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    product.updatedAt !== undefined &&
+    typeof product.updatedAt !== "string"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function validateState(state) {
-  if (!state || typeof state !== "object") {
+  if (!isPlainObject(state)) {
     return false;
   }
 
@@ -1763,16 +1914,106 @@ function validateState(state) {
     return false;
   }
 
-  if (!state.activeProductId) {
+  if (
+    typeof state.activeProductId !== "string" ||
+    state.activeProductId.trim() === ""
+  ) {
     return false;
   }
 
-  if (!state.products || typeof state.products !== "object") {
+  if (!isPlainObject(state.products)) {
     return false;
   }
 
-  return true;
+  const productEntries = Object.entries(state.products);
+
+  if (productEntries.length === 0) {
+    return false;
+  }
+
+  if (
+    !Object.prototype.hasOwnProperty.call(state.products, state.activeProductId)
+  ) {
+    return false;
+  }
+
+  return productEntries.every(([productId, product]) => {
+    if (product.id !== productId) {
+      return false;
+    }
+
+    return validateSerializedProduct(product);
+  });
 }
+
+function rehydrateItems(savedItems) {
+  const hydratedItems = createInitialItems();
+
+  Object.keys(hydratedItems).forEach((itemId) => {
+    const savedItem = savedItems[itemId];
+    const hydratedItem = hydratedItems[itemId];
+
+    hydratedItem.currentTitle = savedItem.currentTitle;
+
+    hydratedItem.status = savedItem.status;
+
+    hydratedItem.comment = savedItem.comment;
+
+    hydratedItem.pin = savedItem.pin ? { ...savedItem.pin } : null;
+  });
+
+  return hydratedItems;
+}
+
+function rehydrateProduct(savedProduct) {
+  const product = createProduct(savedProduct.id);
+
+  product.brand = savedProduct.brand;
+
+  product.productName = savedProduct.productName;
+
+  product.weight = savedProduct.weight;
+
+  product.sku = savedProduct.sku;
+
+  product.artwork = savedProduct.artwork ?? null;
+
+  product.items = rehydrateItems(savedProduct.items);
+
+  product.reviewer = {
+    ...product.reviewer,
+    ...savedProduct.reviewer,
+  };
+
+  product.signature = savedProduct.signature ?? null;
+
+  if (typeof savedProduct.createdAt === "string") {
+    product.createdAt = savedProduct.createdAt;
+  }
+
+  if (typeof savedProduct.updatedAt === "string") {
+    product.updatedAt = savedProduct.updatedAt;
+  }
+
+  return product;
+}
+
+function rehydrateState(savedState) {
+  const hydratedState = {
+    schemaVersion: savedState.schemaVersion,
+
+    activeProductId: savedState.activeProductId,
+
+    products: {},
+  };
+
+  Object.entries(savedState.products).forEach(([productId, product]) => {
+    hydratedState.products[productId] = rehydrateProduct(product);
+  });
+
+  return hydratedState;
+}
+
 function migrateState(state) {
   if (!state || typeof state !== "object") {
     return null;
@@ -1782,15 +2023,13 @@ function migrateState(state) {
     return state;
   }
 
-  console.warn(
-    `Unsupported schema version: ${state.schemaVersion}`,
-  );
+  console.warn(`Unsupported schema version: ${state.schemaVersion}`);
 
   return null;
 }
 function loadStateFromStorage() {
   try {
-    const serializedState = localStorage.getItem("artworkChecklist:v1");
+    const serializedState = localStorage.getItem(STORAGE_KEY);
 
     if (!serializedState) {
       return false;
@@ -1813,9 +2052,13 @@ function loadStateFromStorage() {
       return false;
     }
 
-    appState.schemaVersion = migratedState.schemaVersion;
-    appState.activeProductId = migratedState.activeProductId;
-    appState.products = migratedState.products;
+    const hydratedState = rehydrateState(migratedState);
+
+    appState.schemaVersion = hydratedState.schemaVersion;
+
+    appState.activeProductId = hydratedState.activeProductId;
+
+    appState.products = hydratedState.products;
 
     return true;
   } catch (error) {
@@ -1829,7 +2072,7 @@ function saveStateToStorage() {
     const serializedState = serializeState();
 
     localStorage.setItem(STORAGE_KEY, serializedState);
-   
+
     showToast("Saved locally");
 
     return true;
@@ -1844,7 +2087,7 @@ function saveStateToStorage() {
 // ============================================================
 
 function buildExportData() {
-  const product = getActiveProduct ();
+  const product = getActiveProduct();
 
   if (!product) {
     return null;
@@ -1861,6 +2104,8 @@ function buildExportData() {
       productName: product.productName,
       weight: product.weight,
       sku: product.sku,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
     },
 
     items: product.items,
@@ -2023,11 +2268,152 @@ function renderAppState() {
 // ============================================================
 // INITIALIZATION
 // ============================================================
+
+function validateImportData(data) {
+  if (!isPlainObject(data)) {
+    return {
+      valid: false,
+      message: "Invalid review file.",
+    };
+  }
+
+  if (data.schemaVersion !== 1) {
+    return {
+      valid: false,
+      message: "Unsupported review file version.",
+    };
+  }
+
+  if (!isPlainObject(data.product)) {
+    return {
+      valid: false,
+      message: "Review file has no valid product.",
+    };
+  }
+
+  if (typeof data.product.id !== "string" || data.product.id.trim() === "") {
+    return {
+      valid: false,
+      message: "Review file has no valid product ID.",
+    };
+  }
+
+  if (!isPlainObject(data.items)) {
+    return {
+      valid: false,
+      message: "Review file has no valid checklist items.",
+    };
+  }
+
+  const candidateProduct = {
+    id: data.product.id,
+
+    brand: data.product.brand ?? "",
+
+    productName: data.product.productName ?? "",
+
+    weight: data.product.weight ?? "",
+
+    sku: data.product.sku ?? "",
+
+    items: data.items,
+
+    artwork: data.artwork ?? null,
+
+    reviewer: data.reviewer ?? {
+      name: "",
+      role: "",
+      reviewedAt: null,
+    },
+
+    createdAt: data.product.createdAt,
+
+    updatedAt: data.product.updatedAt,
+  };
+
+  if (!validateSerializedProduct(candidateProduct)) {
+    return {
+      valid: false,
+      message: "Review file structure is incompatible.",
+    };
+  }
+
+  return {
+    valid: true,
+    message: "",
+  };
+}
+
+function buildImportedProduct(importedData) {
+  const productId = importedData.product.id;
+
+  const product = createProduct(productId);
+
+  product.brand = importedData.product.brand;
+
+  product.productName = importedData.product.productName;
+
+  product.weight = importedData.product.weight;
+
+  product.sku = importedData.product.sku;
+
+  product.items = rehydrateItems(importedData.items);
+
+  product.artwork = importedData.artwork ?? null;
+
+  product.reviewer = {
+    ...product.reviewer,
+    ...(importedData.reviewer || {}),
+  };
+
+  if (typeof importedData.product.createdAt === "string") {
+    product.createdAt = importedData.product.createdAt;
+  }
+
+  product.updatedAt = new Date().toISOString();
+
+  return product;
+}
+
+function applyImportedReview(importedData) {
+  const validation = validateImportData(importedData);
+
+  if (!validation.valid) {
+    return validation;
+  }
+
+  const importedProduct = buildImportedProduct(importedData);
+
+  appState.schemaVersion = importedData.schemaVersion;
+
+  appState.activeProductId = importedProduct.id;
+
+  appState.products = {
+    [importedProduct.id]: importedProduct,
+  };
+
+  openCommentItemIds.clear();
+
+  editingTitleItemId = null;
+
+  saveStateToStorage();
+
+  renderChecklist();
+
+  renderAppState();
+
+  return {
+    valid: true,
+    message: "",
+  };
+}
+
 function openCheck() {
   const fileInput = document.getElementById("check-file-input");
 
   if (!fileInput) {
     console.error("Check file input not found.");
+
     return;
   }
 
@@ -2040,75 +2426,39 @@ function openCheck() {
       return;
     }
 
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      showToast("Please select a JSON review file.");
+
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = function () {
-      try {
-        console.log("Check file loaded:", file.name);
+      const importedData = deserializeState(reader.result);
 
-        const importedData = JSON.parse(reader.result);
+      if (!importedData) {
+        showToast("Unable to parse review file.");
 
-        console.log("Imported check data:", importedData);
-
-        if (!importedData || typeof importedData !== "object") {
-          throw new Error("Invalid check file.");
-        }
-
-        if (!importedData.items || typeof importedData.items !== "object") {
-          throw new Error("Check file does not contain checklist items.");
-        }
-
-        const productId =
-          importedData.product && importedData.product.id
-            ? importedData.product.id
-            : "product-1";
-
-        const existingProduct =
-          appState.products[productId] || appState.products["product-1"];
-
-        if (!existingProduct) {
-          throw new Error("No product available to import into.");
-        }
-
-        const importedProduct = {
-          ...existingProduct,
-          ...(importedData.product || {}),
-          id: productId,
-          items: {
-            ...existingProduct.items,
-            ...importedData.items,
-          },
-          artwork:
-            importedData.artwork !== undefined
-              ? importedData.artwork
-              : existingProduct.artwork,
-          reviewer:
-            importedData.reviewer !== undefined
-              ? importedData.reviewer
-              : existingProduct.reviewer,
-          updatedAt: new Date().toISOString(),
-        };
-
-        appState.products[productId] = importedProduct;
-        appState.activeProductId = productId;
-
-        saveStateToStorage();
-
-        renderChecklist();
-        bindProductInputs();
-        renderAppState();
-
-        showToast("Check opened successfully.");
-
-        console.log("Check imported successfully:", productId);
-      } catch (error) {
-        console.error("Failed to import check:", error);
-        showToast("Unable to open check file.");
+        return;
       }
+
+      const result = applyImportedReview(importedData);
+
+      if (!result.valid) {
+        console.warn("Review import rejected:", result.message);
+
+        showToast(result.message);
+
+        return;
+      }
+
+      showToast("Check opened successfully.");
     };
 
     reader.onerror = function () {
       console.error("Failed to read check file.");
+
       showToast("Unable to read check file.");
     };
 
@@ -2117,6 +2467,7 @@ function openCheck() {
 
   fileInput.click();
 }
+
 function initializeApp() {
   loadStateFromStorage();
 
