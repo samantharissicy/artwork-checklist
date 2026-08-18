@@ -975,6 +975,19 @@ function setItemPin(itemId, pin) {
 // workflow layer, but the domain already understands the rule.
 //
 
+/**
+ * Validates the business rules of a single checklist review item.
+ *
+ * Current rules include:
+ * - status must be one of the supported review statuses;
+ * - rejected items must contain a non-empty reviewer comment.
+ *
+ * This function does not modify the item. It only reports validation
+ * problems so that both UI and persistence layers can make decisions.
+ *
+ * @param {ReviewItem} item - Checklist item to validate.
+ * @returns {{valid: boolean, errors: string[]}} Validation result.
+ */
 function validateItemState(item) {
   const errors = [];
 
@@ -992,6 +1005,16 @@ function validateItemState(item) {
   };
 }
 
+/**
+ * Validates every checklist item belonging to the active product.
+ *
+ * Individual item errors are prefixed with their checklist identifier so
+ * that callers can present meaningful product-level validation messages.
+ *
+ * The absence of an active product is also treated as an invalid state.
+ *
+ * @returns {{valid: boolean, errors: string[]}} Aggregated validation result.
+ */
 function validateActiveProduct() {
   const product = getActiveProduct();
 
