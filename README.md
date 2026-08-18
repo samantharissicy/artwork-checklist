@@ -4,8 +4,8 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-156%2F156%20passing-success" alt="156/156 tests passing">
-  <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
+  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 tests passing">
+  <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
@@ -15,8 +15,8 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1 and E2** are complete.  
-> **Layer E — Artwork Geometry and Identity is complete.**
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G and G4** are complete.  
+> **Layer G4 — Multi-Layer Artwork Workspace is complete.**
 
 ---
 
@@ -127,6 +127,7 @@ no database
 | ✅ Versioned serialization        | Canonical state uses schema version 3       |
 | ✅ State migration                | Legacy schema v1/v2 data migrates to v3     |
 | ✅ Multi-layer artwork domain     | Schema v3 layers, active layer and per-layer pins |
+| ✅ Multi-layer workspace          | Layer tabs with Add / Rename / Delete layer flows |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -142,7 +143,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 156 browser-based tests                     |
+| ✅ Automated regression suite     | 196 browser-based tests                     |
 
 ---
 
@@ -1111,7 +1112,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-156 / 156 tests passing
+196 / 196 tests passing
 ```
 
 The suite covers:
@@ -1128,6 +1129,7 @@ Layer D4
 Layer E1
 Layer E2
 Layer G4A
+Layer G4B
 ```
 
 Coverage includes:

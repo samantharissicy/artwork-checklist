@@ -198,6 +198,46 @@
           </div>
         </div>
 
+        <div class="artwork-layer-shell">
+          <div
+            class="artwork-layer-tabs"
+            id="artwork-layer-tabs"
+            role="tablist"
+            aria-label="Artwork layers"
+          ></div>
+          <div class="artwork-layer-actions">
+            <button
+              type="button"
+              class="layer-action-btn"
+              id="btn-rename-layer"
+              onclick="renameActiveArtworkLayer()"
+              title="Rename the active artwork layer"
+            >
+              Rename
+            </button>
+
+            <button
+              type="button"
+              class="layer-action-btn layer-action-danger"
+              id="btn-delete-layer"
+              onclick="deleteActiveArtworkLayer()"
+              title="Delete the active artwork layer"
+            >
+              Delete
+            </button>
+
+            <button
+              type="button"
+              class="layer-action-btn layer-action-add"
+              id="btn-add-layer"
+              onclick="addArtworkLayer()"
+              title="Add a new artwork layer"
+            >
+              + Add Layer
+            </button>
+          </div>
+        </div>
+
         <div class="canvas-area" id="canvas-area">
           <div class="artwork-wrapper" id="artwork-wrapper">
             <div class="artwork" id="demo-artwork">

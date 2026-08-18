@@ -1241,4 +1241,1187 @@
       0.25,
     );
   });
+
+  // ============================================================
+  // G4B — MULTI-LAYER ARTWORK WORKSPACE
+  // ============================================================
+  //
+  // UI-driven layer management on top of the G4A domain foundation:
+  // - artwork layer tabs and per-layer rendering;
+  // - Add / Rename / Delete layer workflows with the app dialog;
+  // - permanent layer identity and per-layer pin ownership;
+  // - per-product active layer persistence and session isolation.
+  // ============================================================
+
+  function getLayerTab(layerId) {
+    return document.querySelector(
+      `.artwork-layer-tab[data-layer-id="${layerId}"]`,
+    );
+  }
+
+  function withWindowStub(name, stub, fn) {
+    const original = window[name];
+
+    window[name] = stub;
+
+    try {
+      return fn();
+    } finally {
+      window[name] = original;
+    }
+  }
+
+  function pinStateFor(itemId, layerId) {
+    return getItemPinForLayer(getItemById(itemId), layerId);
+  }
+
+  test("G4B-001 renderArtworkLayerTabs renders one tab per layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    renderAppState();
+
+    const tabs = document.querySelectorAll(".artwork-layer-tab");
+
+    assertEqual(tabs.length, 2);
+
+    assertEqual(getLayerTab(DEFAULT_LAYER_ID).textContent, "Main Artwork");
+
+    assertEqual(getLayerTab("layer-back").textContent, "Back Label");
+  });
+
+  test("G4B-002 active layer tab carries active state", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    renderAppState();
+
+    assertEqual(getLayerTab(DEFAULT_LAYER_ID).classList.contains("active"), true);
+
+    assertEqual(getLayerTab(DEFAULT_LAYER_ID).getAttribute("aria-selected"), "true");
+
+    assertEqual(getLayerTab("layer-back").classList.contains("active"), false);
+
+    assertEqual(getLayerTab("layer-back").getAttribute("aria-selected"), "false");
+  });
+
+  test("G4B-003 Add Layer flow creates a layer with a permanent id", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    await withWindowStub("showPromptDialog", async () => "Back Label", async () => {
+      await addArtworkLayer();
+    });
+
+    const product = getActiveProduct();
+
+    assertEqual(product.artworkLayers.length, 2);
+
+    const backLayer = product.artworkLayers[1];
+
+    assertNotEqual(backLayer.id, DEFAULT_LAYER_ID);
+
+    assertEqual(backLayer.id.indexOf("layer-"), 0);
+
+    assertEqual(backLayer.name, "Back Label");
+  });
+
+  test("G4B-004 createArtworkLayerForProduct trims layer names", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const layer = createArtworkLayerForProduct(
+      appState.activeProductId,
+      "  Back  ",
+    );
+
+    assertEqual(layer.name, "Back");
+  });
+
+  test("G4B-005 empty layer name is rejected without mutation", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const before = JSON.parse(serializeState());
+
+    await withWindowStub("showPromptDialog", async () => "", async () => {
+      await addArtworkLayer();
+    });
+
+    const product = getActiveProduct();
+
+    assertEqual(product.artworkLayers.length, 1);
+
+    assertDeepEqual(JSON.parse(serializeState()), before);
+  });
+
+  test("G4B-006 added layer becomes the active layer", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    await withWindowStub("showPromptDialog", async () => "Back", async () => {
+      await addArtworkLayer();
+    });
+
+    const product = getActiveProduct();
+
+    const activeLayer = getActiveArtworkLayer(product);
+
+    assertEqual(activeLayer.name, "Back");
+
+    assertEqual(product.activeArtworkLayerId, product.artworkLayers[1].id);
+
+    assertEqual(getLayerTab(activeLayer.id).classList.contains("active"), true);
+  });
+
+  test("G4B-007 switching layers preserves product identity and updatedAt", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    const productIdAtStart = appState.activeProductId;
+
+    const updatedAtAtStart = product.updatedAt;
+
+    assertEqual(switchArtworkLayer("layer-back"), true);
+
+    assertEqual(appState.activeProductId, productIdAtStart);
+
+    assertEqual(product.updatedAt, updatedAtAtStart);
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    assertEqual(
+      stored.products[appState.activeProductId].activeArtworkLayerId,
+      "layer-back",
+    );
+  });
+
+  test("G4B-008 switching layers re-renders the artwork viewer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back-only.png");
+
+    const missingState = document.getElementById("artwork-missing");
+
+    const missingName = document.getElementById("artwork-missing-name");
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(missingState.hidden, false);
+
+    assertEqual(missingName.textContent, "back-only.png");
+  });
+
+  test("G4B-009 switching layers re-renders only that layer's pins", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(document.querySelector('.pin[data-pid="1a"]'), null);
+
+    assertExists(document.querySelector('.pin[data-pid="1b"]'));
+  });
+
+  test("G4B-010 rename flow preserves the permanent layer id", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    const originalId = product.artworkLayers[1].id;
+
+    await withWindowStub("showPromptDialog", async () => "Back Panel", async () => {
+      await renameActiveArtworkLayer();
+    });
+
+    const renamedLayer = getArtworkLayerById(product, originalId);
+
+    assertEqual(renamedLayer.name, "Back Panel");
+
+    assertEqual(renamedLayer.id, originalId);
+
+    assertEqual(product.activeArtworkLayerId, "layer-back");
+  });
+
+  test("G4B-011 rename preserves pins, artwork and active status", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back.png");
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.5,
+      yRatio: 0.5,
+    });
+
+    await withWindowStub("showPromptDialog", async () => "Back Label 2", async () => {
+      await renameActiveArtworkLayer();
+    });
+
+    const renamedLayer = getArtworkLayerById(product, "layer-back");
+
+    assertEqual(renamedLayer.artwork.name, "back.png");
+
+    assertEqual(pinStateFor("1b", "layer-back").xRatio, 0.5);
+
+    assertEqual(product.activeArtworkLayerId, "layer-back");
+  });
+
+  test("G4B-012 rename updates the product modification timestamp", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    const before = product.updatedAt;
+
+    await withWindowStub("showPromptDialog", async () => "Back 2", async () => {
+      await renameActiveArtworkLayer();
+    });
+
+    assertNotEqual(product.updatedAt, before);
+  });
+
+  test("G4B-013 deleting the last layer is rejected without a dialog", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    const layerId = product.artworkLayers[0].id;
+
+    let confirmCalled = false;
+
+    await withWindowStub("showConfirmDialog", async () => {
+      confirmCalled = true;
+
+      return true;
+    }, async () => {
+      await deleteActiveArtworkLayer();
+    });
+
+    assertEqual(confirmCalled, false);
+
+    assertEqual(product.artworkLayers.length, 1);
+
+    assertEqual(product.activeArtworkLayerId, layerId);
+  });
+
+  test("G4B-014 deleting a layer with pins requires confirmation", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.5,
+      yRatio: 0.5,
+    });
+
+    let confirmCalled = false;
+
+    await withWindowStub("showConfirmDialog", async () => {
+      confirmCalled = true;
+
+      return false;
+    }, async () => {
+      await deleteActiveArtworkLayer();
+    });
+
+    assertEqual(confirmCalled, true);
+
+    assertEqual(product.artworkLayers.length, 2);
+
+    assertExists(pinStateFor("1b", "layer-back"));
+  });
+
+  test("G4B-015 cancelling deletion leaves the workspace unchanged", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back.png");
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.5,
+      yRatio: 0.5,
+    });
+
+    const before = JSON.parse(serializeState());
+
+    await withWindowStub("showConfirmDialog", async () => false, async () => {
+      await deleteActiveArtworkLayer();
+    });
+
+    assertDeepEqual(JSON.parse(serializeState()), before);
+  });
+
+  test("G4B-016 confirmed deletion removes the layer", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.5,
+      yRatio: 0.5,
+    });
+
+    await withWindowStub("showConfirmDialog", async () => true, async () => {
+      await deleteActiveArtworkLayer();
+    });
+
+    assertEqual(product.artworkLayers.length, 1);
+
+    assertEqual(getArtworkLayerById(product, "layer-back"), null);
+  });
+
+  test("G4B-017 deletion removes only the target layer's pins", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    assertEqual(deleteArtworkLayer(product.id, "layer-back"), true);
+
+    assertExists(pinStateFor("1a", DEFAULT_LAYER_ID));
+
+    assertEqual(pinStateFor("1b", "layer-back"), null);
+
+    assertEqual(getItemById("1b").pins.length, 0);
+  });
+
+  test("G4B-018 deletion preserves other layers' data", async () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    addTestLayer(product, "layer-third", "Third");
+
+    product.activeArtworkLayerId = "layer-third";
+
+    getArtworkLayerById(product, DEFAULT_LAYER_ID).artwork =
+      createTestArtworkMetadata("front.png");
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back.png");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    await withWindowStub("showConfirmDialog", async () => true, async () => {
+      await deleteActiveArtworkLayer();
+    });
+
+    assertEqual(product.artworkLayers.length, 2);
+
+    assertEqual(
+      getArtworkLayerById(product, "layer-back").artwork.name,
+      "back.png",
+    );
+
+    assertExists(pinStateFor("1b", "layer-back"));
+
+    assertExists(pinStateFor("1a", DEFAULT_LAYER_ID));
+  });
+
+  test("G4B-019 active layer falls back deterministically after deletion", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    addTestLayer(product, "layer-third", "Third");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    deleteArtworkLayer(product.id, "layer-back");
+
+    assertEqual(product.activeArtworkLayerId, "layer-third");
+
+    deleteArtworkLayer(product.id, "layer-third");
+
+    assertEqual(product.activeArtworkLayerId, DEFAULT_LAYER_ID);
+
+    resetWorkspaceForMultiProductTest();
+
+    const product2 = getActiveProduct();
+
+    addTestLayer(product2, "layer-back", "Back Label");
+
+    addTestLayer(product2, "layer-third", "Third");
+
+    product2.activeArtworkLayerId = DEFAULT_LAYER_ID;
+
+    deleteArtworkLayer(product2.id, DEFAULT_LAYER_ID);
+
+    assertEqual(product2.activeArtworkLayerId, "layer-back");
+  });
+
+  test("G4B-020 deleting a layer releases only its session", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    adoptSessionArtwork(
+      createTestArtworkMetadata("front.png"),
+      "blob:http://localhost/g4b-front",
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    adoptSessionArtwork(
+      createTestArtworkMetadata("back.png"),
+      "blob:http://localhost/g4b-back",
+      product.id,
+      "layer-back",
+    );
+
+    const revoked = [];
+
+    withWindowStub("URL", {
+      revokeObjectURL: (url) => {
+        revoked.push(url);
+      },
+    }, () => {
+      deleteArtworkLayer(product.id, "layer-back");
+    });
+
+    assertDeepEqual(revoked, ["blob:http://localhost/g4b-back"]);
+
+    assertEqual(getArtworkSession(product.id, "layer-back", false), null);
+
+    assertEqual(
+      getArtworkSession(product.id, DEFAULT_LAYER_ID, false).objectUrl,
+      "blob:http://localhost/g4b-front",
+    );
+  });
+
+  test("G4B-021 replacing artwork pins clears only the target layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    let confirmCalled = false;
+
+    const cancelled = applyArtworkIdentity(
+      createTestArtworkMetadata("front-new.png"),
+      () => {
+        confirmCalled = true;
+
+        return false;
+      },
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(cancelled.applied, false);
+
+    assertEqual(cancelled.reason, "cancelled");
+
+    assertExists(pinStateFor("1a", DEFAULT_LAYER_ID));
+
+    const applied = applyArtworkIdentity(
+      createTestArtworkMetadata("front-new.png"),
+      () => {
+        confirmCalled = true;
+
+        return true;
+      },
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(applied.applied, true);
+
+    assertEqual(applied.pinsCleared, 1);
+
+    assertEqual(pinStateFor("1a", DEFAULT_LAYER_ID), null);
+
+    assertEqual(confirmCalled, true);
+  });
+
+  test("G4B-022 replacing keeps other layers' artwork metadata", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back.png");
+
+    applyArtworkIdentity(
+      createTestArtworkMetadata("front-new.png"),
+      () => true,
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(
+      getArtworkLayerById(product, "layer-back").artwork.name,
+      "back.png",
+    );
+
+    assertEqual(
+      getArtworkLayerById(product, DEFAULT_LAYER_ID).artwork.name,
+      "front-new.png",
+    );
+  });
+
+  test("G4B-023 replacing artwork keeps other layers' sessions", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    adoptSessionArtwork(
+      createTestArtworkMetadata("back.png"),
+      "blob:http://localhost/g4b-back-session",
+      product.id,
+      "layer-back",
+    );
+
+    applyArtworkIdentity(
+      createTestArtworkMetadata("front-new.png"),
+      () => true,
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(
+      getArtworkSession(product.id, "layer-back", false).objectUrl,
+      "blob:http://localhost/g4b-back-session",
+    );
+  });
+
+  test("G4B-024 re-selecting the same artwork keeps pins without confirmation", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    const metadata = createTestArtworkMetadata("same.png");
+
+    applyArtworkIdentity(
+      metadata,
+      () => true,
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    let confirmCalled = false;
+
+    const result = applyArtworkIdentity(
+      metadata,
+      () => {
+        confirmCalled = true;
+
+        return true;
+      },
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(result.sameArtwork, true);
+
+    assertEqual(result.pinsCleared, 0);
+
+    assertEqual(confirmCalled, false);
+
+    assertExists(pinStateFor("1a", DEFAULT_LAYER_ID));
+  });
+
+  test("G4B-025 one pin per item is allowed on every layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1a", "layer-back", {
+      xRatio: 0.8,
+      yRatio: 0.2,
+    });
+
+    const pins = getItemById("1a").pins;
+
+    assertEqual(pins.length, 2);
+
+    assertEqual(pins[0].layerId, DEFAULT_LAYER_ID);
+
+    assertEqual(pins[1].layerId, "layer-back");
+  });
+
+  test("G4B-026 duplicate pins on the same layer are replaced", () => {
+    resetWorkspaceForMultiProductTest();
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.9,
+      yRatio: 0.1,
+    });
+
+    const pins = getItemById("1a").pins;
+
+    assertEqual(pins.length, 1);
+
+    assertClose(pins[0].xRatio, 0.9);
+
+    assertClose(pins[0].yRatio, 0.1);
+  });
+
+  test("G4B-027 clearPins clears only the active layer and pins carry identity", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    renderAppState();
+
+    const pinElement = document.querySelector('.pin[data-pid="1a"]');
+
+    assertEqual(pinElement.dataset.itemId, "1a");
+
+    assertEqual(pinElement.dataset.layerId, DEFAULT_LAYER_ID);
+
+    clearPins();
+
+    assertEqual(document.querySelector('.pin[data-pid="1a"]'), null);
+
+    assertEqual(getItemById("1a").pins.length, 0);
+
+    assertExists(pinStateFor("1b", "layer-back"));
+  });
+
+  test("G4B-028 clearPins preserves other layers' pins and artwork", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back.png");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    clearPins();
+
+    assertEqual(
+      getArtworkLayerById(product, "layer-back").artwork.name,
+      "back.png",
+    );
+
+    assertExists(pinStateFor("1b", "layer-back"));
+  });
+
+  test("G4B-029 each product remembers its own active layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const productA = getActiveProduct();
+
+    addTestLayer(productA, "layer-back", "Back Label");
+
+    productA.activeArtworkLayerId = "layer-back";
+
+    const productB = createProduct("test-product-b");
+
+    appState.products[productB.id] = productB;
+
+    switchProduct(productB.id);
+
+    assertEqual(getActiveArtworkLayer(productB).id, DEFAULT_LAYER_ID);
+
+    switchProduct(productA.id);
+
+    assertEqual(getActiveArtworkLayer(productA).id, "layer-back");
+  });
+
+  test("G4B-030 duplicateProduct copies layers and per-layer pins", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    const duplicatedId = duplicateProduct(product.id);
+
+    const duplicated = getProductById(duplicatedId);
+
+    assertEqual(duplicated.artworkLayers.length, 2);
+
+    assertEqual(
+      duplicated.artworkLayers.map((layer) => layer.name).join("|"),
+      "Main Artwork|Back Label",
+    );
+
+    assertEqual(
+      duplicated.items["1a"].pins[0].layerId,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(duplicated.items["1b"].pins[0].layerId, "layer-back");
+  });
+
+  test("G4B-031 duplicateProduct never copies artwork sessions", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    adoptSessionArtwork(
+      createTestArtworkMetadata("front.png"),
+      "blob:http://localhost/g4b-front-session",
+      product.id,
+      DEFAULT_LAYER_ID,
+    );
+
+    const duplicatedId = duplicateProduct(product.id);
+
+    assertEqual(getArtworkSession(duplicatedId, DEFAULT_LAYER_ID, false), null);
+
+    assertEqual(getArtworkSession(duplicatedId, "layer-back", false), null);
+  });
+
+  test("G4B-032 export represents every layer and the active layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    const data = buildExportData();
+
+    assertEqual(data.activeArtworkLayerId, "layer-back");
+
+    assertEqual(data.artworkLayers.length, 2);
+
+    assertEqual(data.items["1a"].pins[0].layerId, DEFAULT_LAYER_ID);
+
+    assertEqual(data.items["1b"].pins[0].layerId, "layer-back");
+  });
+
+  test("G4B-033 import restores multiple layers and per-layer pins", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    const data = buildExportData();
+
+    const result = applyImportedReview(data);
+
+    assertEqual(result.valid, true);
+
+    const importedProduct = getActiveProduct();
+
+    assertEqual(importedProduct.artworkLayers.length, 2);
+
+    assertEqual(importedProduct.activeArtworkLayerId, "layer-back");
+
+    assertEqual(
+      importedProduct.items["1a"].pins[0].layerId,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(importedProduct.items["1b"].pins[0].layerId, "layer-back");
+  });
+
+  test("G4B-034 imported active layer drives the artwork viewer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back-only.png");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    const data = buildExportData();
+
+    applyImportedReview(data);
+
+    const missingState = document.getElementById("artwork-missing");
+
+    const missingName = document.getElementById("artwork-missing-name");
+
+    assertEqual(missingState.hidden, false);
+
+    assertEqual(missingName.textContent, "back-only.png");
+  });
+
+  test("G4B-035 localStorage reload preserves layers, active layer and pins", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    saveStateToStorage();
+
+    const reloaded = deserializeState(
+      localStorage.getItem(STORAGE_KEY),
+    );
+
+    const reloadedProduct = reloaded.products[appState.activeProductId];
+
+    assertEqual(reloadedProduct.artworkLayers.length, 2);
+
+    assertEqual(reloadedProduct.activeArtworkLayerId, "layer-back");
+
+    assertEqual(
+      reloadedProduct.items["1a"].pins[0].layerId,
+      DEFAULT_LAYER_ID,
+    );
+
+    assertEqual(reloadedProduct.items["1b"].pins[0].layerId, "layer-back");
+  });
+
+  test("G4B-036 metadata without a binary shows File required per layer", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.activeArtworkLayerId = "layer-back";
+
+    getArtworkLayerById(product, "layer-back").artwork =
+      createTestArtworkMetadata("back-only.png");
+
+    getArtworkLayerById(product, DEFAULT_LAYER_ID).artwork =
+      createTestArtworkMetadata("front-only.png");
+
+    const missingState = document.getElementById("artwork-missing");
+
+    const missingName = document.getElementById("artwork-missing-name");
+
+    const statusBadge = document.getElementById("artwork-status-badge");
+
+    renderAppState();
+
+    assertEqual(missingState.hidden, false);
+
+    assertEqual(missingName.textContent, "back-only.png");
+
+    assertEqual(statusBadge.textContent, "File required");
+
+    switchArtworkLayer(DEFAULT_LAYER_ID);
+
+    assertEqual(missingName.textContent, "front-only.png");
+  });
+
+  test("G4B-037 zoom does not alter pin coordinates", () => {
+    resetWorkspaceForMultiProductTest();
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    renderAppState();
+
+    const before = pinStateFor("1a", DEFAULT_LAYER_ID);
+
+    const zoomBefore = currentZoom;
+
+    zoom(-0.1);
+
+    const after = pinStateFor("1a", DEFAULT_LAYER_ID);
+
+    assertNotEqual(currentZoom, zoomBefore);
+
+    assertClose(after.xRatio, before.xRatio);
+
+    assertClose(after.yRatio, before.yRatio);
+  });
+
+  test("G4B-038 clicking a pin scrolls to its checklist item", () => {
+    resetWorkspaceForMultiProductTest();
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    renderAppState();
+
+    let scrolledItemId = null;
+
+    withWindowStub("scrollToItem", (itemId) => {
+      scrolledItemId = itemId;
+    }, () => {
+      document.querySelector('.pin[data-pid="1a"]').click();
+    });
+
+    assertEqual(scrolledItemId, "1a");
+  });
+
+  test("G4B-039 hover highlights only the active layer's pin", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    setItemPinForLayer("1a", DEFAULT_LAYER_ID, {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
+
+    setItemPinForLayer("1b", "layer-back", {
+      xRatio: 0.75,
+      yRatio: 0.25,
+    });
+
+    renderAppState();
+
+    const item1a = document.querySelector('.check-item[data-id="1a"]');
+
+    const item1b = document.querySelector('.check-item[data-id="1b"]');
+
+    item1a.dispatchEvent(new MouseEvent("mouseenter"));
+
+    assertEqual(
+      document.querySelector('.pin[data-pid="1a"]').classList.contains("pulse"),
+      true,
+    );
+
+    item1a.dispatchEvent(new MouseEvent("mouseleave"));
+
+    item1b.dispatchEvent(new MouseEvent("mouseenter"));
+
+    assertEqual(
+      document.querySelector('.pin[data-pid="1b"]'),
+      null,
+    );
+
+    switchArtworkLayer("layer-back");
+
+    item1b.dispatchEvent(new MouseEvent("mouseenter"));
+
+    assertEqual(
+      document.querySelector('.pin[data-pid="1b"]').classList.contains("pulse"),
+      true,
+    );
+
+    assertEqual(document.querySelector('.pin[data-pid="1a"]'), null);
+  });
+
+  test("G4B-040 G3 review metadata survives layer switching", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    addTestLayer(product, "layer-back", "Back Label");
+
+    product.productName = "Rice";
+
+    product.productionCode = "OH1";
+
+    product.site = "BL";
+
+    product.artworkVersion = "03";
+
+    setItemStatus("1a", REVIEW_STATUSES.APPROVED);
+
+    renderAppState();
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(
+      document.getElementById("ctx-product").textContent,
+      "Rice",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-code").textContent,
+      "OH1",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-site").textContent,
+      "BL",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-artwork-rev").textContent,
+      "03",
+    );
+
+    assertEqual(
+      document.querySelector('.check-item[data-id="1a"]').dataset.status,
+      "approved",
+    );
+
+    switchArtworkLayer(DEFAULT_LAYER_ID);
+
+    assertEqual(
+      document.getElementById("ctx-product").textContent,
+      "Rice",
+    );
+  });
 })();

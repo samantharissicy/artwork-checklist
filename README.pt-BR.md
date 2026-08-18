@@ -4,8 +4,8 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-156%2F156%20passing-success" alt="156/156 testes passando">
-  <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
+  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 testes passando">
+  <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
 </p>
@@ -15,8 +15,8 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1 e E2** estão concluídas.  
-> A **Camada E — Geometria e identidade da artwork está completa.**
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G e G4** estão concluídas.  
+> A **Camada G4 — Workspace multi-layer de artwork está completa.**
 
 ---
 
@@ -127,6 +127,7 @@ sem banco de dados
 | ✅ Serialização versionada           | Estado canônico usa schema versão 3            |
 | ✅ Migração de estado                | Dados legados de schema v1/v2 migram para v3   |
 | ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v3) |
+| ✅ Workspace multi-layer             | Tabs de layer com fluxos Add / Rename / Delete    |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -142,7 +143,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 156 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 196 testes de regressão no navegador           |
 
 ---
 
@@ -1105,7 +1106,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-156 / 156 testes passando
+196 / 196 testes passando
 ```
 
 A suíte cobre:
@@ -1122,6 +1123,7 @@ Camada D4
 Camada E1
 Camada E2
 Camada G4A
+Camada G4B
 ```
 
 Entre os comportamentos testados:
