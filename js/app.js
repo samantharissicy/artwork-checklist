@@ -1524,7 +1524,16 @@ function renderAppState() {
 // ============================================================
 // INITIALIZATION
 // ============================================================
+function openCheck() {
+  const fileInput = document.getElementById("check-file-input");
 
+  if (!fileInput) {
+    console.error("Check file input not found.");
+    return;
+  }
+
+  fileInput.click();
+}
 function initializeApp() {
   loadStateFromStorage();
 
