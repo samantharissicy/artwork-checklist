@@ -37,6 +37,31 @@
     <input type="file" id="check-file-input" accept=".json,application/json" hidden />
     <input type="file" id="artwork-file-input" accept="image/*" hidden />
 
+    <!-- Product workspace -->
+    <div class="product-tabs-shell">
+      <div class="product-tabs" id="product-tabs" role="tablist" aria-label="Products"></div>
+
+      <div class="product-tabs-actions">
+        <button type="button" class="product-action-btn" onclick="renameActiveProduct()" title="Rename active product">
+          Rename
+        </button>
+
+        <button type="button" class="product-action-btn" onclick="duplicateActiveProduct()"
+          title="Duplicate active product">
+          Duplicate
+        </button>
+
+        <button type="button" class="product-action-btn product-action-danger" onclick="deleteActiveProduct()"
+          title="Delete active product">
+          Delete
+        </button>
+
+        <button type="button" class="product-new-btn" id="btn-new-product" onclick="createNewProduct()">
+          + New Product
+        </button>
+      </div>
+    </div>
+
     <!-- Main -->
     <div class="main">
       <!-- Left: Checklist -->
