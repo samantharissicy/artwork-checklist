@@ -99,6 +99,16 @@ const REVIEW_STATUS_LABELS = Object.freeze({
   [REVIEW_STATUSES.REJECTED]: "Rejected",
 });
 
+/**
+ * Converts an internal review status into the human-readable label
+ * displayed by the interface.
+ *
+ * Unknown values are intentionally mapped to "Unknown" instead of
+ * throwing an error so that rendering remains defensive.
+ *
+ * @param {string} status - Internal review status value.
+ * @returns {string} Display label for the supplied status.
+ */
 function getReviewStatusLabel(status) {
   return REVIEW_STATUS_LABELS[status] || "Unknown";
 }
