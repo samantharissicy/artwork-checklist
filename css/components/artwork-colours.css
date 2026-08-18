@@ -1,0 +1,217 @@
+/* ==========================================================
+   ARTWORK COLOUR SPECIFICATIONS
+   ==========================================================
+   Compact right-panel component listing the Pantone colour
+   specifications of the active product, with an inline editor.
+
+   The Pantone reference is always rendered as textual authority.
+   The neutral swatch indicator never implies an RGB/HEX match.
+   ========================================================== */
+
+.colour-specification {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+}
+
+.colour-specification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.colour-specification-title {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.colour-spec-add-btn {
+  white-space: nowrap;
+}
+
+.pantone-colours-list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  max-height: 13rem;
+  overflow-y: auto;
+}
+
+.pantone-colours-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.pantone-colour-row {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem;
+}
+
+.pantone-colour-code {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.pantone-colour-code strong {
+  font-size: 0.8125rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pantone-colour-swatch {
+  flex: 0 0 auto;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+}
+
+.pantone-colour-name {
+  font-size: 0.75rem;
+  color: #475569;
+  margin-top: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pantone-colour-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
+.pantone-colour-layers {
+  font-size: 0.6875rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pantone-colour-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.375rem;
+}
+
+.pantone-colour-action {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+}
+
+.pantone-colour-action:hover {
+  text-decoration: underline;
+}
+
+.pantone-colour-action-danger {
+  color: #dc2626;
+}
+
+/* --- Inline editor ---------------------------------------- */
+
+.pantone-colour-editor {
+  min-width: 0;
+  margin-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pantone-colour-editor[hidden] {
+  display: none;
+}
+
+.colour-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.colour-field-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.colour-text-input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.3125rem;
+  padding: 0.3125rem 0.5rem;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+.colour-text-input:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+  border-color: #3b82f6;
+}
+
+.colour-textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.pantone-layer-options {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.75rem;
+  max-height: 6rem;
+  overflow-y: auto;
+}
+
+.pantone-layer-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: 0.8125rem;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pantone-layer-option input {
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.colour-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

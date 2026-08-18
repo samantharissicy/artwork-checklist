@@ -65,6 +65,20 @@
  */
 
 /**
+ * Pantone colour specification registered for a product.
+ *
+ * Colours belong to the product and can be associated with one or more
+ * artwork layers through their permanent layer identifiers.
+ *
+ * @typedef {Object} PantoneColour
+ * @property {string} id - Permanent unique colour identifier within the product.
+ * @property {string} name - Name or usage intention of the colour.
+ * @property {string} pantoneCode - Textual Pantone reference (authoritative text).
+ * @property {string} notes - Optional notes about the colour usage.
+ * @property {string[]} layerIds - Permanent IDs of associated artwork layers.
+ */
+
+/**
  * Persisted artwork pin bound to one checklist item and one layer.
  *
  * The xRatio/yRatio values are normalized between 0 and 1 relative to the
@@ -581,6 +595,8 @@ function createProduct(id) {
 
     activeArtworkLayerId: "layer-main",
 
+    pantoneColors: [],
+
     items: createInitialItems(),
 
     reviewer: {
@@ -1024,6 +1040,8 @@ function deleteArtworkLayer(productId, layerId) {
 
   clearLayerPins(product, layerId);
 
+  clearPantoneLayerReferences(product, layerId);
+
   releaseLayerSessionArtwork(productId, layerId);
 
   product.artworkLayers.splice(layerIndex, 1);
@@ -1039,6 +1057,495 @@ function deleteArtworkLayer(productId, layerId) {
   touchProduct(productId);
 
   return true;
+}
+
+// ============================================================
+// ARTWORK COLOUR SPECIFICATIONS — DOMAIN
+// ============================================================
+//
+// Pantone colour specifications belong to the Product, not to a
+// single artwork layer. A colour can be associated with several
+// layers through their permanent layer IDs.
+//
+// The Pantone reference is stored as authoritative text. No RGB or
+// HEX equivalence is derived or implied.
+
+/**
+ * Generates the next permanent colour identifier for a product.
+ *
+ * Identifiers follow the "colour-N" sequence. Numbers of deleted
+ * colours are not reused so audit history never collides with newly
+ * created specifications.
+ *
+ * @param {Product|null} product - Product that will receive the colour.
+ * @returns {string} Unique colour identifier.
+ */
+function generatePantoneColourId(product) {
+  let highest = 0;
+
+  getPantoneColourIds(product).forEach((colourId) => {
+    const match = /^colour-(\d+)$/.exec(colourId);
+
+    if (match) {
+      highest = Math.max(highest, Number(match[1]));
+    }
+  });
+
+  let candidate = highest + 1;
+
+  let colourId = `colour-${candidate}`;
+
+  while (getPantoneColourIds(product).includes(colourId)) {
+    candidate += 1;
+
+    colourId = `colour-${candidate}`;
+  }
+
+  return colourId;
+}
+
+/**
+ * Creates a detached PantoneColour object.
+ *
+ * The factory never renders, saves or touches the DOM. Arrays received
+ * by reference are cloned so the caller's data stays independent.
+ *
+ * @param {Object} data - Colour field values.
+ * @param {string} data.id - Permanent colour identifier.
+ * @param {string} data.name - Name or usage intention of the colour.
+ * @param {string} data.pantoneCode - Textual Pantone reference.
+ * @param {string} [data.notes=""] - Optional usage notes.
+ * @param {string[]} [data.layerIds=[]] - Associated artwork layer IDs.
+ * @returns {PantoneColour} Newly created colour object.
+ */
+function createPantoneColour({
+  id,
+  name,
+  pantoneCode,
+  notes = "",
+  layerIds = [],
+}) {
+  return {
+    id,
+    name,
+    pantoneCode,
+    notes,
+    layerIds: layerIds.slice(),
+  };
+}
+
+/**
+ * Returns the permanent IDs of every colour registered on a product.
+ *
+ * @param {Product|null} product - Product to inspect.
+ * @returns {string[]} Colour identifier list.
+ */
+function getPantoneColourIds(product) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return [];
+  }
+
+  return product.pantoneColors.map((colour) => colour.id);
+}
+
+/**
+ * Looks up a Pantone colour by its permanent identifier.
+ *
+ * @param {Product|null} product - Product whose colours should be searched.
+ * @param {string} colourId - Permanent colour identifier.
+ * @returns {PantoneColour|null} Matching colour, or null when it does not exist.
+ */
+function getPantoneColourById(product, colourId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return null;
+  }
+
+  return (
+    product.pantoneColors.find((colour) => colour.id === colourId) || null
+  );
+}
+
+/**
+ * Returns every colour associated with a specific artwork layer.
+ *
+ * @param {Product|null} product - Product whose colours should be searched.
+ * @param {string} layerId - Permanent artwork layer identifier.
+ * @returns {PantoneColour[]} Colours associated with the layer.
+ */
+function getPantoneColoursForLayer(product, layerId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return [];
+  }
+
+  return product.pantoneColors.filter((colour) =>
+    colour.layerIds.includes(layerId),
+  );
+}
+
+/**
+ * Clones a list of PantoneColour objects without sharing references.
+ *
+ * @param {PantoneColour[]|*} colours - Colour list to clone.
+ * @returns {PantoneColour[]} Independent deep clone of the supplied list.
+ */
+function clonePantoneColours(colours) {
+  if (!Array.isArray(colours)) {
+    return [];
+  }
+
+  return colours.map((colour) =>
+    createPantoneColour({
+      id: colour.id,
+      name: colour.name,
+      pantoneCode: colour.pantoneCode,
+      notes: colour.notes,
+      layerIds: colour.layerIds,
+    }),
+  );
+}
+
+/**
+ * Normalizes a layer ID selection against the product's artwork layers.
+ *
+ * Duplicate IDs are removed and the result follows the product's artwork
+ * layer order. IDs that do not reference an existing layer are dropped
+ * because the UI only offers valid checkboxes.
+ *
+ * @param {Product|null} product - Product whose layers are authoritative.
+ * @param {string[]|*} layerIds - Raw layer ID selection.
+ * @returns {string[]} Normalized layer ID list.
+ */
+function normalizePantoneLayerIds(product, layerIds) {
+  if (!Array.isArray(layerIds)) {
+    return [];
+  }
+
+  const requested = new Set(
+    layerIds.filter((layerId) => typeof layerId === "string"),
+  );
+
+  const normalized = [];
+
+  (product?.artworkLayers || []).forEach((layer) => {
+    if (requested.has(layer.id)) {
+      normalized.push(layer.id);
+
+      requested.delete(layer.id);
+    }
+  });
+
+  return normalized;
+}
+
+/**
+ * Validates a persistent or imported PantoneColour against the G5 rules.
+ *
+ * The colour must carry a unique non-empty id, a non-empty name, a
+ * non-empty textual pantoneCode, string notes and a layerIds array
+ * without duplicates where every entry references an existing artwork
+ * layer of the same product. An empty layerIds array is valid.
+ *
+ * This function never mutates the inspected colour or product.
+ *
+ * @param {*} colour - Candidate PantoneColour to validate.
+ * @param {Product|null} product - Product providing the authoritative layer set.
+ * @returns {boolean} True when the colour conforms to the G5 rules.
+ */
+function validatePantoneColour(colour, product) {
+  if (!isPlainObject(colour)) {
+    return false;
+  }
+
+  if (typeof colour.id !== "string" || colour.id.trim() === "") {
+    return false;
+  }
+
+  if (typeof colour.name !== "string" || colour.name.trim() === "") {
+    return false;
+  }
+
+  if (
+    typeof colour.pantoneCode !== "string" ||
+    colour.pantoneCode.trim() === ""
+  ) {
+    return false;
+  }
+
+  if (typeof colour.notes !== "string") {
+    return false;
+  }
+
+  if (!Array.isArray(colour.layerIds)) {
+    return false;
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product?.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const seen = new Set();
+
+  for (const layerId of colour.layerIds) {
+    if (typeof layerId !== "string" || seen.has(layerId)) {
+      return false;
+    }
+
+    seen.add(layerId);
+
+    if (!validLayerIds.has(layerId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validates a persisted pantoneColors array of a serialized product.
+ *
+ * Identifiers must be unique within the product and every colour must
+ * conform to validatePantoneColour().
+ *
+ * @param {*} colours - Persisted pantoneColors value.
+ * @param {Product|null} product - Product providing the authoritative layer set.
+ * @returns {boolean} True when the colour list is structurally valid.
+ */
+function validateSerializedPantoneColours(colours, product) {
+  if (!Array.isArray(colours)) {
+    return false;
+  }
+
+  const seenIds = new Set();
+
+  for (const colour of colours) {
+    if (!validatePantoneColour(colour, product)) {
+      return false;
+    }
+
+    if (seenIds.has(colour.id)) {
+      return false;
+    }
+
+    seenIds.add(colour.id);
+  }
+
+  return true;
+}
+
+/**
+ * Removes an artwork layer ID from every colour of a product.
+ *
+ * This preserves referential integrity when a layer is deleted without
+ * removing the colour specifications themselves: a colour that loses its
+ * last layer simply becomes Unassigned.
+ *
+ * @param {Product|null} product - Product whose colours should be updated.
+ * @param {string} layerId - Permanent ID of the removed artwork layer.
+ * @returns {void}
+ */
+function clearPantoneLayerReferences(product, layerId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return;
+  }
+
+  product.pantoneColors.forEach((colour) => {
+    colour.layerIds = colour.layerIds.filter((id) => id !== layerId);
+  });
+}
+
+/**
+ * Adds a Pantone colour specification to a product.
+ *
+ * This is a domain-level mutation only: it does not render, save or show
+ * feedback. Name and Pantone reference are trimmed, layer associations are
+ * normalized and the product's updatedAt timestamp is refreshed.
+ *
+ * @param {string} productId - Permanent ID of the receiving product.
+ * @param {Object} data - Colour field values.
+ * @param {string} data.name - Name or usage intention of the colour.
+ * @param {string} data.pantoneCode - Textual Pantone reference.
+ * @param {string} [data.notes=""] - Optional usage notes.
+ * @param {string[]} [data.layerIds=[]] - Associated artwork layer IDs.
+ * @returns {{ok: boolean, colour?: PantoneColour, error?: string}} Result
+ *   with the created colour, or a validation error message.
+ */
+function addPantoneColour(productId, data) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return { ok: false, error: "Product not found." };
+  }
+
+  if (!isPlainObject(data)) {
+    return { ok: false, error: "Invalid colour data." };
+  }
+
+  const name = String(data.name ?? "").trim();
+
+  if (name === "") {
+    return { ok: false, error: "Colour name is required." };
+  }
+
+  const pantoneCode = String(data.pantoneCode ?? "").trim();
+
+  if (pantoneCode === "") {
+    return { ok: false, error: "Pantone reference is required." };
+  }
+
+  const notes = String(data.notes ?? "").trim();
+
+  const rawLayerIds =
+    data.layerIds === undefined || data.layerIds === null
+      ? []
+      : data.layerIds;
+
+  if (!Array.isArray(rawLayerIds)) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const hasInvalidLayerId = rawLayerIds.some(
+    (layerId) =>
+      typeof layerId !== "string" || !validLayerIds.has(layerId),
+  );
+
+  if (hasInvalidLayerId) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const colour = createPantoneColour({
+    id: generatePantoneColourId(product),
+    name,
+    pantoneCode,
+    notes,
+    layerIds: normalizePantoneLayerIds(product, rawLayerIds),
+  });
+
+  product.pantoneColors.push(colour);
+
+  touchProduct(productId);
+
+  return { ok: true, colour };
+}
+
+/**
+ * Updates an existing Pantone colour specification in place.
+ *
+ * The permanent colour ID is preserved. Name, pantoneCode and notes are
+ * trimmed; layer associations are normalized. Validation rules match
+ * addPantoneColour().
+ *
+ * @param {string} productId - Permanent ID of the product.
+ * @param {string} colourId - Permanent ID of the colour to update.
+ * @param {Object} data - New colour field values.
+ * @returns {{ok: boolean, colour?: PantoneColour, error?: string}} Result
+ *   with the updated colour, or a validation error message.
+ */
+function updatePantoneColour(productId, colourId, data) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return { ok: false, error: "Product not found." };
+  }
+
+  const colour = getPantoneColourById(product, colourId);
+
+  if (!colour) {
+    return { ok: false, error: "Colour specification not found." };
+  }
+
+  if (!isPlainObject(data)) {
+    return { ok: false, error: "Invalid colour data." };
+  }
+
+  const name = String(data.name ?? "").trim();
+
+  if (name === "") {
+    return { ok: false, error: "Colour name is required." };
+  }
+
+  const pantoneCode = String(data.pantoneCode ?? "").trim();
+
+  if (pantoneCode === "") {
+    return { ok: false, error: "Pantone reference is required." };
+  }
+
+  const notes = String(data.notes ?? "").trim();
+
+  const rawLayerIds =
+    data.layerIds === undefined || data.layerIds === null
+      ? []
+      : data.layerIds;
+
+  if (!Array.isArray(rawLayerIds)) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const hasInvalidLayerId = rawLayerIds.some(
+    (layerId) =>
+      typeof layerId !== "string" || !validLayerIds.has(layerId),
+  );
+
+  if (hasInvalidLayerId) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  colour.name = name;
+
+  colour.pantoneCode = pantoneCode;
+
+  colour.notes = notes;
+
+  colour.layerIds = normalizePantoneLayerIds(product, rawLayerIds);
+
+  touchProduct(productId);
+
+  return { ok: true, colour };
+}
+
+/**
+ * Removes a single Pantone colour specification from a product.
+ *
+ * Artwork layers, artwork metadata, pins and the checklist are never
+ * modified. The colour ID is freed but never reused by future creations.
+ *
+ * @param {string} productId - Permanent ID of the product.
+ * @param {string} colourId - Permanent ID of the colour to remove.
+ * @returns {{ok: boolean}} True when the colour was removed.
+ */
+function deletePantoneColour(productId, colourId) {
+  const product = getProductById(productId);
+
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return { ok: false };
+  }
+
+  const colourIndex = product.pantoneColors.findIndex(
+    (colour) => colour.id === colourId,
+  );
+
+  if (colourIndex === -1) {
+    return { ok: false };
+  }
+
+  product.pantoneColors.splice(colourIndex, 1);
+
+  touchProduct(productId);
+
+  return { ok: true };
 }
 
 /**
@@ -5088,6 +5595,13 @@ function validateSerializedProduct(product) {
   }
 
   if (
+    product.pantoneColors !== undefined &&
+    !validateSerializedPantoneColours(product.pantoneColors, product)
+  ) {
+    return false;
+  }
+
+  if (
     product.artwork !== undefined &&
     product.artwork !== null &&
     !isValidArtworkMetadata(product.artwork)
@@ -5303,6 +5817,10 @@ function rehydrateProduct(savedProduct) {
   );
 
   product.activeArtworkLayerId = savedProduct.activeArtworkLayerId;
+
+  product.pantoneColors = Array.isArray(savedProduct.pantoneColors)
+    ? clonePantoneColours(savedProduct.pantoneColors)
+    : [];
 
   product.items = rehydrateItems(savedProduct.items);
 
@@ -5811,6 +6329,8 @@ function buildExportData() {
     })),
 
     activeArtworkLayerId: product.activeArtworkLayerId,
+
+    pantoneColors: clonePantoneColours(product.pantoneColors),
 
     reviewer: product.reviewer,
   };
@@ -6323,6 +6843,491 @@ function scrollActiveArtworkLayerTabIntoView() {
 }
 
 // ============================================================
+// ARTWORK COLOUR SPECIFICATIONS — UI
+// ============================================================
+
+const pantoneColourEditorState = {
+  isOpen: false,
+  colourId: null,
+  productId: null,
+};
+
+/**
+ * Returns the display label for the layers associated with a colour.
+ *
+ * Current layer names are resolved from the permanent layer IDs stored in
+ * the colour. When no association exists the label reads "Unassigned".
+ *
+ * @param {Product|null} product - Product providing the current layer names.
+ * @param {PantoneColour} colour - Colour whose associations should be labelled.
+ * @returns {string} Human-readable association label.
+ */
+function getPantoneColourLayerLabel(product, colour) {
+  const names = colour.layerIds
+    .map((layerId) => getArtworkLayerById(product, layerId)?.name)
+    .filter((name) => typeof name === "string");
+
+  return names.length > 0 ? names.join(" · ") : "Unassigned";
+}
+
+/**
+ * Builds the DOM row for one Pantone colour specification.
+ *
+ * The Pantone reference is rendered as authoritative text next to a
+ * neutral indicator. No RGB or HEX equivalence is ever shown.
+ *
+ * @param {PantoneColour} colour - Colour to render.
+ * @param {Product} product - Product owning the colour.
+ * @returns {HTMLElement} Row element representing the colour.
+ */
+function createPantoneColourRow(colour, product) {
+  const row = document.createElement("div");
+
+  row.className = "pantone-colour-row";
+
+  row.dataset.colourId = colour.id;
+
+  const codeLine = document.createElement("div");
+
+  codeLine.className = "pantone-colour-code";
+
+  const swatch = document.createElement("span");
+
+  swatch.className = "pantone-colour-swatch";
+
+  swatch.setAttribute("aria-hidden", "true");
+
+  codeLine.appendChild(swatch);
+
+  const code = document.createElement("strong");
+
+  code.textContent = colour.pantoneCode;
+
+  codeLine.appendChild(code);
+
+  row.appendChild(codeLine);
+
+  const name = document.createElement("div");
+
+  name.className = "pantone-colour-name";
+
+  name.textContent = colour.name;
+
+  row.appendChild(name);
+
+  const footer = document.createElement("div");
+
+  footer.className = "pantone-colour-footer";
+
+  const layers = document.createElement("span");
+
+  layers.className = "pantone-colour-layers";
+
+  layers.textContent = getPantoneColourLayerLabel(product, colour);
+
+  footer.appendChild(layers);
+
+  const actions = document.createElement("span");
+
+  actions.className = "pantone-colour-actions";
+
+  const editButton = document.createElement("button");
+
+  editButton.type = "button";
+
+  editButton.className = "pantone-colour-action";
+
+  editButton.textContent = "Edit";
+
+  editButton.addEventListener("click", () => {
+    openEditPantoneColourEditor(colour.id);
+  });
+
+  actions.appendChild(editButton);
+
+  const deleteButton = document.createElement("button");
+
+  deleteButton.type = "button";
+
+  deleteButton.className = "pantone-colour-action pantone-colour-action-danger";
+
+  deleteButton.textContent = "Delete";
+
+  deleteButton.addEventListener("click", () => {
+    confirmDeletePantoneColour(colour.id);
+  });
+
+  actions.appendChild(deleteButton);
+
+  footer.appendChild(actions);
+
+  row.appendChild(footer);
+
+  return row;
+}
+
+/**
+ * Renders the Colour Specification list for the active product.
+ *
+ * The DOM is rebuilt from getActiveProduct().pantoneColors so switching
+ * products automatically refreshes the list.
+ *
+ * @returns {void}
+ */
+function renderPantoneColours() {
+  const container = document.getElementById("pantone-colours-list");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const product = getActiveProduct();
+
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return;
+  }
+
+  if (product.pantoneColors.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.className = "pantone-colours-empty";
+
+    empty.textContent = "No colour specifications added yet.";
+
+    container.appendChild(empty);
+
+    return;
+  }
+
+  product.pantoneColors.forEach((colour) => {
+    container.appendChild(createPantoneColourRow(colour, product));
+  });
+}
+
+/**
+ * Rebuilds the artwork layer checkboxes of the colour editor.
+ *
+ * Checkboxes are generated from the product's artworkLayers so they are
+ * never hardcoded. Each checkbox uses layer.id as its logical value.
+ *
+ * @param {string[]} selectedIds - Layer IDs that should start checked.
+ * @returns {void}
+ */
+function renderPantoneColourEditorLayers(selectedIds) {
+  const container = document.getElementById("pantone-layer-options");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const product = getProductById(pantoneColourEditorState.productId);
+
+  if (!product || !Array.isArray(product.artworkLayers)) {
+    return;
+  }
+
+  const selected = new Set(selectedIds);
+
+  product.artworkLayers.forEach((layer, index) => {
+    const option = document.createElement("label");
+
+    option.className = "pantone-layer-option";
+
+    const input = document.createElement("input");
+
+    input.type = "checkbox";
+
+    input.dataset.layerId = layer.id;
+
+    input.id = `pantone-layer-check-${index}`;
+
+    input.checked = selected.has(layer.id);
+
+    option.appendChild(input);
+
+    const name = document.createElement("span");
+
+    name.textContent = layer.name;
+
+    option.appendChild(name);
+
+    container.appendChild(option);
+  });
+}
+
+/**
+ * Collects the currently checked layer IDs from the colour editor.
+ *
+ * @returns {string[]} Selected artwork layer IDs.
+ */
+function getSelectedPantoneLayerIds() {
+  const container = document.getElementById("pantone-layer-options");
+
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll('input[type="checkbox"]:checked'),
+  ).map((input) => input.dataset.layerId);
+}
+
+/**
+ * Configures the colour editor save button label.
+ *
+ * @param {boolean} editing - True when the editor is editing a colour.
+ * @returns {void}
+ */
+function setPantoneColourSaveLabel(editing) {
+  const button = document.getElementById("btn-save-colour");
+
+  if (button) {
+    button.textContent = editing ? "Save Changes" : "Save Colour";
+  }
+}
+
+/**
+ * Fills the colour editor inputs with the given values.
+ *
+ * Draft values only live in the DOM until Save Colour is confirmed.
+ *
+ * @param {Object} values - Field values assigned to the editor.
+ * @param {string} values.pantoneCode - Pantone reference text.
+ * @param {string} values.name - Colour name.
+ * @param {string} values.notes - Colour notes.
+ * @returns {void}
+ */
+function setPantoneColourEditorValues({ pantoneCode, name, notes }) {
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.value = pantoneCode;
+  }
+
+  const nameInput = document.getElementById("pantone-name-input");
+
+  if (nameInput) {
+    nameInput.value = name;
+  }
+
+  const notesInput = document.getElementById("pantone-notes-input");
+
+  if (notesInput) {
+    notesInput.value = notes;
+  }
+}
+
+/**
+ * Closes the colour editor and discards its draft values.
+ *
+ * The editor is hidden, the transient session is cleared and no appState
+ * mutation happens.
+ *
+ * @returns {void}
+ */
+function closePantoneColourEditor() {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (editor) {
+    editor.hidden = true;
+  }
+
+  pantoneColourEditorState.isOpen = false;
+
+  pantoneColourEditorState.colourId = null;
+
+  pantoneColourEditorState.productId = null;
+}
+
+/**
+ * Opens the colour editor in add mode with empty fields.
+ *
+ * @returns {void}
+ */
+function openAddPantoneColourEditor() {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (!editor) {
+    return;
+  }
+
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  pantoneColourEditorState.isOpen = true;
+
+  pantoneColourEditorState.colourId = null;
+
+  pantoneColourEditorState.productId = product.id;
+
+  setPantoneColourEditorValues({
+    pantoneCode: "",
+    name: "",
+    notes: "",
+  });
+
+  renderPantoneColourEditorLayers([]);
+
+  setPantoneColourSaveLabel(false);
+
+  editor.hidden = false;
+
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+/**
+ * Opens the colour editor in edit mode populated with the current values.
+ *
+ * @param {string} colourId - Permanent ID of the colour to edit.
+ * @returns {void}
+ */
+function openEditPantoneColourEditor(colourId) {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (!editor) {
+    return;
+  }
+
+  const product = getActiveProduct();
+
+  const colour = product ? getPantoneColourById(product, colourId) : null;
+
+  if (!product || !colour) {
+    return;
+  }
+
+  pantoneColourEditorState.isOpen = true;
+
+  pantoneColourEditorState.colourId = colourId;
+
+  pantoneColourEditorState.productId = product.id;
+
+  setPantoneColourEditorValues({
+    pantoneCode: colour.pantoneCode,
+    name: colour.name,
+    notes: colour.notes,
+  });
+
+  renderPantoneColourEditorLayers(colour.layerIds);
+
+  setPantoneColourSaveLabel(true);
+
+  editor.hidden = false;
+
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+/**
+ * Validates and persists the draft values of the colour editor.
+ *
+ * Add mode creates a new specification; edit mode updates the existing
+ * colour while preserving its permanent ID.
+ *
+ * @returns {void}
+ */
+function savePantoneColourEditor() {
+  const productId = pantoneColourEditorState.productId;
+
+  const product = getProductById(productId);
+
+  if (!product || !pantoneColourEditorState.isOpen) {
+    return;
+  }
+
+  const data = {
+    name: document.getElementById("pantone-name-input")?.value ?? "",
+    pantoneCode: document.getElementById("pantone-code-input")?.value ?? "",
+    notes: document.getElementById("pantone-notes-input")?.value ?? "",
+    layerIds: getSelectedPantoneLayerIds(),
+  };
+
+  const isEditing = pantoneColourEditorState.colourId !== null;
+
+  const result = isEditing
+    ? updatePantoneColour(productId, pantoneColourEditorState.colourId, data)
+    : addPantoneColour(productId, data);
+
+  if (!result.ok) {
+    showToast(result.error || "Unable to save colour specification.");
+
+    return;
+  }
+
+  closePantoneColourEditor();
+
+  saveStateToStorage();
+
+  renderPantoneColours();
+
+  showToast(
+    isEditing
+      ? "Colour specification updated."
+      : "Colour specification added.",
+  );
+}
+
+/**
+ * Confirms and removes a Pantone colour specification.
+ *
+ * Delete always requires explicit confirmation through the application
+ * dialog. Cancelling produces zero mutations.
+ *
+ * @async
+ * @param {string} colourId - Permanent ID of the colour to remove.
+ * @returns {Promise<void>} Resolves after the delete flow finishes.
+ */
+async function confirmDeletePantoneColour(colourId) {
+  const product = getActiveProduct();
+
+  const colour = product ? getPantoneColourById(product, colourId) : null;
+
+  if (!product || !colour) {
+    return;
+  }
+
+  const confirmed = await showConfirmDialog({
+    tone: "danger",
+    title: "Delete colour specification?",
+    message: `${colour.pantoneCode} — ${colour.name}\n\nThis colour specification will be removed from the current product.`,
+    confirmText: "Delete",
+    cancelText: "Cancel",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  const result = deletePantoneColour(product.id, colourId);
+
+  if (!result.ok) {
+    showToast("Unable to remove the colour specification.");
+
+    return;
+  }
+
+  saveStateToStorage();
+
+  renderPantoneColours();
+
+  showToast("Colour specification removed.");
+}
+
+// ============================================================
 // COMPLETE STATE RENDER
 // ============================================================
 
@@ -6362,6 +7367,10 @@ function renderAppState() {
   renderProductContext();
 
   renderArtworkLayerTabs();
+
+  closePantoneColourEditor();
+
+  renderPantoneColours();
 
   renderArtworkState();
 
@@ -7214,6 +8223,8 @@ function validateImportData(data) {
 
     activeArtworkLayerId: data.activeArtworkLayerId,
 
+    pantoneColors: data.pantoneColors,
+
     artwork: null,
 
     reviewer: data.reviewer ?? {
@@ -7297,6 +8308,10 @@ function buildImportedProduct(importedData) {
   );
 
   product.activeArtworkLayerId = importedData.activeArtworkLayerId;
+
+  product.pantoneColors = Array.isArray(importedData.pantoneColors)
+    ? clonePantoneColours(importedData.pantoneColors)
+    : [];
 
   product.reviewer = {
     ...product.reviewer,

@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 tests passing">
+  <img src="https://img.shields.io/badge/tests-259%2F259%20passing-success" alt="259/259 tests passing">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -15,8 +15,8 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G and G4** are complete.  
-> **Layer G4 — Multi-Layer Artwork Workspace is complete.**
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5** are complete.  
+> **Layer G5 — Artwork Colour Specifications is complete.**
 
 ---
 
@@ -128,6 +128,10 @@ no database
 | ✅ State migration                | Legacy schema v1/v2 data migrates to v3     |
 | ✅ Multi-layer artwork domain     | Schema v3 layers, active layer and per-layer pins |
 | ✅ Multi-layer workspace          | Layer tabs with Add / Rename / Delete layer flows |
+| ✅ Pantone colour registry        | Add / Edit / Delete Pantone references per product |
+| ✅ Colour ↔ layer association     | Colours associate with one or more artwork layers  |
+| ✅ Textual Pantone authority      | `pantoneCode` stored as text, no RGB/HEX claims    |
+| ✅ Colour preservation            | Survives reload, export/import and duplication     |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -143,7 +147,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 196 browser-based tests                     |
+| ✅ Automated regression suite     | 259 browser-based tests                     |
 
 ---
 
@@ -463,19 +467,23 @@ existing pins are cleared
 
 ## Pins and proportional coordinates
 
-Each checklist item may contain:
+Each checklist item may contain one normalized pin per artwork layer:
 
 ```js
-item.pin = {
-  xRatio,
-  yRatio,
-};
+item.pins = [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+];
 ```
 
-Example:
+Example (first layer entry):
 
 ```js
 {
+  layerId: "layer-front",
   xRatio: 0.438,
   yRatio: 0.286
 }
@@ -549,10 +557,12 @@ Invalid stored JSON must never prevent the application from opening.
 Current canonical schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 ```
 
-The application supports migration from compatible schema v1 state where pins were stored as pixels.
+The application supports migration from compatible schema v1 state where pins were stored as pixels, and from schema v2 single-layer state.
+
+Schema v3 state exported before colour specifications (without `pantoneColors`) remains valid and rehydrates with an empty colour registry.
 
 ### Save Check
 
@@ -569,7 +579,7 @@ The exported review contains:
 ```text
 schemaVersion
 exportedAt
-product
+product (including artworkLayers and pantoneColors)
 items
 artwork metadata
 reviewer data
@@ -748,7 +758,7 @@ Drag a checklist item onto the artwork.
 Its normalized position is stored in:
 
 ```js
-item.pin;
+item.pins; // one entry per layer, in the active layer
 ```
 
 ### 7. Navigate
@@ -811,6 +821,25 @@ Choose a compatible review JSON.
 The domain state is restored.
 
 If the review has artwork metadata, select the same image file again to restore the image itself.
+
+### 12. Register colour specifications
+
+Below the artwork layer tabs, the Colour Specification component lists the active product's Pantone references.
+
+```text
++ Add Colour
+```
+
+Fill:
+
+- Pantone Reference (required, textual);
+- Name / Usage (required);
+- Artwork Layers (one or more, optional);
+- Notes (optional).
+
+Save Colour persists the specification; Edit preserves the permanent colour ID; Delete requires confirmation. Two or more layers render as `Front · Back`; a colour without layers renders `Unassigned`.
+
+Specifications belong to the product and are preserved by reload, Save/Open Check and product duplication.
 
 ---
 
@@ -921,7 +950,7 @@ const appState = {
 Current schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 ```
 
 The architecture follows:
@@ -950,23 +979,27 @@ Each product follows the structure:
 
 ```js
 {
-  (id,
-    brand,
-    productName,
-    weight,
-    sku,
-    artwork,
-    items,
-    reviewer,
-    signature,
-    createdAt,
-    updatedAt);
+  id,
+  brand,
+  productName,
+  weight,
+  sku,
+  productionCode,
+  site,
+  artworkVersion,
+  artworkLayers: [...],
+  activeArtworkLayerId,
+  pantoneColors: [...],
+  artwork,
+  items,
+  reviewer,
+  signature,
+  createdAt,
+  updatedAt
 }
 ```
 
-The architecture already stores products in a collection, although the current UI still exposes a single-product workflow.
-
-Multi-product operations belong to Layer G.
+Products are stored in a collection and managed through product tabs (Layer G).
 
 ---
 
@@ -1006,16 +1039,20 @@ The image binary does not belong to persisted domain state.
 
   comment: "",
 
-  pin: null
+  pins: []
 }
 ```
 
-When pinned:
+When pinned, `item.pins` stores one normalized entry per artwork layer:
 
 ```js
-pin: {
-  (xRatio, yRatio);
-}
+pins: [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+]
 ```
 
 ---
@@ -1112,7 +1149,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-196 / 196 tests passing
+259 / 259 tests passing
 ```
 
 The suite covers:
@@ -1130,6 +1167,7 @@ Layer E1
 Layer E2
 Layer G4A
 Layer G4B
+Layer G5
 ```
 
 Coverage includes:
@@ -1200,6 +1238,16 @@ schema v2 → v3 migration
 schema v1 → v2 → v3 chain
 legacy storage key migration
 layer-aware rendering
+
+colour specifications
+colour factory and permanent IDs
+add / edit / delete validation
+layer associations and Unassigned
+referential integrity with layers
+product duplication independence
+serialization / localStorage roundtrip
+JSON export / import roundtrip
+Colour Specification UI and editor
 
 baseline DOM regression
 zoom regression
@@ -1294,6 +1342,10 @@ revision history
 
 These belong to Layer M if real usage justifies a backend.
 
+### 8. Pantone references are textual
+
+Colour specifications store the Pantone reference as free text. No official RGB or HEX equivalence is derived, and the neutral indicator rendered in the interface is not a colour swatch reproduction.
+
 ---
 
 ## Roadmap
@@ -1313,9 +1365,11 @@ Development is guided by a separate development roadmap maintained outside this 
 |   ✅   | **D4**    | JSON import / Open Check                          |
 |   ✅   | **E1**    | Normalized proportional pins                      |
 |   ✅   | **E2**    | Artwork identity and replacement safeguards       |
-|   📋   | **F1**    | Review metrics                                    |
-|   📋   | **G1**    | Multiple-product domain operations                |
-|   📋   | **G2**    | Product tabs                                      |
+|   ✅   | **F1**    | Review metrics                                    |
+|   ✅   | **G1**    | Multiple-product domain operations                |
+|   ✅   | **G2**    | Product tabs                                      |
+|   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
+|   ✅   | **G5**    | Artwork colour specifications (Pantone)           |
 |   📋   | **H1–H2** | Reviewer + signature                              |
 |   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
 |   📋   | **J1–J3** | Printable report + PDF                            |

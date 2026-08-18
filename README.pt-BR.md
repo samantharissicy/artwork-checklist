@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 testes passando">
+  <img src="https://img.shields.io/badge/tests-259%2F259%20passing-success" alt="259/259 testes passando">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -15,8 +15,8 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G e G4** estão concluídas.  
-> A **Camada G4 — Workspace multi-layer de artwork está completa.**
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5** estão concluídas.  
+> A **Camada G5 — Especificações de cor da artwork está completa.**
 
 ---
 
@@ -128,6 +128,10 @@ sem banco de dados
 | ✅ Migração de estado                | Dados legados de schema v1/v2 migram para v3   |
 | ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v3) |
 | ✅ Workspace multi-layer             | Tabs de layer com fluxos Add / Rename / Delete    |
+| ✅ Registro de cores Pantone        | Add / Edit / Delete de referências por produto    |
+| ✅ Associação cor ↔ layer           | Cores associadas a uma ou mais artwork layers     |
+| ✅ Autoridade textual Pantone       | `pantoneCode` armazenado como texto, sem RGB/HEX  |
+| ✅ Preservação das cores            | Sobrevivem a reload, export/import e duplicação   |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -143,7 +147,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 196 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 259 testes de regressão no navegador           |
 
 ---
 
@@ -465,19 +469,23 @@ pins anteriores são removidos
 
 ## Pins e coordenadas proporcionais
 
-Cada item pode possuir:
+Cada item pode possuir um pin normalizado por artwork layer:
 
 ```js
-item.pin = {
-  xRatio,
-  yRatio,
-};
+item.pins = [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+];
 ```
 
-Exemplo:
+Exemplo (primeira entrada da layer):
 
 ```js
 {
+  layerId: "layer-front",
   xRatio: 0.438,
   yRatio: 0.286
 }
@@ -549,10 +557,12 @@ Um JSON inválido no navegador nunca deve impedir a aplicação de abrir.
 ### Schema atual
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 ```
 
-Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels.
+Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels, e do schema v2 de layer única.
+
+Estado do schema v3 exportado antes das especificações de cor (sem `pantoneColors`) continua válido e é reidratado com um registro de cores vazio.
 
 ### Save Check
 
@@ -569,7 +579,7 @@ O arquivo inclui:
 ```text
 schemaVersion
 exportedAt
-product
+product (incluindo artworkLayers e pantoneColors)
 items
 artwork
 reviewer
@@ -746,7 +756,7 @@ Arraste um item do checklist para a artwork.
 A posição proporcional fica em:
 
 ```js
-item.pin;
+item.pins; // uma entrada por layer, na layer ativa
 ```
 
 ### 7. Navegue
@@ -809,6 +819,25 @@ e selecione um JSON compatível.
 O domínio da revisão é restaurado.
 
 Caso exista metadata de artwork, selecione novamente a mesma imagem para restaurar a visualização do arquivo.
+
+### 12. Registre especificações de cor
+
+Abaixo das tabs de artwork layer, o componente Colour Specification lista as referências Pantone do produto ativo.
+
+```text
++ Add Colour
+```
+
+Preencha:
+
+- Pantone Reference (obrigatório, textual);
+- Name / Usage (obrigatório);
+- Artwork Layers (uma ou mais, opcional);
+- Notes (opcional).
+
+Save Colour persiste a especificação; Edit preserva o ID permanente da cor; Delete exige confirmação. Duas ou mais layers renderizam como `Front · Back`; uma cor sem layers renderiza `Unassigned`.
+
+As especificações pertencem ao produto e são preservadas por reload, Save/Open Check e duplicação de produto.
 
 ---
 
@@ -919,7 +948,7 @@ const appState = {
 Schema atual:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 ```
 
 O fluxo principal é:
@@ -946,23 +975,27 @@ O DOM não é a fonte oficial de estado.
 
 ```js
 {
-  (id,
-    brand,
-    productName,
-    weight,
-    sku,
-    artwork,
-    items,
-    reviewer,
-    signature,
-    createdAt,
-    updatedAt);
+  id,
+  brand,
+  productName,
+  weight,
+  sku,
+  productionCode,
+  site,
+  artworkVersion,
+  artworkLayers: [...],
+  activeArtworkLayerId,
+  pantoneColors: [...],
+  artwork,
+  items,
+  reviewer,
+  signature,
+  createdAt,
+  updatedAt
 }
 ```
 
-A arquitetura já armazena produtos dentro de uma coleção, embora a interface atual ainda exponha um fluxo de produto único.
-
-Operações de múltiplos produtos pertencem à Camada G.
+Os produtos são armazenados em uma coleção e gerenciados por meio de tabs de produto (Camada G).
 
 ---
 
@@ -1000,16 +1033,20 @@ O arquivo binário da imagem não pertence ao estado persistido.
 
   comment: "",
 
-  pin: null
+  pins: []
 }
 ```
 
-Quando existe um pin:
+Quando existe um pin, `item.pins` guarda uma entrada normalizada por artwork layer:
 
 ```js
-pin: {
-  (xRatio, yRatio);
-}
+pins: [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+]
 ```
 
 ---
@@ -1106,7 +1143,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-196 / 196 testes passando
+259 / 259 testes passando
 ```
 
 A suíte cobre:
@@ -1124,6 +1161,7 @@ Camada E1
 Camada E2
 Camada G4A
 Camada G4B
+Camada G5
 ```
 
 Entre os comportamentos testados:
@@ -1194,6 +1232,16 @@ migração schema v2 → v3
 cadeia schema v1 → v2 → v3
 migração da chave legada de storage
 renderização por active layer
+
+especificações de cor
+factory de cores e IDs permanentes
+validação de add / edit / delete
+associações de layer e Unassigned
+integridade referencial com layers
+independência na duplicação de produto
+roundtrip serialização / localStorage
+roundtrip export / import JSON
+UI do Colour Specification e editor
 
 regressão do DOM
 regressão do zoom
@@ -1288,6 +1336,10 @@ histórico de revisões
 
 Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdução de backend.
 
+### 8. Referências Pantone são textuais
+
+As especificações de cor armazenam a referência Pantone como texto livre. Nenhuma equivalência oficial de RGB ou HEX é derivada, e o indicador neutro renderizado na interface não é uma reprodução de amostra de cor.
+
 ---
 
 ## Roadmap
@@ -1307,9 +1359,11 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   ✅   | **D4**    | Import JSON / Open Check                         |
 |   ✅   | **E1**    | Pins proporcionais normalizados                  |
 |   ✅   | **E2**    | Identidade da artwork e proteção na substituição |
-|   📋   | **F1**    | Métricas da revisão                              |
-|   📋   | **G1**    | Modelo de múltiplos produtos                     |
-|   📋   | **G2**    | Interface de tabs                                |
+|   ✅   | **F1**    | Métricas da revisão                              |
+|   ✅   | **G1**    | Modelo de múltiplos produtos                     |
+|   ✅   | **G2**    | Interface de tabs                                |
+|   ✅   | **G3–G4** | Workspace multi-layer de artwork                 |
+|   ✅   | **G5**    | Especificações de cor da artwork (Pantone)       |
 |   📋   | **H1–H2** | Reviewer + assinatura                            |
 |   📋   | **I1–I2** | Alta resolução + responsividade                  |
 |   📋   | **J1–J3** | Relatório imprimível + PDF                       |
