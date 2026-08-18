@@ -428,10 +428,7 @@ const appState = {
   products: {},
 };
 
-const artworkSession = {
-  metadata: null,
-  objectUrl: null,
-};
+const artworkSessions = new Map();
 
 appState.products["product-1"] = createProduct("product-1");
 
@@ -441,6 +438,44 @@ appState.products["product-1"] = createProduct("product-1");
 
 function getActiveProduct() {
   return appState.products[appState.activeProductId] || null;
+}
+
+function getProductById(productId) {
+  return appState.products[productId] || null;
+}
+
+function getProductIds() {
+  return Object.keys(appState.products);
+}
+
+function getProductDisplayName(product, index = 0) {
+  if (!product) {
+    return "Product";
+  }
+
+  const name = product.productName.trim();
+
+  if (name) {
+    return name;
+  }
+
+  return `Product ${index + 1}`;
+}
+
+function generateProductId() {
+  let productId;
+
+  do {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      productId = `product-${window.crypto.randomUUID()}`;
+    } else {
+      productId = `product-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
+    }
+  } while (Object.prototype.hasOwnProperty.call(appState.products, productId));
+
+  return productId;
 }
 
 function getItemById(itemId) {
@@ -537,14 +572,20 @@ function clearProductPins(product) {
 // DOMAIN HELPERS
 // ============================================================
 
-function touchActiveProduct() {
-  const product = getActiveProduct();
+function touchProduct(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   product.updatedAt = new Date().toISOString();
+
+  return true;
+}
+
+function touchActiveProduct() {
+  return touchProduct(appState.activeProductId);
 }
 
 function isValidReviewStatus(status) {
@@ -1107,6 +1148,12 @@ const openCommentItemIds = new Set();
 
 let editingTitleItemId = null;
 
+function resetTransientReviewUiState() {
+  openCommentItemIds.clear();
+
+  editingTitleItemId = null;
+}
+
 let currentZoom = 1;
 
 // ============================================================
@@ -1540,6 +1587,238 @@ function updateProgress() {
 }
 
 // ============================================================
+// MULTI-PRODUCT WORKSPACE — G1
+// ============================================================
+
+function createNewProduct() {
+  const productId = generateProductId();
+
+  const product = createProduct(productId);
+
+  appState.products[productId] = product;
+
+  appState.activeProductId = productId;
+
+  resetTransientReviewUiState();
+
+  saveStateToStorage();
+
+  renderProductTabs();
+
+  renderAppState();
+
+  scrollActiveProductTabIntoView();
+
+  showToast("New product created.");
+
+  return productId;
+}
+
+function switchProduct(productId) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    console.warn(`Product "${productId}" was not found.`);
+
+    return false;
+  }
+
+  if (appState.activeProductId === productId) {
+    return true;
+  }
+
+  appState.activeProductId = productId;
+
+  resetTransientReviewUiState();
+
+  saveStateToStorage();
+
+  renderProductTabs();
+
+  renderAppState();
+
+  scrollActiveProductTabIntoView();
+
+  return true;
+}
+
+function renameProduct(productId, newName) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return false;
+  }
+
+  const normalizedName = String(newName).trim();
+
+  if (!normalizedName) {
+    return false;
+  }
+
+  product.productName = normalizedName;
+
+  touchProduct(productId);
+
+  saveStateToStorage();
+
+  renderProductTabs();
+
+  if (appState.activeProductId === productId) {
+    renderProductInputs();
+  }
+
+  return true;
+}
+
+function renameActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  const proposedName = window.prompt("Product name:", product.productName);
+
+  if (proposedName === null) {
+    return;
+  }
+
+  if (!renameProduct(product.id, proposedName)) {
+    showToast("Product name cannot be empty.");
+
+    return;
+  }
+
+  showToast("Product renamed.");
+}
+
+function duplicateProduct(productId) {
+  const sourceProduct = getProductById(productId);
+
+  if (!sourceProduct) {
+    return null;
+  }
+
+  const newProductId = generateProductId();
+
+  const serializedClone = JSON.parse(JSON.stringify(sourceProduct));
+
+  serializedClone.id = newProductId;
+
+  const sourceName = sourceProduct.productName.trim();
+
+  serializedClone.productName = sourceName
+    ? `${sourceName} Copy`
+    : "Product Copy";
+
+  const now = new Date().toISOString();
+
+  serializedClone.createdAt = now;
+
+  serializedClone.updatedAt = now;
+
+  const duplicatedProduct = rehydrateProduct(serializedClone);
+
+  appState.products[newProductId] = duplicatedProduct;
+
+  appState.activeProductId = newProductId;
+
+  /*
+   * Artwork metadata is duplicated,
+   * but the binary/session Object URL
+   * intentionally is not.
+   */
+
+  resetTransientReviewUiState();
+
+  saveStateToStorage();
+
+  renderProductTabs();
+
+  renderAppState();
+
+  scrollActiveProductTabIntoView();
+
+  showToast("Product duplicated.");
+
+  return newProductId;
+}
+
+function duplicateActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  duplicateProduct(product.id);
+}
+
+function deleteProduct(productId, confirmDelete = window.confirm) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return false;
+  }
+
+  const productIds = getProductIds();
+
+  if (productIds.length <= 1) {
+    showToast("At least one product must remain.");
+
+    return false;
+  }
+
+  const productIndex = productIds.indexOf(productId);
+
+  const displayName = getProductDisplayName(product, productIndex);
+
+  const confirmed = confirmDelete(
+    `Delete "${displayName}" and all of its review data?`,
+  );
+
+  if (!confirmed) {
+    return false;
+  }
+
+  const wasActive = appState.activeProductId === productId;
+
+  releaseSessionArtwork(productId);
+
+  delete appState.products[productId];
+
+  if (wasActive) {
+    const remainingIds = getProductIds();
+
+    const nextIndex = Math.min(productIndex, remainingIds.length - 1);
+
+    appState.activeProductId = remainingIds[nextIndex];
+
+    resetTransientReviewUiState();
+  }
+
+  saveStateToStorage();
+
+  renderProductTabs();
+
+  renderAppState();
+
+  showToast("Product deleted.");
+
+  return true;
+}
+
+function deleteActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  deleteProduct(product.id);
+}
+
+// ============================================================
 // PRODUCT INPUTS
 // ============================================================
 
@@ -1613,6 +1892,8 @@ function bindProductInputs() {
       touchActiveProduct();
 
       saveStateToStorage();
+
+      renderProductTabs();
     });
   }
 
@@ -1894,8 +2175,12 @@ function unhighlightPin(itemId) {
   }
 }
 
-function applyArtworkIdentity(metadata, confirmReplacement = window.confirm) {
-  const product = getActiveProduct();
+function applyArtworkIdentity(
+  metadata,
+  confirmReplacement = window.confirm,
+  productId = appState.activeProductId,
+) {
+  const product = getProductById(productId);
 
   if (!product) {
     return {
@@ -1936,8 +2221,7 @@ function applyArtworkIdentity(metadata, confirmReplacement = window.confirm) {
 
   product.artwork = cloneArtworkMetadata(metadata);
 
-  touchActiveProduct();
-
+  touchProduct(productId);
   saveStateToStorage();
 
   return {
@@ -1957,30 +2241,75 @@ function createArtworkMetadata(file, width, height) {
   };
 }
 
-function releaseSessionArtwork() {
-  if (artworkSession.objectUrl) {
-    URL.revokeObjectURL(artworkSession.objectUrl);
+function getArtworkSession(
+  productId = appState.activeProductId,
+  createIfMissing = false,
+) {
+  if (!productId) {
+    return null;
   }
 
-  artworkSession.metadata = null;
-
-  artworkSession.objectUrl = null;
-}
-
-function adoptSessionArtwork(metadata, objectUrl) {
-  if (artworkSession.objectUrl && artworkSession.objectUrl !== objectUrl) {
-    URL.revokeObjectURL(artworkSession.objectUrl);
+  if (!artworkSessions.has(productId) && createIfMissing) {
+    artworkSessions.set(productId, {
+      metadata: null,
+      objectUrl: null,
+    });
   }
 
-  artworkSession.metadata = cloneArtworkMetadata(metadata);
-
-  artworkSession.objectUrl = objectUrl;
+  return artworkSessions.get(productId) || null;
 }
 
-function isArtworkLoadedInSession(metadata) {
+function releaseSessionArtwork(productId = appState.activeProductId) {
+  const session = getArtworkSession(productId, false);
+
+  if (!session) {
+    return;
+  }
+
+  if (session.objectUrl) {
+    URL.revokeObjectURL(session.objectUrl);
+  }
+
+  artworkSessions.delete(productId);
+}
+
+function releaseAllSessionArtworks() {
+  [...artworkSessions.keys()].forEach((productId) => {
+    releaseSessionArtwork(productId);
+  });
+}
+
+function adoptSessionArtwork(
+  metadata,
+  objectUrl,
+  productId = appState.activeProductId,
+) {
+  if (!productId) {
+    return false;
+  }
+
+  const session = getArtworkSession(productId, true);
+
+  if (session.objectUrl && session.objectUrl !== objectUrl) {
+    URL.revokeObjectURL(session.objectUrl);
+  }
+
+  session.metadata = cloneArtworkMetadata(metadata);
+
+  session.objectUrl = objectUrl;
+
+  return true;
+}
+
+function isArtworkLoadedInSession(
+  metadata,
+  productId = appState.activeProductId,
+) {
+  const session = getArtworkSession(productId, false);
+
   return (
-    Boolean(artworkSession.objectUrl) &&
-    isSameArtworkIdentity(artworkSession.metadata, metadata)
+    Boolean(session?.objectUrl) &&
+    isSameArtworkIdentity(session.metadata, metadata)
   );
 }
 
@@ -2128,7 +2457,9 @@ function renderArtworkState() {
     artworkButton.textContent = "Replace Artwork";
   }
 
-  const isLoaded = isArtworkLoadedInSession(metadata);
+  const artworkSession = getArtworkSession(product.id, false);
+
+  const isLoaded = isArtworkLoadedInSession(metadata, product.id);
 
   if (isLoaded) {
     if (demoArtwork) {
@@ -2887,6 +3218,8 @@ function selectArtwork() {
 async function handleArtworkFileChange(event) {
   const file = event.target.files?.[0];
 
+  const targetProductId = appState.activeProductId;
+
   if (!file) {
     return;
   }
@@ -2900,7 +3233,11 @@ async function handleArtworkFileChange(event) {
 
     const { metadata, objectUrl } = await inspectArtworkFile(file);
 
-    const result = applyArtworkIdentity(metadata);
+    const result = applyArtworkIdentity(
+      metadata,
+      window.confirm,
+      targetProductId,
+    );
 
     if (!result.applied) {
       URL.revokeObjectURL(objectUrl);
@@ -2914,11 +3251,13 @@ async function handleArtworkFileChange(event) {
       return;
     }
 
-    adoptSessionArtwork(metadata, objectUrl);
+    adoptSessionArtwork(metadata, objectUrl, targetProductId);
 
-    renderArtworkState();
+    if (appState.activeProductId === targetProductId) {
+      renderArtworkState();
 
-    renderPins();
+      renderPins();
+    }
 
     if (result.sameArtwork) {
       showToast("Artwork file loaded.");
@@ -2950,6 +3289,64 @@ function bindArtworkInput() {
   }
 
   fileInput.addEventListener("change", handleArtworkFileChange);
+}
+
+function renderProductTabs() {
+  const container = document.getElementById("product-tabs");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const products = Object.values(appState.products);
+
+  products.forEach((product, index) => {
+    const tab = document.createElement("button");
+
+    tab.type = "button";
+
+    tab.className = "product-tab";
+
+    tab.dataset.productId = product.id;
+
+    tab.setAttribute("role", "tab");
+
+    const isActive = product.id === appState.activeProductId;
+
+    tab.setAttribute("aria-selected", String(isActive));
+
+    if (isActive) {
+      tab.classList.add("active");
+    }
+
+    const displayName = getProductDisplayName(product, index);
+
+    tab.textContent = displayName;
+
+    tab.title = displayName;
+
+    tab.addEventListener("click", () => {
+      switchProduct(product.id);
+    });
+
+    container.appendChild(tab);
+  });
+}
+
+function scrollActiveProductTabIntoView() {
+  const activeTab = document.querySelector(".product-tab.active");
+
+  if (!activeTab) {
+    return;
+  }
+
+  activeTab.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest",
+    inline: "nearest",
+  });
 }
 
 // ============================================================
@@ -3118,27 +3515,37 @@ function applyImportedReview(importedData) {
 
   appState.schemaVersion = migratedData.schemaVersion;
 
-  appState.activeProductId = importedProduct.id;
-
-  appState.products = {
-    [importedProduct.id]: importedProduct,
-  };
+  let importedProductId = importedProduct.id;
 
   if (
-    !isSameArtworkIdentity(artworkSession.metadata, importedProduct.artwork)
+    Object.prototype.hasOwnProperty.call(appState.products, importedProductId)
   ) {
-    releaseSessionArtwork();
+    importedProductId = generateProductId();
+
+    importedProduct.id = importedProductId;
   }
+
+  appState.schemaVersion = migratedData.schemaVersion;
+
+  appState.products[importedProductId] = importedProduct;
+
+  appState.activeProductId = importedProductId;
 
   openCommentItemIds.clear();
 
   editingTitleItemId = null;
 
+  resetTransientReviewUiState();
+
   saveStateToStorage();
 
   renderChecklist();
 
+  renderProductTabs();
+
   renderAppState();
+
+  scrollActiveProductTabIntoView();
 
   return {
     valid: true,
@@ -3207,7 +3614,7 @@ function openCheck() {
 }
 
 window.addEventListener("beforeunload", () => {
-  releaseSessionArtwork();
+  releaseAllSessionArtworks();
 });
 
 function initializeApp() {
@@ -3218,6 +3625,8 @@ function initializeApp() {
   bindProductInputs();
 
   bindArtworkInput();
+
+  renderProductTabs();
 
   renderAppState();
 }
