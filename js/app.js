@@ -651,6 +651,15 @@ function getItemById(itemId) {
   return product.items[itemId] || null;
 }
 
+/**
+ * Creates a detached copy of persistable artwork metadata.
+ *
+ * Only the supported metadata fields are copied. Runtime-only values such
+ * as File objects and Object URLs must never enter the persisted domain state.
+ *
+ * @param {ArtworkMetadata|null} metadata - Artwork metadata to copy.
+ * @returns {ArtworkMetadata|null} Independent metadata object, or null.
+ */
 function cloneArtworkMetadata(metadata) {
   if (!metadata) {
     return null;
@@ -665,6 +674,19 @@ function cloneArtworkMetadata(metadata) {
   };
 }
 
+/**
+ * Validates the structure and values of artwork metadata.
+ *
+ * A valid artwork must:
+ * - be a plain object;
+ * - have a non-empty file name;
+ * - use an image MIME type;
+ * - have a non-negative file size;
+ * - have positive natural width and height.
+ *
+ * @param {*} metadata - Value to validate.
+ * @returns {boolean} True when the value is valid artwork metadata.
+ */
 function isValidArtworkMetadata(metadata) {
   if (!isPlainObject(metadata)) {
     return false;
@@ -684,6 +706,21 @@ function isValidArtworkMetadata(metadata) {
   );
 }
 
+/**
+ * Determines whether two artwork metadata objects represent the same file
+ * identity for the purposes of the review workflow.
+ *
+ * Identity currently depends on name, MIME type, file size and natural
+ * dimensions. This allows the application to distinguish reloading the same
+ * artwork from replacing it with another artwork.
+ *
+ * Two null values are considered equal. Invalid metadata is never treated
+ * as the same artwork.
+ *
+ * @param {ArtworkMetadata|null} firstArtwork - First artwork identity.
+ * @param {ArtworkMetadata|null} secondArtwork - Second artwork identity.
+ * @returns {boolean} True when both values represent the same artwork.
+ */
 function isSameArtworkIdentity(firstArtwork, secondArtwork) {
   if (firstArtwork === null || secondArtwork === null) {
     return firstArtwork === secondArtwork;
