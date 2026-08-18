@@ -742,6 +742,16 @@ function isSameArtworkIdentity(firstArtwork, secondArtwork) {
   );
 }
 
+/**
+ * Checks whether a product currently contains at least one artwork pin.
+ *
+ * When no product argument is supplied, the active product is checked.
+ * This helper is primarily used before potentially destructive artwork
+ * replacement operations.
+ *
+ * @param {Product|null} [product=getActiveProduct()] - Product to inspect.
+ * @returns {boolean} True when at least one checklist item contains a pin.
+ */
 function productHasPins(product = getActiveProduct()) {
   if (!product) {
     return false;
@@ -750,6 +760,16 @@ function productHasPins(product = getActiveProduct()) {
   return Object.values(product.items).some((item) => item.pin !== null);
 }
 
+/**
+ * Removes every artwork pin from the supplied product.
+ *
+ * This is a domain-level mutation only. It does not render the interface,
+ * save to localStorage or update timestamps by itself, allowing callers to
+ * decide when those side effects should occur.
+ *
+ * @param {Product|null} product - Product whose pins should be removed.
+ * @returns {number} Number of pins that were cleared.
+ */
 function clearProductPins(product) {
   if (!product) {
     return 0;
