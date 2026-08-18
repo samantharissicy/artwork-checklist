@@ -1896,6 +1896,30 @@ function restoreOriginalTitle(itemId) {
 // ITEM STATE RENDERING
 // ============================================================
 
+/**
+ * Synchronizes all dynamic UI states of one rendered checklist item with the
+ * current domain and temporary interface state.
+ *
+ * The function updates:
+ * - current title text;
+ * - inline-edit input visibility and value;
+ * - Edited indicator;
+ * - original-title correction metadata;
+ * - edit-button state;
+ * - review status label;
+ * - Approve and Reject button states;
+ * - accessibility attributes;
+ * - comment UI and validation.
+ *
+ * It reads the item from the active product in appState but does not mutate
+ * the domain or persist anything.
+ *
+ * This function assumes that renderChecklist() has already created the item's
+ * base DOM structure.
+ *
+ * @param {string} itemId - Checklist item whose UI should be synchronized.
+ * @returns {void}
+ */
 function renderItemState(itemId) {
   const item = getItemById(itemId);
 
@@ -2014,6 +2038,27 @@ function renderItemState(itemId) {
 // UI
 //
 
+/**
+ * Handles an Approve or Reject action initiated from the checklist UI.
+ *
+ * Review status buttons behave as toggles:
+ *
+ * - selecting a different status applies that status;
+ * - selecting the already active status returns the item to Pending.
+ *
+ * Status mutation is delegated to setItemStatus().
+ *
+ * When an item becomes Rejected, its comment panel is automatically opened
+ * and the comment textarea receives focus so that the reviewer can provide
+ * the required rejection reason.
+ *
+ * After a successful status change the function re-renders the item, updates
+ * overall review progress and persists the review.
+ *
+ * @param {string} itemId - Checklist item receiving the review action.
+ * @param {ReviewStatus} requestedStatus - Approved or Rejected status requested by the UI.
+ * @returns {void}
+ */
 function handleReviewAction(itemId, requestedStatus) {
   const item = getItemById(itemId);
 
@@ -2059,6 +2104,24 @@ function handleReviewAction(itemId, requestedStatus) {
 // It does not count checked DOM elements.
 //
 
+/**
+ * Recalculates and renders review progress for the active product.
+ *
+ * Progress is derived exclusively from appState rather than from DOM classes
+ * or selected controls.
+ *
+ * An item counts as reviewed whenever its status is not Pending. Therefore
+ * both Approved and Rejected items contribute to the reviewed count.
+ *
+ * The function updates:
+ * - the "X / Y reviewed" text;
+ * - the progress bar width percentage.
+ *
+ * Detailed Approved, Rejected and Pending metrics are intentionally handled
+ * separately by the review-metrics layer.
+ *
+ * @returns {void}
+ */
 function updateProgress() {
   const product = getActiveProduct();
 
