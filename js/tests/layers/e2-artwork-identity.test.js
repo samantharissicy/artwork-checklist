@@ -67,7 +67,7 @@
 
     const replacement = createTestArtworkMetadata("replacement.png");
 
-    product.artwork = {
+    getActiveArtworkLayer(product).artwork = {
       ...originalArtwork,
     };
 
@@ -80,9 +80,9 @@
 
     assertEqual(result.applied, false);
 
-    assertDeepEqual(product.artwork, originalArtwork);
+    assertDeepEqual(getActiveArtworkMetadata(product), originalArtwork);
 
-    assertDeepEqual(getItemById("1a").pin, {
+    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
       xRatio: 0.3,
       yRatio: 0.4,
     });
@@ -93,7 +93,8 @@
 
     const product = getActiveProduct();
 
-    product.artwork = createTestArtworkMetadata("old.png");
+    getActiveArtworkLayer(product).artwork =
+      createTestArtworkMetadata("old.png");
 
     setItemPin("1a", {
       xRatio: 0.2,
@@ -108,9 +109,12 @@
 
     assertEqual(result.pinsCleared, 1);
 
-    assertEqual(getItemById("1a").pin, null);
+    assertEqual(
+      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      null,
+    );
 
-    assertDeepEqual(product.artwork, replacement);
+    assertDeepEqual(getActiveArtworkMetadata(product), replacement);
   });
 
   test("E2 reselecting same artwork preserves pins without confirmation", () => {
@@ -120,7 +124,7 @@
 
     const artwork = createTestArtworkMetadata("same-artwork.png");
 
-    product.artwork = {
+    getActiveArtworkLayer(product).artwork = {
       ...artwork,
     };
 
@@ -143,7 +147,7 @@
 
     assertEqual(confirmationCalls, 0);
 
-    assertDeepEqual(getItemById("1a").pin, {
+    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
       xRatio: 0.45,
       yRatio: 0.55,
     });
@@ -154,7 +158,7 @@
 
     const parsed = JSON.parse(serializeState());
 
-    parsed.products[parsed.activeProductId].artwork = {
+    parsed.products[parsed.activeProductId].artworkLayers[0].artwork = {
       name: "broken.png",
     };
 
@@ -168,13 +172,16 @@
 
     const product = getActiveProduct();
 
-    product.artwork = {
+    getActiveArtworkLayer(product).artwork = {
       ...metadata,
     };
 
     const parsed = deserializeState(serializeState());
 
-    assertDeepEqual(parsed.products[parsed.activeProductId].artwork, metadata);
+    assertDeepEqual(
+      parsed.products[parsed.activeProductId].artworkLayers[0].artwork,
+      metadata,
+    );
   });
 
   test("E2 export includes artwork metadata", () => {
@@ -182,13 +189,15 @@
 
     const metadata = createTestArtworkMetadata("export.png");
 
-    getActiveProduct().artwork = {
+    getActiveArtworkLayer(getActiveProduct()).artwork = {
       ...metadata,
     };
 
     const data = buildExportData();
 
-    assertDeepEqual(data.artwork, metadata);
+    assertDeepEqual(data.artworkLayers[0].artwork, metadata);
+
+    assertEqual(data.activeArtworkLayerId, "layer-main");
   });
 
   test("E2 export import roundtrip restores artwork metadata", () => {
@@ -196,7 +205,7 @@
 
     const metadata = createTestArtworkMetadata("roundtrip.png");
 
-    getActiveProduct().artwork = {
+    getActiveArtworkLayer(getActiveProduct()).artwork = {
       ...metadata,
     };
 
@@ -206,7 +215,10 @@
 
     assertEqual(result.valid, true);
 
-    assertDeepEqual(getActiveProduct().artwork, metadata);
+    assertDeepEqual(
+      getActiveArtworkMetadata(getActiveProduct()),
+      metadata,
+    );
   });
 
   test("E2 artwork controls and missing-file state render correctly", () => {
@@ -220,7 +232,8 @@
 
     assertExists(document.getElementById("artwork-missing"));
 
-    getActiveProduct().artwork = createTestArtworkMetadata("missing-file.png");
+    getActiveArtworkLayer(getActiveProduct()).artwork =
+      createTestArtworkMetadata("missing-file.png");
 
     renderArtworkState();
 

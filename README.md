@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-116%2F116%20passing-success" alt="116/116 tests passing">
+  <img src="https://img.shields.io/badge/tests-156%2F156%20passing-success" alt="156/156 tests passing">
   <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -124,8 +124,9 @@ no database
 | ✅ Autosave                       | Review state is persisted in `localStorage` |
 | ✅ Reload restoration             | Saved state is restored on page load        |
 | ✅ Corrupted-state protection     | Invalid storage does not crash the app      |
-| ✅ Versioned serialization        | Canonical state uses schema version 2       |
-| ✅ State migration                | Legacy schema v1 pin data can migrate to v2 |
+| ✅ Versioned serialization        | Canonical state uses schema version 3       |
+| ✅ State migration                | Legacy schema v1/v2 data migrates to v3     |
+| ✅ Multi-layer artwork domain     | Schema v3 layers, active layer and per-layer pins |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -141,7 +142,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 116 browser-based tests                     |
+| ✅ Automated regression suite     | 156 browser-based tests                     |
 
 ---
 
@@ -1110,7 +1111,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-116 / 116 tests passing
+156 / 156 tests passing
 ```
 
 The suite covers:
@@ -1126,6 +1127,7 @@ Layer D3
 Layer D4
 Layer E1
 Layer E2
+Layer G4A
 ```
 
 Coverage includes:
@@ -1186,6 +1188,16 @@ same-artwork reselection
 artwork serialization
 artwork export/import
 missing-file UI state
+
+multi-layer artwork
+layer factories and getters
+per-layer pins (item.pins[])
+layer-scoped sessions
+layer-scoped artwork identity
+schema v2 → v3 migration
+schema v1 → v2 → v3 chain
+legacy storage key migration
+layer-aware rendering
 
 baseline DOM regression
 zoom regression

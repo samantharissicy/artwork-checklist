@@ -136,7 +136,7 @@
 
     assertEqual(getItemById("1a").comment, "Duplicate this review.");
 
-    assertDeepEqual(getItemById("1a").pin, {
+    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
       xRatio: 0.3,
       yRatio: 0.7,
     });

@@ -52,6 +52,31 @@
  */
 
 /**
+ * Persistable artwork layer of a product.
+ *
+ * Each layer owns an independent artwork identity and its own pin set.
+ * Schema version 1 only supported a single artwork per product; schema
+ * version 3 stores every artwork inside its own layer.
+ *
+ * @typedef {Object} ArtworkLayer
+ * @property {string} id - Unique layer identifier within the product.
+ * @property {string} name - Human-readable layer name.
+ * @property {ArtworkMetadata|null} artwork - Artwork identity assigned to the layer.
+ */
+
+/**
+ * Persisted artwork pin bound to one checklist item and one layer.
+ *
+ * The xRatio/yRatio values are normalized between 0 and 1 relative to the
+ * layer's artwork dimensions.
+ *
+ * @typedef {Object} StoredLayerPin
+ * @property {string} layerId - Layer that owns the pin.
+ * @property {number} xRatio - Horizontal position from 0 (left) to 1 (right).
+ * @property {number} yRatio - Vertical position from 0 (top) to 1 (bottom).
+ */
+
+/**
  * Runtime review state for one checklist requirement.
  *
  * @typedef {Object} ReviewItem
@@ -62,7 +87,7 @@
  * @property {string} note - Supporting checklist guidance.
  * @property {ReviewStatus} status - Current review decision.
  * @property {string} comment - Reviewer comment or rejection reason.
- * @property {NormalizedPin|null} pin - Optional position on the artwork.
+ * @property {StoredLayerPin[]} pins - Optional artwork positions, one per layer.
  */
 
 /**
@@ -77,7 +102,8 @@
  * @property {string} productionCode - Production identifier, never derived from SKU.
  * @property {string} site - Allowed production site, or an empty string.
  * @property {string} artworkVersion - Revision of the artwork under review.
- * @property {ArtworkMetadata|null} artwork
+ * @property {ArtworkLayer[]} artworkLayers - Independent artwork layers.
+ * @property {string} activeArtworkLayerId - Identifier of the layer currently under review.
  * @property {Object.<string, ReviewItem>} items
  * @property {Object} reviewer
  * @property {Object|null} signature
@@ -85,7 +111,7 @@
  * @property {string} updatedAt - ISO last-modification timestamp.
  */
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 const ARTWORK_REPLACEMENT_MESSAGE =
   "Replacing this artwork will invalidate existing pins.\nContinue?";
@@ -452,6 +478,8 @@ const sectionDefinitions = [
  * important when creating or duplicating products because review state
  * must never be accidentally shared between products.
  *
+ * Pins are stored as a per-layer array, so a fresh item contains no pins.
+ *
  * @returns {Object.<string, ReviewItem>} Fresh checklist items keyed by item ID.
  */
 function createInitialItems() {
@@ -472,7 +500,7 @@ function createInitialItems() {
 
         comment: "",
 
-        pin: null,
+        pins: [],
       };
 
       /*
@@ -497,11 +525,34 @@ function createInitialItems() {
 }
 
 /**
+ * Creates a fresh artwork layer for a product.
+ *
+ * A layer owns one independent artwork identity. The optional artwork
+ * metadata is cloned so the layer never shares an object reference with
+ * the caller.
+ *
+ * @param {string} id - Unique layer identifier within the product.
+ * @param {string} name - Human-readable layer name.
+ * @param {ArtworkMetadata|null} [artwork=null] - Optional artwork identity.
+ * @returns {ArtworkLayer} Newly initialized artwork layer.
+ */
+function createArtworkLayer(id, name, artwork = null) {
+  return {
+    id,
+    name,
+    artwork: artwork ? cloneArtworkMetadata(artwork) : null,
+  };
+}
+
+/**
  * Creates a new product review with empty product information and a fresh
  * copy of the complete checklist.
  *
  * Creation and update timestamps are initialized to the same ISO timestamp.
  * Artwork, signature and review decisions start empty.
+ *
+ * Every new product starts with a single default artwork layer named
+ * "Main Artwork" (identifier "layer-main"), which is also the active layer.
  *
  * @param {string} id - Permanent unique identifier assigned to the product.
  * @returns {Product} Newly initialized product review.
@@ -526,7 +577,9 @@ function createProduct(id) {
 
     artworkVersion: "",
 
-    artwork: null,
+    artworkLayers: [createArtworkLayer("layer-main", "Main Artwork")],
+
+    activeArtworkLayerId: "layer-main",
 
     items: createInitialItems(),
 
@@ -563,6 +616,14 @@ const appState = {
   products: {},
 };
 
+/**
+ * Runtime artwork sessions, keyed by product and then by artwork layer.
+ *
+ *     artworkSessions: Map<productId, Map<layerId, ArtworkSession>>
+ *
+ * Each (product, layer) pair owns an independent session so switching
+ * products or layers never causes one loaded image to replace another.
+ */
 const artworkSessions = new Map();
 
 appState.products["product-1"] = createProduct("product-1");
@@ -656,6 +717,94 @@ function generateProductId() {
   } while (Object.prototype.hasOwnProperty.call(appState.products, productId));
 
   return productId;
+}
+
+/**
+ * Retrieves an artwork layer from a product by its identifier.
+ *
+ * @param {Product|null} product - Product whose layers should be searched.
+ * @param {string} layerId - Artwork layer identifier to look up.
+ * @returns {ArtworkLayer|null} Matching layer, or null when it does not exist.
+ */
+function getArtworkLayerById(product, layerId) {
+  if (!product || !Array.isArray(product.artworkLayers)) {
+    return null;
+  }
+
+  return product.artworkLayers.find((layer) => layer.id === layerId) || null;
+}
+
+/**
+ * Returns the artwork layer currently selected for review in a product.
+ *
+ * The active layer is resolved from product.activeArtworkLayerId. When the
+ * stored identifier is missing or invalid, the first layer is used as a
+ * defensive fallback so interface rendering never crashes.
+ *
+ * @param {Product|null} [product=getActiveProduct()] - Product to inspect.
+ * @returns {ArtworkLayer|null} Active artwork layer, or null when unavailable.
+ */
+function getActiveArtworkLayer(product = getActiveProduct()) {
+  if (!product || !Array.isArray(product.artworkLayers)) {
+    return null;
+  }
+
+  return (
+    getArtworkLayerById(product, product.activeArtworkLayerId) ||
+    product.artworkLayers[0] ||
+    null
+  );
+}
+
+/**
+ * Returns the artwork metadata of the active layer of a product.
+ *
+ * @param {Product|null} [product=getActiveProduct()] - Product to inspect.
+ * @returns {ArtworkMetadata|null} Active-layer artwork metadata, or null.
+ */
+function getActiveArtworkMetadata(product = getActiveProduct()) {
+  const layer = getActiveArtworkLayer(product);
+
+  return layer ? layer.artwork : null;
+}
+
+/**
+ * Returns the identifiers of every artwork layer of a product.
+ *
+ * @param {Product|null} product - Product whose layer IDs should be listed.
+ * @returns {string[]} Layer identifiers, in storage order.
+ */
+function getArtworkLayerIds(product) {
+  if (!product || !Array.isArray(product.artworkLayers)) {
+    return [];
+  }
+
+  return product.artworkLayers.map((layer) => layer.id);
+}
+
+/**
+ * Generates a permanent unique identifier for a new artwork layer.
+ *
+ * The generated identifier is checked against the product's existing layers
+ * so an accidental replacement of an existing layer is prevented.
+ *
+ * @param {Product|null} product - Product that will receive the new layer.
+ * @returns {string} Unique layer identifier prefixed with "layer-".
+ */
+function generateArtworkLayerId(product) {
+  const existingIds = new Set(getArtworkLayerIds(product));
+
+  let layerId;
+
+  do {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      layerId = `layer-${window.crypto.randomUUID()}`;
+    } else {
+      layerId = `layer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+  } while (existingIds.has(layerId));
+
+  return layerId;
 }
 
 /**
@@ -769,7 +918,189 @@ function isSameArtworkIdentity(firstArtwork, secondArtwork) {
 }
 
 /**
- * Checks whether a product currently contains at least one artwork pin.
+ * Returns the normalized artwork pin of one checklist item on one layer.
+ *
+ * The returned object is a detached copy containing only the normalized
+ * xRatio/yRatio coordinates, without the stored layerId, so callers cannot
+ * accidentally corrupt the persisted pin entry.
+ *
+ * @param {ReviewItem|null} item - Checklist item to inspect.
+ * @param {string} layerId - Artwork layer whose pin is requested.
+ * @returns {NormalizedPin|null} Normalized pin for the layer, or null.
+ */
+function getItemPinForLayer(item, layerId) {
+  if (!item || !Array.isArray(item.pins)) {
+    return null;
+  }
+
+  const storedPin = item.pins.find((pin) => pin.layerId === layerId);
+
+  if (!storedPin) {
+    return null;
+  }
+
+  return {
+    xRatio: storedPin.xRatio,
+    yRatio: storedPin.yRatio,
+  };
+}
+
+/**
+ * Determines whether a checklist item has a pin on a specific layer.
+ *
+ * @param {ReviewItem|null} item - Checklist item to inspect.
+ * @param {string} layerId - Artwork layer to check.
+ * @returns {boolean} True when the item carries a pin on that layer.
+ */
+function itemHasPinOnLayer(item, layerId) {
+  return getItemPinForLayer(item, layerId) !== null;
+}
+
+/**
+ * Assigns or replaces the normalized artwork pin of a checklist item on one
+ * artwork layer.
+ *
+ * Pins must use normalized xRatio/yRatio coordinates. Passing null removes
+ * the layer pin from the item.
+ *
+ * A maximum of one pin exists per (item, layer) pair: assigning a pin to a
+ * layer that already has one replaces the stored coordinates.
+ *
+ * The active product's modification timestamp is updated, while persistence
+ * and rendering remain the caller's responsibility.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {string} layerId - Artwork layer owning the pin.
+ * @param {NormalizedPin|null} pin - Normalized pin position, or null to remove it.
+ * @returns {boolean} True when the pin state was successfully changed.
+ */
+function setItemPinForLayer(itemId, layerId, pin) {
+  const item = getItemById(itemId);
+
+  if (!item) {
+    return false;
+  }
+
+  if (typeof layerId !== "string" || layerId.trim() === "") {
+    console.warn(`Invalid layer id for pin of "${itemId}".`);
+
+    return false;
+  }
+
+  if (pin !== null && !isNormalizedPin(pin)) {
+    console.warn(`Invalid normalized pin for "${itemId}".`);
+
+    return false;
+  }
+
+  const pinIndex = item.pins.findIndex(
+    (storedPin) => storedPin.layerId === layerId,
+  );
+
+  if (pin === null) {
+    if (pinIndex >= 0) {
+      item.pins.splice(pinIndex, 1);
+    }
+  } else if (pinIndex >= 0) {
+    item.pins[pinIndex].xRatio = pin.xRatio;
+
+    item.pins[pinIndex].yRatio = pin.yRatio;
+  } else {
+    item.pins.push({
+      layerId,
+      xRatio: pin.xRatio,
+      yRatio: pin.yRatio,
+    });
+  }
+
+  touchActiveProduct();
+
+  return true;
+}
+
+/**
+ * Removes the artwork pin of one checklist item from one layer.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {string} layerId - Artwork layer whose pin should be removed.
+ * @returns {boolean} True when the pin existed and was removed.
+ */
+function removeItemPinFromLayer(itemId, layerId) {
+  const item = getItemById(itemId);
+
+  if (!item || !Array.isArray(item.pins)) {
+    return false;
+  }
+
+  const pinIndex = item.pins.findIndex(
+    (storedPin) => storedPin.layerId === layerId,
+  );
+
+  if (pinIndex < 0) {
+    return false;
+  }
+
+  item.pins.splice(pinIndex, 1);
+
+  touchActiveProduct();
+
+  return true;
+}
+
+/**
+ * Determines whether one artwork layer of a product contains at least one
+ * pin, across any checklist item.
+ *
+ * @param {Product|null} product - Product to inspect.
+ * @param {string} layerId - Artwork layer to check.
+ * @returns {boolean} True when the layer has at least one pin.
+ */
+function layerHasPins(product, layerId) {
+  if (!product) {
+    return false;
+  }
+
+  return Object.values(product.items).some((item) =>
+    itemHasPinOnLayer(item, layerId),
+  );
+}
+
+/**
+ * Removes every artwork pin belonging to one layer of a product.
+ *
+ * Pins belonging to other layers are intentionally left untouched, so this
+ * operation is safe to run when more than one layer is present.
+ *
+ * This is a domain-level mutation only. It does not render the interface,
+ * save to localStorage or update timestamps by itself.
+ *
+ * @param {Product|null} product - Product whose layer pins should be removed.
+ * @param {string} layerId - Artwork layer to clear.
+ * @returns {number} Number of pins that were cleared.
+ */
+function clearLayerPins(product, layerId) {
+  if (!product) {
+    return 0;
+  }
+
+  let clearedCount = 0;
+
+  Object.values(product.items).forEach((item) => {
+    if (itemHasPinOnLayer(item, layerId)) {
+      item.pins = item.pins.filter(
+        (storedPin) => storedPin.layerId !== layerId,
+      );
+
+      clearedCount += 1;
+    }
+  });
+
+  return clearedCount;
+}
+
+/**
+ * Checks whether a product currently contains at least one artwork pin on
+ * any layer.
  *
  * When no product argument is supplied, the active product is checked.
  * This helper is primarily used before potentially destructive artwork
@@ -783,11 +1114,13 @@ function productHasPins(product = getActiveProduct()) {
     return false;
   }
 
-  return Object.values(product.items).some((item) => item.pin !== null);
+  return Object.values(product.items).some(
+    (item) => Array.isArray(item.pins) && item.pins.length > 0,
+  );
 }
 
 /**
- * Removes every artwork pin from the supplied product.
+ * Removes every artwork pin from the supplied product, across all layers.
  *
  * This is a domain-level mutation only. It does not render the interface,
  * save to localStorage or update timestamps by itself, allowing callers to
@@ -804,10 +1137,10 @@ function clearProductPins(product) {
   let clearedCount = 0;
 
   Object.values(product.items).forEach((item) => {
-    if (item.pin !== null) {
-      item.pin = null;
+    if (Array.isArray(item.pins) && item.pins.length > 0) {
+      clearedCount += item.pins.length;
 
-      clearedCount += 1;
+      item.pins = [];
     }
   });
 
@@ -951,42 +1284,31 @@ function setItemComment(itemId, comment) {
 }
 
 /**
- * Assigns or removes the normalized artwork pin of a checklist item.
+ * Assigns or removes the normalized artwork pin of a checklist item on the
+ * currently active artwork layer.
  *
- * Pins must use normalized xRatio/yRatio coordinates. Pixel-based or
- * otherwise invalid pin objects are rejected.
+ * This is the backward-compatible shorthand used by the interface and
+ * existing callers. Layer-aware callers should prefer setItemPinForLayer().
  *
- * Passing null removes the pin. The product modification timestamp is
- * updated, but persistence and rendering remain the caller's responsibility.
+ * Pins must use normalized xRatio/yRatio coordinates. Passing null removes
+ * the pin from the active layer.
  *
  * @param {string} itemId - Checklist item identifier.
  * @param {NormalizedPin|null} pin - Normalized pin position, or null to remove it.
  * @returns {boolean} True when the pin state was successfully changed.
  */
 function setItemPin(itemId, pin) {
-  const item = getItemById(itemId);
+  const product = getActiveProduct();
 
-  if (!item) {
-    return false;
-  }
+  const activeLayer = getActiveArtworkLayer(product);
 
-  if (pin !== null && !isNormalizedPin(pin)) {
-    console.warn(`Invalid normalized pin for "${itemId}".`);
+  if (!activeLayer) {
+    console.warn("Unable to resolve the active artwork layer.");
 
     return false;
   }
 
-  item.pin =
-    pin === null
-      ? null
-      : {
-          xRatio: pin.xRatio,
-          yRatio: pin.yRatio,
-        };
-
-  touchActiveProduct();
-
-  return true;
+  return setItemPinForLayer(itemId, activeLayer.id, pin);
 }
 
 // ============================================================
@@ -1896,7 +2218,9 @@ function commitTitleEdit(itemId) {
 
   renderItemState(itemId);
 
-  if (item.pin) {
+  const activeLayer = getActiveArtworkLayer(getActiveProduct());
+
+  if (activeLayer && itemHasPinOnLayer(item, activeLayer.id)) {
     renderPin(itemId);
   }
 
@@ -1956,7 +2280,9 @@ function restoreOriginalTitle(itemId) {
 
   renderItemState(itemId);
 
-  if (item.pin) {
+  const activeLayer = getActiveArtworkLayer(getActiveProduct());
+
+  if (activeLayer && itemHasPinOnLayer(item, activeLayer.id)) {
     renderPin(itemId);
   }
 
@@ -2422,8 +2748,9 @@ async function renameActiveProduct() {
  * - review statuses;
  * - comments;
  * - current copy corrections;
- * - artwork metadata;
- * - normalized pins;
+ * - independent artwork layers with artwork metadata;
+ * - per-layer normalized pins;
+ * - the active layer identifier;
  * - reviewer information.
  *
  * The duplicate receives:
@@ -2523,7 +2850,7 @@ function duplicateActiveProduct() {
  * depending on the browser's native confirmation dialog.
  *
  * When deletion succeeds:
- * - the product's session artwork Object URL is released;
+ * - every layer session Object URL of the product is released;
  * - the product is removed from appState;
  * - another product becomes active when the deleted product was active;
  * - transient review UI state is reset when necessary;
@@ -2563,7 +2890,7 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
 
   const wasActive = appState.activeProductId === productId;
 
-  releaseSessionArtwork(productId);
+  releaseProductSessionArtworks(productId);
 
   delete appState.products[productId];
 
@@ -3097,11 +3424,13 @@ if (pinsLayer) {
 }
 
 /**
- * Creates the DOM representation of a pinned checklist item.
+ * Creates the DOM representation of a checklist item pinned to the active
+ * artwork layer.
  *
  * The element is positioned using percentage values derived from the item's
- * normalized xRatio and yRatio coordinates. This allows the marker to remain
- * attached to the same relative artwork location as display dimensions change.
+ * normalized xRatio and yRatio coordinates on the active layer. This allows
+ * the marker to remain attached to the same relative artwork location as
+ * display dimensions change.
  *
  * The pin contains:
  * - the checklist item identifier;
@@ -3111,19 +3440,33 @@ if (pinsLayer) {
  *
  * Clicking the pin navigates back to the corresponding checklist item.
  *
+ * An item without a pin on the active layer cannot be rendered and returns
+ * null so callers do not build empty markers.
+ *
  * @param {ReviewItem} item - Pinned checklist item to render.
- * @returns {HTMLDivElement} Newly created pin element.
+ * @returns {HTMLDivElement|null} Newly created pin element, or null when the
+ *   item has no pin on the active layer.
  */
 function createPinElement(item) {
+  const product = getActiveProduct();
+
+  const activeLayer = getActiveArtworkLayer(product);
+
+  const pin = activeLayer ? getItemPinForLayer(item, activeLayer.id) : null;
+
+  if (!pin) {
+    return null;
+  }
+
   const pinElement = document.createElement("div");
 
   pinElement.className = "pin";
 
   pinElement.dataset.pid = item.id;
 
-  pinElement.style.left = `${item.pin.xRatio * 100}%`;
+  pinElement.style.left = `${pin.xRatio * 100}%`;
 
-  pinElement.style.top = `${item.pin.yRatio * 100}%`;
+  pinElement.style.top = `${pin.yRatio * 100}%`;
 
   pinElement.innerHTML = `
     <div class="pin-tooltip">
@@ -3143,11 +3486,11 @@ function createPinElement(item) {
 }
 
 /**
- * Re-renders a single checklist pin from the active product state.
+ * Re-renders a single checklist pin from the active product's active layer.
  *
  * Any existing DOM pin for the supplied item is removed first. If the item
- * exists and still contains pin data, a fresh element is created and appended
- * to the pin layer.
+ * exists and still contains a pin on the active layer, a fresh element is
+ * created and appended to the pin layer.
  *
  * This replacement approach also ensures that changes such as currentTitle
  * edits are immediately reflected in the pin tooltip.
@@ -3168,23 +3511,33 @@ function renderPin(itemId) {
 
   const item = getItemById(itemId);
 
-  if (!item || !item.pin) {
+  const product = getActiveProduct();
+
+  const activeLayer = getActiveArtworkLayer(product);
+
+  const pin = activeLayer ? getItemPinForLayer(item, activeLayer.id) : null;
+
+  if (!item || !pin) {
     return;
   }
 
   const pinElement = createPinElement(item);
 
-  pinsLayer.appendChild(pinElement);
+  if (pinElement) {
+    pinsLayer.appendChild(pinElement);
+  }
 }
 
 /**
- * Rebuilds every artwork pin belonging to the currently active product.
+ * Rebuilds every artwork pin belonging to the active layer of the currently
+ * active product.
  *
  * The existing pin layer is cleared first and only items whose domain state
- * contains a pin are rendered.
+ * contains a pin on the active layer are rendered.
  *
- * Because each product owns an independent items collection, switching products
- * followed by this render automatically displays only the active product's pins.
+ * Because each product owns an independent items collection and each layer
+ * owns an independent pin set, switching products or layers followed by this
+ * render automatically displays only the active layer's pins.
  *
  * No pin state is created, changed or persisted by this function.
  *
@@ -3199,25 +3552,31 @@ function renderPins() {
 
   const product = getActiveProduct();
 
-  if (!product) {
+  const activeLayer = getActiveArtworkLayer(product);
+
+  if (!product || !activeLayer) {
     return;
   }
 
   Object.values(product.items).forEach((item) => {
-    if (item.pin) {
+    const pin = getItemPinForLayer(item, activeLayer.id);
+
+    if (pin) {
       const pinElement = createPinElement(item);
 
-      pinsLayer.appendChild(pinElement);
+      if (pinElement) {
+        pinsLayer.appendChild(pinElement);
+      }
     }
   });
 }
 
 /**
- * Assigns a normalized artwork location to a checklist item and immediately
- * reflects the change in the application.
+ * Assigns a normalized artwork location to a checklist item on the active
+ * artwork layer and immediately reflects the change in the application.
  *
- * Pin mutation is delegated to setItemPin() so coordinate validation and
- * timestamp updates remain centralized in the domain layer.
+ * Pin mutation is delegated to setItemPinForLayer() so coordinate validation
+ * and timestamp updates remain centralized in the domain layer.
  *
  * On success the function:
  * - renders the new pin;
@@ -3235,7 +3594,15 @@ function addPin(itemId, pin) {
     return false;
   }
 
-  if (!setItemPin(itemId, pin)) {
+  const product = getActiveProduct();
+
+  const activeLayer = getActiveArtworkLayer(product);
+
+  if (!activeLayer) {
+    return false;
+  }
+
+  if (!setItemPinForLayer(itemId, activeLayer.id, pin)) {
     return false;
   }
 
@@ -3334,30 +3701,35 @@ function unhighlightPin(itemId) {
 }
 
 /**
- * Applies artwork metadata to a product while protecting existing pin geometry.
+ * Applies artwork metadata to one artwork layer while protecting existing
+ * layer pin geometry.
  *
- * The function compares the candidate artwork with the product's current
- * artwork identity.
+ * The function compares the candidate artwork with the target layer's
+ * current artwork identity.
  *
- * When the artwork is different and the product already contains pins, the
- * supplied confirmation callback must approve the replacement before any
- * destructive change occurs.
+ * When the artwork is different and the target layer already contains pins,
+ * the supplied confirmation callback must approve the replacement before
+ * any destructive change occurs.
  *
  * If replacement is approved:
- * - existing pins are cleared when the artwork identity changed;
- * - artwork metadata is copied into the product domain;
+ * - pins on the target layer are cleared when the artwork identity changed;
+ * - artwork metadata is copied into the target layer domain;
  * - the product modification timestamp is updated;
  * - the workspace is persisted.
  *
+ * Pins and artwork metadata belonging to other layers are never touched.
+ *
  * Selecting the same artwork does not clear existing pins.
  *
- * Only persistable artwork metadata is stored here. The actual image file and
- * its Object URL are handled separately by the artwork-session functions.
+ * Only persistable artwork metadata is stored here. The actual image file
+ * and its Object URL are handled separately by the artwork-session functions.
  *
  * @param {ArtworkMetadata} metadata - Valid artwork metadata to apply.
  * @param {Function} [confirmReplacement=window.confirm] - Synchronous callback
- *   used when replacing an artwork that already contains pins.
+ *   used when replacing artwork that already contains pins.
  * @param {string} [productId=appState.activeProductId] - Product receiving the artwork.
+ * @param {string} [layerId] - Layer receiving the artwork; defaults to the
+ *   product's active layer.
  * @returns {{
  *   applied: boolean,
  *   reason?: string,
@@ -3369,6 +3741,7 @@ function applyArtworkIdentity(
   metadata,
   confirmReplacement = window.confirm,
   productId = appState.activeProductId,
+  layerId,
 ) {
   const product = getProductById(productId);
 
@@ -3379,6 +3752,17 @@ function applyArtworkIdentity(
     };
   }
 
+  const targetLayer = layerId
+    ? getArtworkLayerById(product, layerId)
+    : getActiveArtworkLayer(product);
+
+  if (!targetLayer) {
+    return {
+      applied: false,
+      reason: "no-layer",
+    };
+  }
+
   if (!isValidArtworkMetadata(metadata)) {
     return {
       applied: false,
@@ -3386,7 +3770,7 @@ function applyArtworkIdentity(
     };
   }
 
-  const previousArtwork = product.artwork;
+  const previousArtwork = targetLayer.artwork;
 
   const sameArtwork = isSameArtworkIdentity(previousArtwork, metadata);
 
@@ -3398,7 +3782,7 @@ function applyArtworkIdentity(
     };
   }
 
-  const hasPins = productHasPins(product);
+  const hasPins = layerHasPins(product, targetLayer.id);
 
   if (!sameArtwork && hasPins) {
     const confirmed = confirmReplacement(ARTWORK_REPLACEMENT_MESSAGE);
@@ -3414,10 +3798,10 @@ function applyArtworkIdentity(
   let pinsCleared = 0;
 
   if (!sameArtwork && hasPins) {
-    pinsCleared = clearProductPins(product);
+    pinsCleared = clearLayerPins(product, targetLayer.id);
   }
 
-  product.artwork = cloneArtworkMetadata(metadata);
+  targetLayer.artwork = cloneArtworkMetadata(metadata);
 
   touchProduct(productId);
   saveStateToStorage();
@@ -3454,58 +3838,106 @@ function createArtworkMetadata(file, width, height) {
 }
 
 /**
- * Retrieves the temporary artwork session associated with a product.
+ * Resolves the layer identifier used by session operations.
+ *
+ * When an explicit layer id is supplied it is used directly. Otherwise the
+ * product's active layer determines the session, which keeps existing
+ * single-layer call sites working without changing their arguments.
+ *
+ * @param {string} productId - Product owning the session.
+ * @param {string|null} [requestedLayerId=null] - Explicit layer id, or null
+ *   to resolve the product's active layer.
+ * @returns {string|null} Resolved layer id, or null when unavailable.
+ */
+function resolveSessionLayerId(productId, requestedLayerId = null) {
+  if (typeof requestedLayerId === "string" && requestedLayerId !== "") {
+    return requestedLayerId;
+  }
+
+  const product = getProductById(productId);
+
+  if (!product) {
+    return null;
+  }
+
+  const activeLayer = getActiveArtworkLayer(product);
+
+  return activeLayer ? activeLayer.id : null;
+}
+
+/**
+ * Retrieves the temporary artwork session associated with one artwork layer
+ * of a product.
  *
  * Artwork sessions contain runtime-only information such as the Object URL
  * required to display a locally selected image. They are stored separately
  * from appState because Object URLs are valid only during the current browser
  * session and must never be persisted.
  *
- * When createIfMissing is true, a new empty session is created for the product
- * when one does not already exist.
+ * When createIfMissing is true, a new empty session is created for the
+ * (product, layer) pair when one does not already exist.
  *
- * Each product owns an independent session so switching between products does
- * not cause one product's loaded artwork to replace another product's image.
+ * Each (product, layer) pair owns an independent session so switching between
+ * products or layers does not replace another pair's loaded image.
  *
  * @param {string} [productId=appState.activeProductId] - Product whose session is requested.
+ * @param {string|null} [layerId=null] - Layer whose session is requested;
+ *   defaults to the product's active layer.
  * @param {boolean} [createIfMissing=false] - Whether to create an empty session when absent.
  * @returns {{metadata: ArtworkMetadata|null, objectUrl: string|null}|null}
  *   Existing or newly created session, or null when unavailable.
  */
 function getArtworkSession(
   productId = appState.activeProductId,
+  layerId = null,
   createIfMissing = false,
 ) {
   if (!productId) {
     return null;
   }
 
-  if (!artworkSessions.has(productId) && createIfMissing) {
-    artworkSessions.set(productId, {
+  const resolvedLayerId = resolveSessionLayerId(productId, layerId);
+
+  if (!resolvedLayerId) {
+    return null;
+  }
+
+  let layerSessions = artworkSessions.get(productId);
+
+  if (!layerSessions && createIfMissing) {
+    layerSessions = new Map();
+
+    artworkSessions.set(productId, layerSessions);
+  }
+
+  if (!layerSessions) {
+    return null;
+  }
+
+  if (!layerSessions.has(resolvedLayerId) && createIfMissing) {
+    layerSessions.set(resolvedLayerId, {
       metadata: null,
       objectUrl: null,
     });
   }
 
-  return artworkSessions.get(productId) || null;
+  return layerSessions.get(resolvedLayerId) || null;
 }
 
 /**
- * Releases all runtime artwork resources associated with one product.
+ * Releases the runtime artwork resources of a single (product, layer) pair.
  *
- * If the session contains an Object URL, URL.revokeObjectURL() is called before
- * the session is removed from artworkSessions.
+ * If the layer session contains an Object URL, URL.revokeObjectURL() is
+ * called before the entry is removed from the product's session map.
  *
- * Revoking Object URLs is important because browsers retain the underlying
- * binary data while those URLs remain active.
+ * Persisted layer artwork metadata is intentionally left unchanged.
  *
- * Persisted product.artwork metadata is intentionally left unchanged.
- *
- * @param {string} [productId=appState.activeProductId] - Product whose runtime artwork should be released.
+ * @param {string} productId - Product owning the layer session.
+ * @param {string} layerId - Artwork layer whose runtime artwork should be released.
  * @returns {void}
  */
-function releaseSessionArtwork(productId = appState.activeProductId) {
-  const session = getArtworkSession(productId, false);
+function releaseLayerSessionArtwork(productId, layerId) {
+  const session = getArtworkSession(productId, layerId, false);
 
   if (!session) {
     return;
@@ -3515,14 +3947,70 @@ function releaseSessionArtwork(productId = appState.activeProductId) {
     URL.revokeObjectURL(session.objectUrl);
   }
 
+  const layerSessions = artworkSessions.get(productId);
+
+  if (layerSessions) {
+    layerSessions.delete(layerId);
+  }
+}
+
+/**
+ * Releases every runtime artwork session owned by one product.
+ *
+ * All layer sessions of the product are released through
+ * releaseLayerSessionArtwork() so their Object URLs are revoked before the
+ * product entry is removed from artworkSessions.
+ *
+ * @param {string} [productId=appState.activeProductId] - Product whose
+ *   runtime artwork should be released.
+ * @returns {void}
+ */
+function releaseProductSessionArtworks(productId = appState.activeProductId) {
+  const layerSessions = artworkSessions.get(productId);
+
+  if (!layerSessions) {
+    return;
+  }
+
+  [...layerSessions.keys()].forEach((layerId) => {
+    releaseLayerSessionArtwork(productId, layerId);
+  });
+
   artworkSessions.delete(productId);
+}
+
+/**
+ * Releases all runtime artwork resources associated with one product.
+ *
+ * When a layer id is supplied only that layer's session is released;
+ * otherwise every layer session of the product is released. This keeps the
+ * historical product-scoped behavior while supporting layer-scoped calls.
+ *
+ * Persisted artwork metadata is intentionally left unchanged.
+ *
+ * @param {string} [productId=appState.activeProductId] - Product whose runtime artwork should be released.
+ * @param {string|null} [layerId=null] - Optional layer to release; when
+ *   omitted, every layer session of the product is released.
+ * @returns {void}
+ */
+function releaseSessionArtwork(
+  productId = appState.activeProductId,
+  layerId = null,
+) {
+  if (typeof layerId === "string" && layerId !== "") {
+    releaseLayerSessionArtwork(productId, layerId);
+
+    return;
+  }
+
+  releaseProductSessionArtworks(productId);
 }
 
 /**
  * Releases every temporary artwork session currently held by the application.
  *
- * Each registered product session is delegated to releaseSessionArtwork() so
- * its Object URL is properly revoked before being removed.
+ * Each registered product is delegated to releaseProductSessionArtworks() so
+ * every layer Object URL is properly revoked before being removed.
  *
  * This function is primarily useful during application shutdown or page unload
  * to avoid leaving browser-managed Object URLs unnecessarily allocated.
@@ -3531,38 +4019,48 @@ function releaseSessionArtwork(productId = appState.activeProductId) {
  */
 function releaseAllSessionArtworks() {
   [...artworkSessions.keys()].forEach((productId) => {
-    releaseSessionArtwork(productId);
+    releaseProductSessionArtworks(productId);
   });
 }
 
 /**
- * Associates a loaded artwork Object URL with a product's runtime session.
+ * Associates a loaded artwork Object URL with one artwork layer's runtime
+ * session.
  *
- * If the product already has another Object URL, the previous URL is revoked
- * before the new one is adopted. This prevents stale browser resources from
- * accumulating when artwork files are replaced or reselected.
+ * If the (product, layer) pair already has another Object URL, the previous
+ * URL is revoked before the new one is adopted. This prevents stale browser
+ * resources from accumulating when artwork files are replaced or reselected.
  *
  * Artwork metadata is cloned before being stored in the session so the runtime
  * session does not depend on the caller's object reference.
  *
- * This function affects session-only state and does not mutate product.artwork
- * or persist anything.
+ * This function affects session-only state and does not mutate layer artwork
+ * metadata or persist anything.
  *
  * @param {ArtworkMetadata} metadata - Metadata identifying the loaded artwork.
  * @param {string} objectUrl - Browser Object URL used to display the image.
  * @param {string} [productId=appState.activeProductId] - Product that owns the session.
+ * @param {string|null} [layerId=null] - Layer that owns the session; defaults
+ *   to the product's active layer.
  * @returns {boolean} True when the artwork session was successfully adopted.
  */
 function adoptSessionArtwork(
   metadata,
   objectUrl,
   productId = appState.activeProductId,
+  layerId = null,
 ) {
   if (!productId) {
     return false;
   }
 
-  const session = getArtworkSession(productId, true);
+  const resolvedLayerId = resolveSessionLayerId(productId, layerId);
+
+  if (!resolvedLayerId) {
+    return false;
+  }
+
+  const session = getArtworkSession(productId, resolvedLayerId, true);
 
   if (session.objectUrl && session.objectUrl !== objectUrl) {
     URL.revokeObjectURL(session.objectUrl);
@@ -3577,25 +4075,28 @@ function adoptSessionArtwork(
 
 /**
  * Determines whether the requested artwork is currently available as a loaded
- * browser-session image for a product.
+ * browser-session image for one artwork layer of a product.
  *
- * A product is considered loaded only when:
+ * A layer is considered loaded only when:
  * - its runtime session contains an Object URL; and
  * - the session metadata matches the requested artwork identity.
  *
- * This distinction allows persisted artwork metadata to survive page reloads
- * while still correctly reporting that the original local file must be
- * selected again.
+ * This distinction allows persisted layer artwork metadata to survive page
+ * reloads while still correctly reporting that the original local file must
+ * be selected again.
  *
  * @param {ArtworkMetadata|null} metadata - Persisted artwork identity to compare.
  * @param {string} [productId=appState.activeProductId] - Product whose session should be checked.
+ * @param {string|null} [layerId=null] - Layer whose session should be checked;
+ *   defaults to the product's active layer.
  * @returns {boolean} True when the corresponding image is available this session.
  */
 function isArtworkLoadedInSession(
   metadata,
   productId = appState.activeProductId,
+  layerId = null,
 ) {
-  const session = getArtworkSession(productId, false);
+  const session = getArtworkSession(productId, layerId, false);
 
   return (
     Boolean(session?.objectUrl) &&
@@ -3734,27 +4235,31 @@ function formatArtworkSummary(metadata) {
 }
 
 /**
- * Synchronizes the artwork viewer with the active product's persisted metadata
- * and current browser-session image availability.
+ * Synchronizes the artwork viewer with the active artwork layer of the
+ * active product.
+ *
+ * All artwork state shown by the viewer — metadata, loaded image and pins —
+ * refers exclusively to the layer returned by getActiveArtworkLayer().
+ * Other layers are never displayed or rendered by this function.
  *
  * The viewer supports three distinct states:
  *
  * 1. Demo
- *    No artwork metadata exists for the product. The built-in demonstration
+ *    The active layer has no artwork metadata. The built-in demonstration
  *    artwork is shown and pins remain available.
  *
  * 2. Loaded
  *    Valid artwork metadata exists and the matching local image is available
- *    in the product's runtime artwork session. The real image and pins are shown.
+ *    in the layer's runtime artwork session. The real image and pins are shown.
  *
  * 3. File required
  *    Artwork metadata exists but the browser no longer has access to the local
  *    file, typically after reload or JSON import. A placeholder is displayed
  *    asking the reviewer to select the artwork again.
  *
- * Pins remain persisted in appState during the File required state, but they
- * are intentionally hidden because displaying them over a placeholder would
- * give a misleading visual reference.
+ * Pins remain persisted in the item domain during the File required state, but
+ * they are intentionally hidden because displaying them over a placeholder
+ * would give a misleading visual reference.
  *
  * The function also updates:
  * - artwork metadata summary;
@@ -3777,6 +4282,8 @@ function renderArtworkState() {
     return;
   }
 
+  const activeLayer = getActiveArtworkLayer(product);
+
   const demoArtwork = document.getElementById("demo-artwork");
 
   const artworkImage = document.getElementById("artwork-image");
@@ -3791,10 +4298,10 @@ function renderArtworkState() {
 
   const artworkButton = document.getElementById("btn-artwork");
 
-  const metadata = product.artwork;
+  const metadata = activeLayer ? activeLayer.artwork : null;
 
   /*
-   * No artwork selected:
+   * No artwork on the active layer:
    * preserve the original demo.
    */
   if (!metadata) {
@@ -3839,9 +4346,9 @@ function renderArtworkState() {
     artworkButton.textContent = "Replace Artwork";
   }
 
-  const artworkSession = getArtworkSession(product.id, false);
+  const artworkSession = getArtworkSession(product.id, activeLayer.id, false);
 
-  const isLoaded = isArtworkLoadedInSession(metadata, product.id);
+  const isLoaded = isArtworkLoadedInSession(metadata, product.id, activeLayer.id);
 
   if (isLoaded) {
     if (demoArtwork) {
@@ -3909,9 +4416,12 @@ function renderArtworkState() {
 // ============================================================
 
 /**
- * Removes all artwork pins from the currently active product.
+ * Removes all artwork pins belonging to the active layer of the currently
+ * active product.
  *
- * Pin removal is delegated to clearProductPins() so the domain mutation remains
+ * Pins on other layers are intentionally left untouched.
+ *
+ * Pin removal is delegated to clearLayerPins() so the domain mutation remains
  * reusable independently from UI and persistence concerns.
  *
  * After clearing the pins, the function:
@@ -3932,7 +4442,13 @@ function clearPins() {
     return;
   }
 
-  clearProductPins(product);
+  const activeLayer = getActiveArtworkLayer(product);
+
+  if (!activeLayer) {
+    return;
+  }
+
+  clearLayerPins(product, activeLayer.id);
 
   touchActiveProduct();
 
@@ -3950,7 +4466,7 @@ function clearPins() {
 
 const STORAGE_KEY = `artworkChecklist:v${CURRENT_SCHEMA_VERSION}`;
 
-const LEGACY_STORAGE_KEYS = ["artworkChecklist:v1"];
+const LEGACY_STORAGE_KEYS = ["artworkChecklist:v2", "artworkChecklist:v1"];
 // ============================================================
 // STATE SERIALIZATION
 // ============================================================
@@ -4079,24 +4595,108 @@ function getChecklistDefinition(itemId) {
 }
 
 /**
- * Validates the persisted pin value allowed by the current schema.
+ * Validates one persisted layer pin entry.
  *
- * A checklist item may either:
- * - have no pin, represented by null; or
- * - contain a valid normalized xRatio/yRatio pin.
+ * A valid stored pin must be a plain object containing a non-empty layerId
+ * and finite xRatio/yRatio values within the inclusive range from 0 to 1.
  *
- * Legacy pixel-based pins are intentionally not accepted here because they
- * must first be converted by the migration layer.
- *
- * @param {*} pin - Persisted pin value to validate.
- * @returns {boolean} True when the value is null or a valid normalized pin.
+ * @param {*} pin - Persisted layer pin entry to validate.
+ * @returns {boolean} True when the value is a valid stored layer pin.
  */
-function isValidStoredPin(pin) {
-  if (pin === null) {
-    return true;
+function isValidStoredLayerPin(pin) {
+  if (!isPlainObject(pin)) {
+    return false;
   }
 
-  return isNormalizedPin(pin);
+  return (
+    typeof pin.layerId === "string" &&
+    pin.layerId.trim() !== "" &&
+    Number.isFinite(pin.xRatio) &&
+    Number.isFinite(pin.yRatio) &&
+    pin.xRatio >= 0 &&
+    pin.xRatio <= 1 &&
+    pin.yRatio >= 0 &&
+    pin.yRatio <= 1
+  );
+}
+
+/**
+ * Validates the persisted per-layer pin collection of one checklist item.
+ *
+ * Validation requires:
+ * - an array collection;
+ * - every entry to be a valid stored layer pin;
+ * - no duplicate pins for the same (item, layer) pair.
+ *
+ * @param {*} pins - Persisted pin collection to validate.
+ * @returns {boolean} True when the collection is structurally acceptable.
+ */
+function validateItemPins(pins) {
+  if (!Array.isArray(pins)) {
+    return false;
+  }
+
+  const seenLayerIds = new Set();
+
+  for (const pin of pins) {
+    if (!isValidStoredLayerPin(pin)) {
+      return false;
+    }
+
+    if (seenLayerIds.has(pin.layerId)) {
+      return false;
+    }
+
+    seenLayerIds.add(pin.layerId);
+  }
+
+  return true;
+}
+
+/**
+ * Validates the persisted artwork layers of one product.
+ *
+ * Validation requires:
+ * - a non-empty array collection;
+ * - every layer to be a plain object with a non-empty id and a string name;
+ * - layer ids to be unique;
+ * - every layer artwork to be null or valid artwork metadata;
+ * - a non-empty activeArtworkLayerId referencing an existing layer.
+ *
+ * @param {*} artworkLayers - Persisted artwork layer collection.
+ * @param {*} activeArtworkLayerId - Persisted active layer identifier.
+ * @returns {boolean} True when the artwork layers are structurally acceptable.
+ */
+function validateProductLayers(artworkLayers, activeArtworkLayerId) {
+  if (!Array.isArray(artworkLayers) || artworkLayers.length === 0) {
+    return false;
+  }
+
+  const seenLayerIds = new Set();
+
+  for (const layer of artworkLayers) {
+    if (
+      !isPlainObject(layer) ||
+      typeof layer.id !== "string" ||
+      layer.id.trim() === "" ||
+      typeof layer.name !== "string" ||
+      seenLayerIds.has(layer.id)
+    ) {
+      return false;
+    }
+
+    seenLayerIds.add(layer.id);
+
+    if (layer.artwork !== null && !isValidArtworkMetadata(layer.artwork)) {
+      return false;
+    }
+  }
+
+  return (
+    typeof activeArtworkLayerId === "string" &&
+    activeArtworkLayerId.trim() !== "" &&
+    seenLayerIds.has(activeArtworkLayerId)
+  );
 }
 
 /**
@@ -4114,7 +4714,7 @@ function isValidStoredPin(pin) {
  * - currentTitle is a non-empty string;
  * - comment is a string;
  * - status is a supported ReviewStatus;
- * - pin is null or a valid normalized pin.
+ * - pins is a valid per-layer pin collection.
  *
  * This function validates persisted structure, not complete review business
  * validity. In particular, a Rejected item with an empty comment may still be
@@ -4164,7 +4764,7 @@ function validateSerializedItem(item, expectedItemId) {
     return false;
   }
 
-  if (!isValidStoredPin(item.pin)) {
+  if (!validateItemPins(item.pins)) {
     return false;
   }
 
@@ -4177,14 +4777,18 @@ function validateSerializedItem(item, expectedItemId) {
  * A valid persisted product must contain:
  * - a non-empty permanent ID;
  * - string product fields;
+ * - a valid artwork layer collection with an existing active layer;
  * - the complete canonical checklist item collection;
  * - valid serialized state for every checklist item;
- * - null or valid artwork metadata;
+ * - every item pin to reference an existing layer of the same product;
  * - a reviewer object;
  * - string timestamps when timestamps are present.
  *
  * The checklist item set is validated against sectionDefinitions so missing,
  * additional or structurally altered checklist items are rejected.
+ *
+ * The historical single-artwork product field is tolerated when absent or
+ * null, but it is no longer the canonical source of artwork state.
  *
  * This function validates storage/import compatibility. It does not determine
  * whether the review itself is ready for final approval.
@@ -4220,6 +4824,18 @@ function validateSerializedProduct(product) {
     return false;
   }
 
+  if (
+    product.artwork !== undefined &&
+    product.artwork !== null &&
+    !isValidArtworkMetadata(product.artwork)
+  ) {
+    return false;
+  }
+
+  if (!validateProductLayers(product.artworkLayers, product.activeArtworkLayerId)) {
+    return false;
+  }
+
   if (!isPlainObject(product.items)) {
     return false;
   }
@@ -4232,15 +4848,25 @@ function validateSerializedProduct(product) {
     return false;
   }
 
-  const itemsAreValid = expectedItemIds.every((itemId) =>
-    validateSerializedItem(product.items[itemId], itemId),
+  const layerIds = new Set(
+    product.artworkLayers.map((layer) => layer.id),
   );
 
-  if (!itemsAreValid) {
-    return false;
-  }
+  const itemsAreValid = expectedItemIds.every((itemId) => {
+    const item = product.items[itemId];
 
-  if (product.artwork !== null && !isValidArtworkMetadata(product.artwork)) {
+    if (!validateSerializedItem(item, itemId)) {
+      return false;
+    }
+
+    /*
+     * Every persisted pin must reference a layer that exists on the
+     * same product. Dangling layer references are rejected.
+     */
+    return item.pins.every((pin) => layerIds.has(pin.layerId));
+  });
+
+  if (!itemsAreValid) {
     return false;
   }
 
@@ -4339,7 +4965,7 @@ function validateState(state) {
  * - currentTitle;
  * - status;
  * - comment;
- * - normalized pin.
+ * - per-layer pins.
  *
  * Static properties such as id, sectionId, note and originalTitle come from
  * the current canonical checklist definitions rather than from the persisted
@@ -4363,7 +4989,9 @@ function rehydrateItems(savedItems) {
 
     hydratedItem.comment = savedItem.comment;
 
-    hydratedItem.pin = savedItem.pin ? { ...savedItem.pin } : null;
+    hydratedItem.pins = (savedItem.pins || []).map((pin) => ({
+      ...pin,
+    }));
   });
 
   return hydratedItems;
@@ -4377,7 +5005,8 @@ function rehydrateItems(savedItems) {
  *
  * Rehydration includes:
  * - product identification fields;
- * - cloned artwork metadata;
+ * - cloned artwork layers with independent artwork metadata;
+ * - the active artwork layer identifier;
  * - canonical checklist-item reconstruction;
  * - reviewer data merged over reviewer defaults;
  * - signature data;
@@ -4406,9 +5035,11 @@ function rehydrateProduct(savedProduct) {
 
   product.artworkVersion = savedProduct.artworkVersion ?? "";
 
-  product.artwork = savedProduct.artwork
-    ? cloneArtworkMetadata(savedProduct.artwork)
-    : null;
+  product.artworkLayers = savedProduct.artworkLayers.map((layer) =>
+    createArtworkLayer(layer.id, layer.name, layer.artwork),
+  );
+
+  product.activeArtworkLayerId = savedProduct.activeArtworkLayerId;
 
   product.items = rehydrateItems(savedProduct.items);
 
@@ -4486,7 +5117,7 @@ function migrateItemsPinsToV2(items, dimensions) {
   Object.entries(items).forEach(([itemId, item]) => {
     let migratedPin = null;
 
-    if (item.pin === null) {
+    if (item.pin == null) {
       migratedPin = null;
     } else if (isNormalizedPin(item.pin)) {
       migratedPin = {
@@ -4516,22 +5147,141 @@ function migrateItemsPinsToV2(items, dimensions) {
 }
 
 /**
+ * Converts a compatible schema-v1 persisted workspace into schema v2.
+ *
+ * Schema-v1 state is deep-cloned and every legacy pixel pin is converted
+ * into normalized schema-v2 coordinates.
+ *
+ * The original supplied state is not modified during migration because a deep
+ * JSON clone is created before transformation.
+ *
+ * Migration depends on current artwork base dimensions. If those dimensions
+ * cannot be determined, migration safely fails instead of producing incorrect
+ * pin coordinates.
+ *
+ * @param {*} state - Parsed schema-v1 persisted state.
+ * @returns {Object|null} Schema-v2 state, or null when migration is impossible.
+ */
+function migrateStateV1ToV2(state) {
+  if (!isPlainObject(state) || state.schemaVersion !== 1) {
+    return null;
+  }
+
+  try {
+    const dimensions = getArtworkBaseDimensions();
+
+    if (!dimensions) {
+      console.warn(
+        "Unable to determine artwork dimensions for state migration.",
+      );
+
+      return null;
+    }
+
+    const migratedState = JSON.parse(JSON.stringify(state));
+
+    Object.values(migratedState.products).forEach((product) => {
+      product.items = migrateItemsPinsToV2(product.items, dimensions);
+    });
+
+    migratedState.schemaVersion = 2;
+
+    return migratedState;
+  } catch (error) {
+    console.error("Failed to migrate state:", error);
+
+    return null;
+  }
+}
+
+/**
+ * Converts a compatible schema-v2 persisted workspace into schema v3.
+ *
+ * Migration transforms every product:
+ * - the single product.artwork becomes the artwork of a default layer
+ *   ("layer-main" / "Main Artwork");
+ * - the single item.pin becomes the first entry of item.pins, bound to the
+ *   default layer;
+ * - activeArtworkLayerId points to the default layer.
+ *
+ * The original supplied state is not modified: a deep JSON clone is created
+ * before transformation.
+ *
+ * @param {*} state - Parsed schema-v2 persisted state.
+ * @returns {Object|null} Schema-v3 state, or null when migration is impossible.
+ */
+function migrateStateV2ToV3(state) {
+  if (!isPlainObject(state) || state.schemaVersion !== 2) {
+    return null;
+  }
+
+  try {
+    const migratedState = JSON.parse(JSON.stringify(state));
+
+    Object.entries(migratedState.products).forEach(([productId, product]) => {
+      const migratedProduct = {
+        ...product,
+      };
+
+      migratedProduct.artworkLayers = [
+        createArtworkLayer("layer-main", "Main Artwork", product.artwork),
+      ];
+
+      migratedProduct.activeArtworkLayerId = "layer-main";
+
+      delete migratedProduct.artwork;
+
+      migratedProduct.items = {};
+
+      Object.entries(product.items).forEach(([itemId, item]) => {
+        const migratedItem = {
+          ...item,
+          pins: [],
+        };
+
+        if (item.pin !== null) {
+          if (!isNormalizedPin(item.pin)) {
+            throw new Error(`Invalid schema-v2 pin for ${itemId}.`);
+          }
+
+          migratedItem.pins.push({
+            layerId: "layer-main",
+            xRatio: item.pin.xRatio,
+            yRatio: item.pin.yRatio,
+          });
+        }
+
+        delete migratedItem.pin;
+
+        migratedProduct.items[itemId] = migratedItem;
+      });
+
+      migratedState.products[productId] = migratedProduct;
+    });
+
+    migratedState.schemaVersion = 3;
+
+    return migratedState;
+  } catch (error) {
+    console.error("Failed to migrate state:", error);
+
+    return null;
+  }
+}
+
+/**
  * Converts compatible persisted workspace versions into the current schema.
  *
  * Migration is performed before validateState().
  *
  * Behavior:
  * - current-schema state is returned unchanged;
- * - schema v1 is cloned and its legacy pixel pins are migrated to normalized
- *   schema-v2 coordinates;
+ * - schema-v2 state is migrated to schema v3;
+ * - schema-v1 state is migrated through the full v1 → v2 → v3 chain;
  * - unsupported schema versions are rejected.
  *
- * The original supplied state is not modified during v1 migration because a
- * deep JSON clone is created before transformation.
- *
- * Migration may depend on current artwork base dimensions. If those dimensions
- * cannot be determined, migration safely fails instead of producing incorrect
- * pin coordinates.
+ * The original supplied state is never modified, since every migration step
+ * operates on a deep JSON clone.
  *
  * @param {*} state - Parsed persisted state from any potentially supported version.
  * @returns {Object|null} Current-schema state, or null when migration is impossible.
@@ -4545,32 +5295,18 @@ function migrateState(state) {
     return state;
   }
 
+  if (state.schemaVersion === 2) {
+    return migrateStateV2ToV3(state);
+  }
+
   if (state.schemaVersion === 1) {
-    try {
-      const dimensions = getArtworkBaseDimensions();
+    const v2State = migrateStateV1ToV2(state);
 
-      if (!dimensions) {
-        console.warn(
-          "Unable to determine artwork dimensions for state migration.",
-        );
-
-        return null;
-      }
-
-      const migratedState = JSON.parse(JSON.stringify(state));
-
-      Object.values(migratedState.products).forEach((product) => {
-        product.items = migrateItemsPinsToV2(product.items, dimensions);
-      });
-
-      migratedState.schemaVersion = CURRENT_SCHEMA_VERSION;
-
-      return migratedState;
-    } catch (error) {
-      console.error("Failed to migrate state:", error);
-
+    if (!v2State) {
       return null;
     }
+
+    return migrateStateV2ToV3(v2State);
   }
 
   console.warn(`Unsupported schema version: ${state.schemaVersion}`);
@@ -4765,15 +5501,15 @@ function saveStateToStorage() {
  * - export timestamp;
  * - product identification fields;
  * - product creation and modification timestamps;
- * - complete checklist review items;
- * - artwork metadata;
+ * - independent artwork layers and the active layer identifier;
+ * - complete checklist review items with per-layer pins;
  * - reviewer information.
  *
  * Runtime-only artwork resources, UI state and other workspace products are
  * intentionally excluded.
  *
- * Artwork metadata is cloned so the exported structure does not share the
- * original metadata object reference stored in appState.
+ * Artwork layer metadata is cloned so the exported structure does not share
+ * the original metadata object references stored in appState.
  *
  * @returns {Object|null} Versioned active-product export data, or null when
  *   no active product exists.
@@ -4805,7 +5541,13 @@ function buildExportData() {
 
     items: product.items,
 
-    artwork: cloneArtworkMetadata(product.artwork),
+    artworkLayers: product.artworkLayers.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      artwork: cloneArtworkMetadata(layer.artwork),
+    })),
+
+    activeArtworkLayerId: product.activeArtworkLayerId,
 
     reviewer: product.reviewer,
   };
@@ -4902,6 +5644,9 @@ function normalizedPinToPixels(pin) {
  * This function exists for backward compatibility and should not be used as
  * the canonical application persistence format.
  *
+ * Because the legacy format cannot represent more than one artwork layer,
+ * the export uses the pins of the product's active layer only.
+ *
  * @returns {Object|null} Legacy checklist export data, or null when no active
  *   product exists.
  */
@@ -4912,6 +5657,8 @@ function buildLegacyCheckData() {
     return null;
   }
 
+  const activeLayer = getActiveArtworkLayer(product);
+
   const checks = {};
 
   const pins = {};
@@ -4919,8 +5666,10 @@ function buildLegacyCheckData() {
   Object.values(product.items).forEach((item) => {
     checks[item.id] = item.status === REVIEW_STATUSES.APPROVED;
 
-    if (item.pin) {
-      const pixelPin = normalizedPinToPixels(item.pin);
+    const pin = activeLayer ? getItemPinForLayer(item, activeLayer.id) : null;
+
+    if (pin) {
+      const pixelPin = normalizedPinToPixels(pin);
 
       if (pixelPin) {
         pins[item.id] = pixelPin;
@@ -5118,9 +5867,10 @@ function selectArtwork() {
 /**
  * Handles a local artwork image selected through the browser file input.
  *
- * The active product ID is captured immediately when the change event begins.
- * This protects the asynchronous workflow from accidentally applying a slowly
- * loaded image to another product if the reviewer switches tabs while the file
+ * The active product ID and the active artwork layer ID are captured
+ * immediately when the change event begins. This protects the asynchronous
+ * workflow from accidentally applying a slowly loaded image to another
+ * product or another layer if the reviewer switches either while the file
  * is being inspected.
  *
  * Processing follows these steps:
@@ -5129,18 +5879,21 @@ function selectArtwork() {
  * 2. reject non-image files;
  * 3. inspect the image and create validated metadata;
  * 4. confirm that the original target product still exists;
- * 5. compare the selected artwork with the product's current artwork identity;
- * 6. warn the reviewer when replacing different artwork that already has pins;
- * 7. apply the persisted artwork identity;
- * 8. adopt the Object URL into the target product's runtime session;
- * 9. re-render the artwork when the target product is still active;
- * 10. display feedback describing the result.
+ * 5. confirm that the original target layer still exists;
+ * 6. compare the selected artwork with the target layer's current artwork identity;
+ * 7. warn the reviewer when replacing different artwork that already has pins;
+ * 8. apply the persisted artwork identity to the target layer;
+ * 9. adopt the Object URL into the target layer's runtime session;
+ * 10. re-render the artwork when the target product and target layer are
+ *     still active;
+ * 11. display feedback describing the result.
  *
  * If replacement is cancelled or any later step fails, temporary Object URLs
  * that were not adopted into a session are revoked.
  *
  * Existing pins are preserved when the same artwork is selected again.
- * Replacing a different artwork clears pins only after explicit confirmation.
+ * Replacing a different artwork clears only the target layer's pins and only
+ * after explicit confirmation. Other layers are never modified.
  *
  * The file input value is always reset in the finally block so the same file
  * may be selected again later.
@@ -5153,6 +5906,10 @@ async function handleArtworkFileChange(event) {
   const file = event.target.files?.[0];
 
   const targetProductId = appState.activeProductId;
+
+  const targetLayerId = getActiveArtworkLayer(
+    getProductById(targetProductId),
+  )?.id;
 
   if (!file) {
     return;
@@ -5175,9 +5932,19 @@ async function handleArtworkFileChange(event) {
       return;
     }
 
-    const sameArtwork = isSameArtworkIdentity(targetProduct.artwork, metadata);
+    const targetLayer = targetLayerId
+      ? getArtworkLayerById(targetProduct, targetLayerId)
+      : getActiveArtworkLayer(targetProduct);
 
-    const hasPins = productHasPins(targetProduct);
+    if (!targetLayer) {
+      URL.revokeObjectURL(objectUrl);
+      showToast("Unable to find the target artwork layer.");
+      return;
+    }
+
+    const sameArtwork = isSameArtworkIdentity(targetLayer.artwork, metadata);
+
+    const hasPins = layerHasPins(targetProduct, targetLayer.id);
 
     if (!sameArtwork && hasPins) {
       const confirmed = await showConfirmDialog({
@@ -5195,7 +5962,12 @@ async function handleArtworkFileChange(event) {
       }
     }
 
-    const result = applyArtworkIdentity(metadata, () => true, targetProductId);
+    const result = applyArtworkIdentity(
+      metadata,
+      () => true,
+      targetProductId,
+      targetLayer.id,
+    );
 
     if (!result.applied) {
       URL.revokeObjectURL(objectUrl);
@@ -5209,9 +5981,12 @@ async function handleArtworkFileChange(event) {
       return;
     }
 
-    adoptSessionArtwork(metadata, objectUrl, targetProductId);
+    adoptSessionArtwork(metadata, objectUrl, targetProductId, targetLayer.id);
 
-    if (appState.activeProductId === targetProductId) {
+    if (
+      appState.activeProductId === targetProductId &&
+      getActiveArtworkLayer(targetProduct)?.id === targetLayer.id
+    ) {
       renderArtworkState();
 
       renderPins();
@@ -5720,12 +6495,14 @@ function showPromptDialog(options) {
  *
  * Behavior:
  * - current-schema imports are returned unchanged;
- * - schema-v1 imports have their legacy pixel pins converted to normalized
- *   xRatio/yRatio coordinates;
+ * - schema-v2 imports have their single artwork moved into the default
+ *   layer and their single item pins moved into per-layer pin arrays;
+ * - schema-v1 imports first run the legacy pixel-pin conversion and then the
+ *   schema-v2 conversion;
  * - unsupported or malformed versions are rejected.
  *
- * Version-1 migration deep-clones the imported structure before modifying it so
- * the caller's original parsed data is not mutated.
+ * Every migration step deep-clones the imported structure before modifying it
+ * so the caller's original parsed data is never mutated.
  *
  * Legacy pin conversion requires usable artwork base dimensions. Migration
  * safely fails when those dimensions cannot be determined.
@@ -5746,6 +6523,53 @@ function migrateImportData(data) {
     return data;
   }
 
+  if (data.schemaVersion === 2) {
+    try {
+      const migratedData = JSON.parse(JSON.stringify(data));
+
+      migratedData.artworkLayers = [
+        createArtworkLayer("layer-main", "Main Artwork", migratedData.artwork),
+      ];
+
+      migratedData.activeArtworkLayerId = "layer-main";
+
+      delete migratedData.artwork;
+
+      migratedData.items = {};
+
+      Object.entries(data.items).forEach(([itemId, item]) => {
+        const migratedItem = {
+          ...item,
+          pins: [],
+        };
+
+        if (item.pin !== null) {
+          if (!isNormalizedPin(item.pin)) {
+            throw new Error(`Invalid schema-v2 pin for ${itemId}.`);
+          }
+
+          migratedItem.pins.push({
+            layerId: "layer-main",
+            xRatio: item.pin.xRatio,
+            yRatio: item.pin.yRatio,
+          });
+        }
+
+        delete migratedItem.pin;
+
+        migratedData.items[itemId] = migratedItem;
+      });
+
+      migratedData.schemaVersion = 3;
+
+      return migratedData;
+    } catch (error) {
+      console.error("Failed to migrate imported review:", error);
+
+      return null;
+    }
+  }
+
   if (data.schemaVersion === 1) {
     try {
       const dimensions = getArtworkBaseDimensions();
@@ -5758,9 +6582,9 @@ function migrateImportData(data) {
 
       migratedData.items = migrateItemsPinsToV2(migratedData.items, dimensions);
 
-      migratedData.schemaVersion = CURRENT_SCHEMA_VERSION;
+      migratedData.schemaVersion = 2;
 
-      return migratedData;
+      return migrateImportData(migratedData);
     } catch (error) {
       console.error("Failed to migrate imported review:", error);
 
@@ -5850,7 +6674,11 @@ function validateImportData(data) {
 
     items: data.items,
 
-    artwork: data.artwork ?? null,
+    artworkLayers: data.artworkLayers,
+
+    activeArtworkLayerId: data.activeArtworkLayerId,
+
+    artwork: null,
 
     reviewer: data.reviewer ?? {
       name: "",
@@ -5896,8 +6724,10 @@ function validateImportData(data) {
  * canonical item properties are restored rather than trusting raw JSON object
  * descriptors.
  *
- * Artwork metadata is cloned and the actual image file is not imported because
- * browser File/Object URL resources cannot be represented by the review JSON.
+ * Artwork layers are rebuilt through createArtworkLayer() so metadata is
+ * cloned and layer structure is canonical. The actual image files are not
+ * imported because browser File/Object URL resources cannot be represented
+ * by the review JSON.
  *
  * updatedAt is intentionally set to the current time because importing the
  * review creates a new modification event in this workspace.
@@ -5926,9 +6756,11 @@ function buildImportedProduct(importedData) {
 
   product.items = rehydrateItems(importedData.items);
 
-  product.artwork = importedData.artwork
-    ? cloneArtworkMetadata(importedData.artwork)
-    : null;
+  product.artworkLayers = importedData.artworkLayers.map((layer) =>
+    createArtworkLayer(layer.id, layer.name, layer.artwork),
+  );
+
+  product.activeArtworkLayerId = importedData.activeArtworkLayerId;
 
   product.reviewer = {
     ...product.reviewer,

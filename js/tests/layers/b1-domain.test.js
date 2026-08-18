@@ -50,7 +50,7 @@
       "productName",
       "weight",
       "sku",
-      "artwork",
+      "artworkLayers",
       "items",
       "reviewer",
       "signature",
@@ -95,7 +95,7 @@
       "note",
       "status",
       "comment",
-      "pin",
+      "pins",
     ].forEach((field) => {
       assert(
         Object.prototype.hasOwnProperty.call(item, field),
@@ -324,7 +324,7 @@
       yRatio: 0.5,
     });
 
-    assertDeepEqual(getItemById("1a").pin, {
+    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
       xRatio: 0.25,
       yRatio: 0.5,
     });
@@ -376,7 +376,7 @@
 
     clearPins();
 
-    assertEqual(getItemById("1a").pin, null);
+    assertEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), null);
 
     const pin = document.querySelector('.pin[data-pid="1a"]');
 
@@ -436,7 +436,7 @@
 
     layer.dispatchEvent(fakeDrop);
 
-    const pin = getItemById("1a").pin;
+    const pin = getItemPinForLayer(getItemById("1a"), "layer-main");
 
     assertExists(pin, "Drop handler should store a pin in appState.");
 

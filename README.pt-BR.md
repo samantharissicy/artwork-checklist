@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-116%2F116%20passing-success" alt="116/116 testes passando">
+  <img src="https://img.shields.io/badge/tests-156%2F156%20passing-success" alt="156/156 testes passando">
   <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -124,8 +124,9 @@ sem banco de dados
 | ✅ Autosave                          | Estado salvo automaticamente no `localStorage` |
 | ✅ Restauração após reload           | Estado salvo é restaurado ao abrir a página    |
 | ✅ Proteção contra estado corrompido | Storage inválido não derruba a aplicação       |
-| ✅ Serialização versionada           | Estado canônico usa schema versão 2            |
-| ✅ Migração de estado                | Pins legados do schema v1 podem migrar para v2 |
+| ✅ Serialização versionada           | Estado canônico usa schema versão 3            |
+| ✅ Migração de estado                | Dados legados de schema v1/v2 migram para v3   |
+| ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v3) |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -141,7 +142,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 116 testes de regressão no navegador            |
+| ✅ Testes automatizados              | 156 testes de regressão no navegador           |
 
 ---
 
@@ -1104,7 +1105,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-116 / 116 testes passando
+156 / 156 testes passando
 ```
 
 A suíte cobre:
@@ -1120,6 +1121,7 @@ Camada D3
 Camada D4
 Camada E1
 Camada E2
+Camada G4A
 ```
 
 Entre os comportamentos testados:
@@ -1180,6 +1182,16 @@ seleção da mesma artwork
 serialização da artwork
 export/import da artwork
 estado visual de arquivo ausente
+
+artwork multi-layer
+factories e getters de layers
+pins por layer (item.pins[])
+sessions por layer
+identidade da artwork por layer
+migração schema v2 → v3
+cadeia schema v1 → v2 → v3
+migração da chave legada de storage
+renderização por active layer
 
 regressão do DOM
 regressão do zoom

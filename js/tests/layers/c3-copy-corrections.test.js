@@ -186,7 +186,7 @@
 
     assertEqual(item.comment, "Keep this comment.");
 
-    assertDeepEqual(item.pin, {
+    assertDeepEqual(getItemPinForLayer(item, "layer-main"), {
       xRatio: 0.25,
       yRatio: 0.5,
     });

@@ -45,6 +45,8 @@
 
     "layers/g-multiple-products.test.js",
 
+    "layers/g4-multi-layer-artwork.test.js",
+
     "layers/baseline-smoke.test.js",
 
     "core/runner.js",

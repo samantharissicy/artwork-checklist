@@ -86,26 +86,33 @@
       yRatio: 0.75,
     });
 
-    const originalPin = {
-      ...getItemById("1a").pin,
-    };
+    const originalPin = getItemPinForLayer(getItemById("1a"), "layer-main");
 
     const previousZoom = currentZoom;
 
     currentZoom = 0.5;
     renderPin("1a");
 
-    assertDeepEqual(getItemById("1a").pin, originalPin);
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      originalPin,
+    );
 
     currentZoom = 1;
     renderPin("1a");
 
-    assertDeepEqual(getItemById("1a").pin, originalPin);
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      originalPin,
+    );
 
     currentZoom = 2;
     renderPin("1a");
 
-    assertDeepEqual(getItemById("1a").pin, originalPin);
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      originalPin,
+    );
 
     currentZoom = previousZoom;
   });
@@ -125,7 +132,7 @@
     assertClose(pin.yRatio, 0.25);
   });
 
-  test("E1 schema v1 state migrates pins to schema v2", () => {
+  test("E1 schema v1 state migrates pins to the current schema", () => {
     const dimensions = getArtworkBaseDimensions();
 
     assertExists(dimensions);
@@ -146,11 +153,16 @@
 
     assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
-    const pin = migrated.products[migrated.activeProductId].items["1a"].pin;
+    const pins =
+      migrated.products[migrated.activeProductId].items["1a"].pins;
 
-    assertClose(pin.xRatio, 0.4);
+    assertEqual(pins.length, 1);
 
-    assertClose(pin.yRatio, 0.7);
+    assertEqual(pins[0].layerId, "layer-main");
+
+    assertClose(pins[0].xRatio, 0.4);
+
+    assertClose(pins[0].yRatio, 0.7);
   });
 
   test("E1 normalized pin survives serialization roundtrip", () => {
@@ -163,12 +175,15 @@
 
     const parsed = deserializeState(serializeState());
 
-    const pin = parsed.products[parsed.activeProductId].items["1a"].pin;
+    const pins = parsed.products[parsed.activeProductId].items["1a"].pins;
 
-    assertDeepEqual(pin, {
-      xRatio: 0.25,
-      yRatio: 0.75,
-    });
+    assertDeepEqual(pins, [
+      {
+        layerId: "layer-main",
+        xRatio: 0.25,
+        yRatio: 0.75,
+      },
+    ]);
   });
 
   test("E1 export uses normalized pin geometry", () => {
@@ -181,7 +196,8 @@
 
     const data = buildExportData();
 
-    assertDeepEqual(data.items["1a"].pin, {
+    assertDeepEqual(data.items["1a"].pins[0], {
+      layerId: "layer-main",
       xRatio: 0.25,
       yRatio: 0.75,
     });

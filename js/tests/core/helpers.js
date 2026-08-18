@@ -121,7 +121,11 @@
 
     assertExists(product);
 
-    product.artwork = null;
+    const activeLayer = getActiveArtworkLayer(product);
+
+    if (activeLayer) {
+      activeLayer.artwork = null;
+    }
 
     clearProductPins(product);
 
@@ -140,7 +144,7 @@
     item.currentTitle = item.originalTitle;
     item.status = REVIEW_STATUSES.PENDING;
     item.comment = "";
-    item.pin = null;
+    item.pins = [];
 
     if (editingTitleItemId === "1a") {
       editingTitleItemId = null;

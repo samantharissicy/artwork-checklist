@@ -47,10 +47,13 @@
 
     assertEqual(item.comment, "Serialized comment");
 
-    assertDeepEqual(item.pin, {
-      xRatio: 0.25,
-      yRatio: 0.5,
-    });
+    assertDeepEqual(item.pins, [
+      {
+        layerId: "layer-main",
+        xRatio: 0.25,
+        yRatio: 0.5,
+      },
+    ]);
   });
 
   test("D1 deserializeState rejects malformed JSON", () => {
@@ -115,16 +118,23 @@
 
     let stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    assertDeepEqual(stored.products[stored.activeProductId].items["1a"].pin, {
-      xRatio: 0.25,
-      yRatio: 0.5,
-    });
+    assertDeepEqual(
+      stored.products[stored.activeProductId].items["1a"].pins[0],
+      {
+        layerId: "layer-main",
+        xRatio: 0.25,
+        yRatio: 0.5,
+      },
+    );
 
     clearPins();
 
     stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    assertEqual(stored.products[stored.activeProductId].items["1a"].pin, null);
+    assertEqual(
+      stored.products[stored.activeProductId].items["1a"].pins.length,
+      0,
+    );
   });
 
   test("D2 corrupted localStorage does not crash state loading", () => {
@@ -177,7 +187,8 @@
 
     assertEqual(data.items["1a"].currentTitle, "Exported Legal Name");
 
-    assertDeepEqual(data.items["1a"].pin, {
+    assertDeepEqual(data.items["1a"].pins[0], {
+      layerId: "layer-main",
       xRatio: 0.25,
       yRatio: 0.5,
     });
@@ -227,7 +238,7 @@
 
     assertEqual(restored.currentTitle, "Roundtrip Title");
 
-    assertDeepEqual(restored.pin, {
+    assertDeepEqual(getItemPinForLayer(restored, "layer-main"), {
       xRatio: 0.25,
       yRatio: 0.5,
     });
