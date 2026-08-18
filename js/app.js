@@ -2639,16 +2639,17 @@ async function deleteActiveProduct() {
 // ============================================================
 
 /**
- * Synchronizes the product-information form with the currently active product.
+ * Synchronizes the review-context header with the active product.
  *
- * The function copies the active product's persisted domain values into the
- * Brand, Product Name, Weight and SKU inputs.
+ * Displays the current:
+ * - Product;
+ * - Production Code;
+ * - Site;
+ * - Artwork Revision.
  *
- * It performs one-way rendering only:
+ * The function performs one-way rendering only:
  *
- *     appState → form inputs
- *
- * User edits in the opposite direction are handled by bindProductInputs().
+ *     appState → review context header
  *
  * No domain state is modified or persisted by this function.
  *
@@ -2685,10 +2686,20 @@ function renderProductContext() {
 }
 
 /**
- * Synchronizes the product-information form with the currently active product.
+ * Synchronizes the product-information form with the active product.
  *
- * The function copies the active product's persisted domain values into the
- * Brand, Product Name, Weight and SKU inputs.
+ * The function renders:
+ * - Brand;
+ * - Product Name;
+ * - Weight;
+ * - SKU;
+ * - Production Code;
+ * - Site;
+ * - Artwork Revision.
+ *
+ * It performs one-way rendering only:
+ *
+ *     appState → product form
  *
  * @returns {void}
  */
