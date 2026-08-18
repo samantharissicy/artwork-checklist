@@ -551,8 +551,8 @@
     setItemStatus("1a", REVIEW_STATUSES.APPROVED);
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     renderAppState();
@@ -721,8 +721,8 @@
     resetItem1A();
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     renderAppState();
@@ -753,8 +753,8 @@
     setItemComment("1a", "Keep this comment.");
 
     setItemPin("1a", {
-      x: 123,
-      y: 456,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     setItemCurrentTitle("1a", "Changed Copy");
@@ -768,8 +768,8 @@
     assertEqual(item.comment, "Keep this comment.");
 
     assertDeepEqual(item.pin, {
-      x: 123,
-      y: 456,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
   });
 
@@ -798,9 +798,10 @@
   // 1. APP STATE / DOMAIN SHAPE
   // ============================================================
 
-  test("appState exists and uses schemaVersion 1", () => {
+  test("appState uses the current schema version", () => {
     assertExists(appState, "appState must exist.");
-    assertEqual(appState.schemaVersion, 1);
+
+    assertEqual(appState.schemaVersion, CURRENT_SCHEMA_VERSION);
   });
 
   test("activeProductId points to an existing product", () => {
@@ -1096,13 +1097,13 @@
     resetItem1A();
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     assertDeepEqual(getItemById("1a").pin, {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
   });
 
@@ -1110,8 +1111,8 @@
     resetItem1A();
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     renderAppState();
@@ -1127,8 +1128,8 @@
     setItemCurrentTitle("1a", "New Legal Product Name");
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     renderAppState();
@@ -1144,8 +1145,8 @@
     resetItem1A();
 
     setItemPin("1a", {
-      x: 100,
-      y: 100,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     renderAppState();
@@ -1177,7 +1178,7 @@
     );
   });
 
-  test("drop event path writes pin coordinates to appState", () => {
+  test("drop event path writes normalized pin coordinates to appState", () => {
     resetItem1A();
 
     const layer = document.getElementById("pins-layer");
@@ -1203,24 +1204,33 @@
     });
 
     Object.defineProperty(fakeDrop, "clientX", {
-      value: rect.left + 100,
+      value: rect.left + rect.width * 0.25,
     });
 
     Object.defineProperty(fakeDrop, "clientY", {
-      value: rect.top + 100,
+      value: rect.top + rect.height * 0.6,
     });
 
     layer.dispatchEvent(fakeDrop);
 
-    assertExists(
-      getItemById("1a").pin,
-      "Drop handler should store a pin in appState.",
-    );
+    const pin = getItemById("1a").pin;
+
+    assertExists(pin, "Drop handler should store a pin in appState.");
+
+    assertClose(pin.xRatio, 0.25);
+
+    assertClose(pin.yRatio, 0.6);
 
     const renderedPin = document.querySelector('.pin[data-pid="1a"]');
 
     assertExists(renderedPin, "Drop handler should render the pin.");
   });
+
+  function assertClose(actual, expected, tolerance = 0.0001) {
+    if (Math.abs(actual - expected) > tolerance) {
+      throw new Error(`Expected ${actual} to be close to ${expected}`);
+    }
+  }
 
   // ============================================================
   // 9. LEGACY SAVE EXPORT
@@ -1261,20 +1271,23 @@
     assertEqual(data2.checks["1a"], false);
   });
 
-  test("legacy export reads pins from appState", () => {
+  test("legacy export converts normalized pins back to pixels", () => {
     resetItem1A();
 
+    const dimensions = getArtworkBaseDimensions();
+
+    assertExists(dimensions);
+
     setItemPin("1a", {
-      x: 111,
-      y: 222,
+      xRatio: 0.25,
+      yRatio: 0.75,
     });
 
     const data = buildLegacyCheckData();
 
-    assertDeepEqual(data.pins["1a"], {
-      x: 111,
-      y: 222,
-    });
+    assertClose(data.pins["1a"].x, dimensions.width * 0.25);
+
+    assertClose(data.pins["1a"].y, dimensions.height * 0.75);
   });
 
   // ============================================================
@@ -1303,8 +1316,8 @@
     setItemComment("1a", "Serialized comment");
 
     setItemPin("1a", {
-      x: 120,
-      y: 240,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     const serialized = serializeState();
@@ -1322,8 +1335,8 @@
     assertEqual(item.comment, "Serialized comment");
 
     assertDeepEqual(item.pin, {
-      x: 120,
-      y: 240,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
   });
 
@@ -1382,13 +1395,16 @@
   test("D2 pin creation and clearing are persisted", () => {
     resetItem1A();
 
-    addPin("1a", 100, 200);
+    addPin("1a", {
+      xRatio: 0.25,
+      yRatio: 0.5,
+    });
 
     let stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
     assertDeepEqual(stored.products[stored.activeProductId].items["1a"].pin, {
-      x: 100,
-      y: 200,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     clearPins();
@@ -1432,13 +1448,13 @@
     setItemCurrentTitle("1a", "Exported Legal Name");
 
     setItemPin("1a", {
-      x: 50,
-      y: 75,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     const data = buildExportData();
 
-    assertEqual(data.schemaVersion, 1);
+    assertEqual(data.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertEqual(data.product.brand, "Export Brand");
 
@@ -1449,8 +1465,8 @@
     assertEqual(data.items["1a"].currentTitle, "Exported Legal Name");
 
     assertDeepEqual(data.items["1a"].pin, {
-      x: 50,
-      y: 75,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
   });
 
@@ -1478,8 +1494,8 @@
     setItemCurrentTitle("1a", "Roundtrip Title");
 
     setItemPin("1a", {
-      x: 321,
-      y: 123,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     const exported = JSON.parse(JSON.stringify(buildExportData()));
@@ -1499,8 +1515,8 @@
     assertEqual(restored.currentTitle, "Roundtrip Title");
 
     assertDeepEqual(restored.pin, {
-      x: 321,
-      y: 123,
+      xRatio: 0.25,
+      yRatio: 0.5,
     });
 
     const descriptor = Object.getOwnPropertyDescriptor(
@@ -1509,6 +1525,177 @@
     );
 
     assertEqual(descriptor.writable, false);
+  });
+
+  test("E1 normalized pin must stay between 0 and 1", () => {
+    assertEqual(
+      isNormalizedPin({
+        xRatio: 0.5,
+        yRatio: 0.25,
+      }),
+      true,
+    );
+
+    assertEqual(
+      isNormalizedPin({
+        xRatio: -0.1,
+        yRatio: 0.5,
+      }),
+      false,
+    );
+
+    assertEqual(
+      isNormalizedPin({
+        xRatio: 1.1,
+        yRatio: 0.5,
+      }),
+      false,
+    );
+  });
+
+  test("E1 screen coordinates convert to relative ratios", () => {
+    const rectangle = {
+      left: 100,
+      top: 50,
+      width: 400,
+      height: 800,
+    };
+
+    const pin = calculatePinRatios(200, 450, rectangle);
+
+    assertClose(pin.xRatio, 0.25);
+
+    assertClose(pin.yRatio, 0.5);
+  });
+
+  test("E1 pin renders using percentage coordinates", () => {
+    resetItem1A();
+
+    setItemPin("1a", {
+      xRatio: 0.25,
+      yRatio: 0.6,
+    });
+
+    renderAppState();
+
+    const pin = document.querySelector('.pin[data-pid="1a"]');
+
+    assertExists(pin);
+
+    assertEqual(pin.style.left, "25%");
+
+    assertEqual(pin.style.top, "60%");
+  });
+
+  test("E1 zoom does not mutate normalized pin state", () => {
+    resetItem1A();
+
+    setItemPin("1a", {
+      xRatio: 0.25,
+      yRatio: 0.75,
+    });
+
+    const originalPin = {
+      ...getItemById("1a").pin,
+    };
+
+    const previousZoom = currentZoom;
+
+    currentZoom = 0.5;
+    renderPin("1a");
+
+    assertDeepEqual(getItemById("1a").pin, originalPin);
+
+    currentZoom = 1;
+    renderPin("1a");
+
+    assertDeepEqual(getItemById("1a").pin, originalPin);
+
+    currentZoom = 2;
+    renderPin("1a");
+
+    assertDeepEqual(getItemById("1a").pin, originalPin);
+
+    currentZoom = previousZoom;
+  });
+
+  test("E1 legacy pixel pin converts to normalized coordinates", () => {
+    const pin = convertLegacyPixelPin(
+      {
+        x: 120,
+        y: 250,
+      },
+      480,
+      1000,
+    );
+
+    assertClose(pin.xRatio, 0.25);
+
+    assertClose(pin.yRatio, 0.25);
+  });
+
+  test("E1 schema v1 state migrates pins to schema v2", () => {
+    const dimensions = getArtworkBaseDimensions();
+
+    assertExists(dimensions);
+
+    const legacyState = JSON.parse(serializeState());
+
+    legacyState.schemaVersion = 1;
+
+    legacyState.products[legacyState.activeProductId].items["1a"].pin = {
+      x: dimensions.width * 0.4,
+
+      y: dimensions.height * 0.7,
+    };
+
+    const migrated = migrateState(legacyState);
+
+    assertExists(migrated);
+
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
+
+    const pin = migrated.products[migrated.activeProductId].items["1a"].pin;
+
+    assertClose(pin.xRatio, 0.4);
+
+    assertClose(pin.yRatio, 0.7);
+  });
+
+  test("E1 normalized pin survives serialization roundtrip", () => {
+    resetItem1A();
+
+    setItemPin("1a", {
+      xRatio: 0.25,
+      yRatio: 0.75,
+    });
+
+    const parsed = deserializeState(serializeState());
+
+    const pin = parsed.products[parsed.activeProductId].items["1a"].pin;
+
+    assertDeepEqual(pin, {
+      xRatio: 0.25,
+      yRatio: 0.75,
+    });
+  });
+
+  test("E1 export uses normalized pin geometry", () => {
+    resetItem1A();
+
+    setItemPin("1a", {
+      xRatio: 0.25,
+      yRatio: 0.75,
+    });
+
+    const data = buildExportData();
+
+    assertDeepEqual(data.items["1a"].pin, {
+      xRatio: 0.25,
+      yRatio: 0.75,
+    });
+
+    assertEqual(data.schemaVersion, CURRENT_SCHEMA_VERSION);
   });
 
   // ============================================================
@@ -1649,7 +1836,5 @@
     return [...RESULTS];
   };
 
-  console.info(
-    "Artwork Layer B + C + D tests loaded. Run: runArtworkTests()",
-  );
+  console.info("Artwork Layer B + C + D tests loaded. Run: runArtworkTests()");
 })();
