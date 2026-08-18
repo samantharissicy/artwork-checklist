@@ -1,4 +1,5 @@
-// Artwork & Pack Copy Checklist — Layer B + C1 + C2 + C3 Test Suite
+// Artwork & Pack Copy Checklist
+// Layer B + C1 + C2 + C3 + D1 + D2 + D3 + D4 Test Suite
 // ============================================================
 //
 // Usage:
@@ -76,65 +77,63 @@
   }
 
   function createSnapshot() {
-    const product = getActiveProduct();
-
-    if (!product) {
-      throw new Error("No active product found. Cannot create test snapshot.");
-    }
-
-    const items = {};
-
-    Object.values(product.items).forEach((item) => {
-      items[item.id] = {
-        currentTitle: item.currentTitle,
-        status: item.status,
-        comment: item.comment,
-        pin: clonePin(item.pin),
-      };
-    });
-
     return {
-      brand: product.brand,
-      productName: product.productName,
-      weight: product.weight,
-      sku: product.sku,
-      updatedAt: product.updatedAt,
+      serializedState: serializeState(),
+
+      storageValue: localStorage.getItem(STORAGE_KEY),
 
       openCommentItemIds: [...openCommentItemIds],
 
       editingTitleItemId,
 
-      items,
+      currentZoom,
     };
   }
 
   function restoreSnapshot(snapshot) {
-    const product = getActiveProduct();
+    const parsedState = deserializeState(snapshot.serializedState);
 
-    if (!product) return;
+    if (!parsedState || !validateState(parsedState)) {
+      throw new Error("Unable to restore test snapshot.");
+    }
 
-    product.brand = snapshot.brand;
-    product.productName = snapshot.productName;
-    product.weight = snapshot.weight;
-    product.sku = snapshot.sku;
-    product.updatedAt = snapshot.updatedAt;
+    const hydratedState = rehydrateState(parsedState);
 
-    Object.entries(snapshot.items).forEach(([itemId, saved]) => {
-      const item = getItemById(itemId);
+    appState.schemaVersion = hydratedState.schemaVersion;
 
-      if (!item) return;
+    appState.activeProductId = hydratedState.activeProductId;
 
-      item.currentTitle = saved.currentTitle;
-      item.status = saved.status;
-      item.comment = saved.comment;
-      item.pin = clonePin(saved.pin);
-    });
+    appState.products = hydratedState.products;
 
     openCommentItemIds.clear();
 
     snapshot.openCommentItemIds.forEach((itemId) => {
       openCommentItemIds.add(itemId);
     });
+
+    editingTitleItemId = snapshot.editingTitleItemId;
+
+    currentZoom = snapshot.currentZoom;
+
+    if (snapshot.storageValue === null) {
+      localStorage.removeItem(STORAGE_KEY);
+    } else {
+      localStorage.setItem(STORAGE_KEY, snapshot.storageValue);
+    }
+
+    const wrapper = document.getElementById("artwork-wrapper");
+
+    if (wrapper) {
+      wrapper.style.transform = `scale(${currentZoom})`;
+    }
+
+    const zoomLevel = document.getElementById("zoom-level");
+
+    if (zoomLevel) {
+      zoomLevel.textContent = Math.round(currentZoom * 100) + "%";
+    }
+
+    renderChecklist();
 
     renderAppState();
   }
@@ -1291,6 +1290,228 @@
   });
 
   // ============================================================
+  // D — PERSISTENCE / SERIALIZATION / IMPORT / EXPORT
+  // ============================================================
+
+  test("D1 serialize and deserialize preserve review state", () => {
+    resetItem1A();
+
+    setItemCurrentTitle("1a", "Serialized Title");
+
+    setItemStatus("1a", REVIEW_STATUSES.APPROVED);
+
+    setItemComment("1a", "Serialized comment");
+
+    setItemPin("1a", {
+      x: 120,
+      y: 240,
+    });
+
+    const serialized = serializeState();
+
+    const parsed = deserializeState(serialized);
+
+    assertExists(parsed);
+
+    const item = parsed.products[parsed.activeProductId].items["1a"];
+
+    assertEqual(item.currentTitle, "Serialized Title");
+
+    assertEqual(item.status, REVIEW_STATUSES.APPROVED);
+
+    assertEqual(item.comment, "Serialized comment");
+
+    assertDeepEqual(item.pin, {
+      x: 120,
+      y: 240,
+    });
+  });
+
+  test("D1 deserializeState rejects malformed JSON", () => {
+    const result = deserializeState("{this-is-not-json");
+
+    assertEqual(result, null);
+  });
+
+  test("D1 validateState rejects missing active product", () => {
+    const parsed = JSON.parse(serializeState());
+
+    parsed.activeProductId = "missing-product";
+
+    assertEqual(validateState(parsed), false);
+  });
+
+  test("D1 rehydration restores immutable originalTitle", () => {
+    const parsed = JSON.parse(serializeState());
+
+    const hydrated = rehydrateState(parsed);
+
+    const item = hydrated.products[hydrated.activeProductId].items["1a"];
+
+    const descriptor = Object.getOwnPropertyDescriptor(item, "originalTitle");
+
+    assertExists(descriptor);
+
+    assertEqual(descriptor.writable, false);
+  });
+
+  test("D2 inline title edit is saved to localStorage", () => {
+    resetItem1A();
+
+    getEditTitleButton("1a").click();
+
+    const input = getTitleEditInput("1a");
+
+    input.value = "Persisted Legal Name";
+
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+      }),
+    );
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    assertEqual(
+      stored.products[stored.activeProductId].items["1a"].currentTitle,
+      "Persisted Legal Name",
+    );
+  });
+
+  test("D2 pin creation and clearing are persisted", () => {
+    resetItem1A();
+
+    addPin("1a", 100, 200);
+
+    let stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    assertDeepEqual(stored.products[stored.activeProductId].items["1a"].pin, {
+      x: 100,
+      y: 200,
+    });
+
+    clearPins();
+
+    stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    assertEqual(stored.products[stored.activeProductId].items["1a"].pin, null);
+  });
+
+  test("D2 corrupted localStorage does not crash state loading", () => {
+    const previous = localStorage.getItem(STORAGE_KEY);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, "{broken-json");
+
+      const result = loadStateFromStorage();
+
+      assertEqual(result, false);
+
+      assertExists(getActiveProduct());
+    } finally {
+      if (previous === null) {
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        localStorage.setItem(STORAGE_KEY, previous);
+      }
+    }
+  });
+
+  test("D3 export contains complete review data", () => {
+    resetItem1A();
+
+    const product = getActiveProduct();
+
+    product.brand = "Export Brand";
+
+    setItemStatus("1a", REVIEW_STATUSES.REJECTED);
+
+    setItemComment("1a", "Export comment");
+
+    setItemCurrentTitle("1a", "Exported Legal Name");
+
+    setItemPin("1a", {
+      x: 50,
+      y: 75,
+    });
+
+    const data = buildExportData();
+
+    assertEqual(data.schemaVersion, 1);
+
+    assertEqual(data.product.brand, "Export Brand");
+
+    assertEqual(data.items["1a"].status, REVIEW_STATUSES.REJECTED);
+
+    assertEqual(data.items["1a"].comment, "Export comment");
+
+    assertEqual(data.items["1a"].currentTitle, "Exported Legal Name");
+
+    assertDeepEqual(data.items["1a"].pin, {
+      x: 50,
+      y: 75,
+    });
+  });
+
+  test("D4 incompatible schema version is rejected", () => {
+    const data = buildExportData();
+
+    data.schemaVersion = 999;
+
+    const result = validateImportData(data);
+
+    assertEqual(result.valid, false);
+  });
+
+  test("D4 export import roundtrip restores review", () => {
+    resetItem1A();
+
+    const product = getActiveProduct();
+
+    product.brand = "Roundtrip Brand";
+
+    setItemStatus("1a", REVIEW_STATUSES.REJECTED);
+
+    setItemComment("1a", "Roundtrip comment");
+
+    setItemCurrentTitle("1a", "Roundtrip Title");
+
+    setItemPin("1a", {
+      x: 321,
+      y: 123,
+    });
+
+    const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    const result = applyImportedReview(exported);
+
+    assertEqual(result.valid, true);
+
+    const restored = getItemById("1a");
+
+    assertEqual(getActiveProduct().brand, "Roundtrip Brand");
+
+    assertEqual(restored.status, REVIEW_STATUSES.REJECTED);
+
+    assertEqual(restored.comment, "Roundtrip comment");
+
+    assertEqual(restored.currentTitle, "Roundtrip Title");
+
+    assertDeepEqual(restored.pin, {
+      x: 321,
+      y: 123,
+    });
+
+    const descriptor = Object.getOwnPropertyDescriptor(
+      restored,
+      "originalTitle",
+    );
+
+    assertEqual(descriptor.writable, false);
+  });
+
+  // ============================================================
   // 11. BASELINE DOM REGRESSION SMOKE TESTS
   // ============================================================
 
@@ -1342,7 +1563,7 @@
     RESULTS.length = 0;
 
     console.group(
-      "%cArtwork Checklist — Layer B + C1 + C2 + C3 Test Suite",
+      "%cArtwork Checklist — Layer B + C + D Test Suite",
       "font-size: 14px; font-weight: bold;",
     );
 
@@ -1429,6 +1650,6 @@
   };
 
   console.info(
-    "Artwork Layer B + C1 + C2 + C3 tests loaded. Run: runArtworkTests()",
+    "Artwork Layer B + C + D tests loaded. Run: runArtworkTests()",
   );
 })();
