@@ -7,6 +7,8 @@
 // REVIEW STATUS DEFINITIONS
 // ============================================================
 
+const CURRENT_SCHEMA_VERSION = 2;
+
 const REVIEW_STATUSES = Object.freeze({
   PENDING: "pending",
   APPROVED: "approved",
@@ -416,7 +418,7 @@ function createProduct(id) {
 //
 
 const appState = {
-  schemaVersion: 1,
+  schemaVersion: CURRENT_SCHEMA_VERSION,
 
   activeProductId: "product-1",
 
@@ -524,7 +526,19 @@ function setItemPin(itemId, pin) {
     return false;
   }
 
-  item.pin = pin;
+  if (pin !== null && !isNormalizedPin(pin)) {
+    console.warn(`Invalid normalized pin for "${itemId}".`);
+
+    return false;
+  }
+
+  item.pin =
+    pin === null
+      ? null
+      : {
+          xRatio: pin.xRatio,
+          yRatio: pin.yRatio,
+        };
 
   touchActiveProduct();
 
@@ -1555,6 +1569,76 @@ const pinsLayer = document.getElementById("pins-layer");
 
 const artworkWrapper = document.getElementById("artwork-wrapper");
 
+function clampRatio(value) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function isNormalizedPin(pin) {
+  if (!isPlainObject(pin)) {
+    return false;
+  }
+
+  return (
+    Number.isFinite(pin.xRatio) &&
+    Number.isFinite(pin.yRatio) &&
+    pin.xRatio >= 0 &&
+    pin.xRatio <= 1 &&
+    pin.yRatio >= 0 &&
+    pin.yRatio <= 1
+  );
+}
+
+function isLegacyPixelPin(pin) {
+  if (!isPlainObject(pin)) {
+    return false;
+  }
+
+  return Number.isFinite(pin.x) && Number.isFinite(pin.y);
+}
+
+function calculatePinRatios(clientX, clientY, rectangle) {
+  if (!rectangle || rectangle.width <= 0 || rectangle.height <= 0) {
+    return null;
+  }
+
+  return {
+    xRatio: clampRatio((clientX - rectangle.left) / rectangle.width),
+
+    yRatio: clampRatio((clientY - rectangle.top) / rectangle.height),
+  };
+}
+
+function getArtworkBaseDimensions() {
+  if (!artworkWrapper) {
+    return null;
+  }
+
+  const width = artworkWrapper.offsetWidth;
+
+  const height = artworkWrapper.offsetHeight;
+
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return {
+    width,
+    height,
+  };
+}
+
+function convertLegacyPixelPin(pin, width, height) {
+  if (!isLegacyPixelPin(pin) || width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return {
+    xRatio: clampRatio(pin.x / width),
+
+    yRatio: clampRatio(pin.y / height),
+  };
+}
+
 if (pinsLayer) {
   pinsLayer.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -1571,11 +1655,13 @@ if (pinsLayer) {
 
     const rectangle = artworkWrapper.getBoundingClientRect();
 
-    const x = (event.clientX - rectangle.left) / currentZoom;
+    const pin = calculatePinRatios(event.clientX, event.clientY, rectangle);
 
-    const y = (event.clientY - rectangle.top) / currentZoom;
+    if (!pin) {
+      return;
+    }
 
-    addPin(itemId, x, y);
+    addPin(itemId, pin);
   });
 }
 
@@ -1586,9 +1672,9 @@ function createPinElement(item) {
 
   pinElement.dataset.pid = item.id;
 
-  pinElement.style.left = item.pin.x + "px";
+  pinElement.style.left = `${item.pin.xRatio * 100}%`;
 
-  pinElement.style.top = item.pin.y + "px";
+  pinElement.style.top = `${item.pin.yRatio * 100}%`;
 
   pinElement.innerHTML = `
     <div class="pin-tooltip">
@@ -1651,23 +1737,24 @@ function renderPins() {
   });
 }
 
-function addPin(itemId, x, y) {
+function addPin(itemId, pin) {
   const item = getItemById(itemId);
 
   if (!item) {
-    return;
+    return false;
   }
 
-  setItemPin(itemId, {
-    x,
-    y,
-  });
+  if (!setItemPin(itemId, pin)) {
+    return false;
+  }
 
   renderPin(itemId);
 
   saveStateToStorage();
 
   showToast(`Pinned ${itemId.toUpperCase()} to artwork`);
+
+  return true;
 }
 
 // ============================================================
@@ -1747,7 +1834,9 @@ function clearPins() {
 // D2 — LOCAL STORAGE
 // ============================================================
 
-const STORAGE_KEY = "artworkChecklist:v1";
+const STORAGE_KEY = `artworkChecklist:v${CURRENT_SCHEMA_VERSION}`;
+
+const LEGACY_STORAGE_KEYS = ["artworkChecklist:v1"];
 // ============================================================
 // STATE SERIALIZATION
 // ============================================================
@@ -1794,7 +1883,7 @@ function isValidStoredPin(pin) {
     return true;
   }
 
-  return isPlainObject(pin) && Number.isFinite(pin.x) && Number.isFinite(pin.y);
+  return isNormalizedPin(pin);
 }
 
 function validateSerializedItem(item, expectedItemId) {
@@ -1910,7 +1999,7 @@ function validateState(state) {
     return false;
   }
 
-  if (state.schemaVersion !== 1) {
+  if (state.schemaVersion !== CURRENT_SCHEMA_VERSION) {
     return false;
   }
 
@@ -2014,26 +2103,116 @@ function rehydrateState(savedState) {
   return hydratedState;
 }
 
+function migrateItemsPinsToV2(items, dimensions) {
+  const migratedItems = {};
+
+  Object.entries(items).forEach(([itemId, item]) => {
+    let migratedPin = null;
+
+    if (item.pin === null) {
+      migratedPin = null;
+    } else if (isNormalizedPin(item.pin)) {
+      migratedPin = {
+        ...item.pin,
+      };
+    } else if (isLegacyPixelPin(item.pin)) {
+      migratedPin = convertLegacyPixelPin(
+        item.pin,
+        dimensions.width,
+        dimensions.height,
+      );
+
+      if (!migratedPin) {
+        throw new Error(`Unable to migrate pin for ${itemId}.`);
+      }
+    } else {
+      throw new Error(`Invalid legacy pin for ${itemId}.`);
+    }
+
+    migratedItems[itemId] = {
+      ...item,
+      pin: migratedPin,
+    };
+  });
+
+  return migratedItems;
+}
+
 function migrateState(state) {
-  if (!state || typeof state !== "object") {
+  if (!isPlainObject(state)) {
     return null;
   }
 
-  if (state.schemaVersion === 1) {
+  if (state.schemaVersion === CURRENT_SCHEMA_VERSION) {
     return state;
+  }
+
+  if (state.schemaVersion === 1) {
+    try {
+      const dimensions = getArtworkBaseDimensions();
+
+      if (!dimensions) {
+        console.warn(
+          "Unable to determine artwork dimensions for state migration.",
+        );
+
+        return null;
+      }
+
+      const migratedState = JSON.parse(JSON.stringify(state));
+
+      Object.values(migratedState.products).forEach((product) => {
+        product.items = migrateItemsPinsToV2(product.items, dimensions);
+      });
+
+      migratedState.schemaVersion = CURRENT_SCHEMA_VERSION;
+
+      return migratedState;
+    } catch (error) {
+      console.error("Failed to migrate state:", error);
+
+      return null;
+    }
   }
 
   console.warn(`Unsupported schema version: ${state.schemaVersion}`);
 
   return null;
 }
+
+function getStoredStateRecord() {
+  const currentState = localStorage.getItem(STORAGE_KEY);
+
+  if (currentState) {
+    return {
+      key: STORAGE_KEY,
+      serializedState: currentState,
+    };
+  }
+
+  for (const legacyKey of LEGACY_STORAGE_KEYS) {
+    const legacyState = localStorage.getItem(legacyKey);
+
+    if (legacyState) {
+      return {
+        key: legacyKey,
+        serializedState: legacyState,
+      };
+    }
+  }
+
+  return null;
+}
+
 function loadStateFromStorage() {
   try {
-    const serializedState = localStorage.getItem(STORAGE_KEY);
+    const storedRecord = getStoredStateRecord();
 
-    if (!serializedState) {
+    if (!storedRecord) {
       return false;
     }
+
+    const serializedState = storedRecord.serializedState;
 
     const parsedState = deserializeState(serializedState);
 
@@ -2059,6 +2238,24 @@ function loadStateFromStorage() {
     appState.activeProductId = hydratedState.activeProductId;
 
     appState.products = hydratedState.products;
+
+    /*
+     * If the state came from an older storage key,
+     * save the migrated canonical state under the
+     * current key and remove the legacy key.
+     */
+    if (storedRecord.key !== STORAGE_KEY) {
+      try {
+        localStorage.setItem(STORAGE_KEY, serializeState());
+
+        localStorage.removeItem(storedRecord.key);
+      } catch (error) {
+        console.warn(
+          "State migrated but could not replace legacy storage key.",
+          error,
+        );
+      }
+    }
 
     return true;
   } catch (error) {
@@ -2094,7 +2291,7 @@ function buildExportData() {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
 
     exportedAt: new Date().toISOString(),
 
@@ -2151,6 +2348,24 @@ function exportReviewAsJson() {
 // Versioned serialization belongs to Layer D.
 //
 
+function normalizedPinToPixels(pin) {
+  if (!isNormalizedPin(pin)) {
+    return null;
+  }
+
+  const dimensions = getArtworkBaseDimensions();
+
+  if (!dimensions) {
+    return null;
+  }
+
+  return {
+    x: pin.xRatio * dimensions.width,
+
+    y: pin.yRatio * dimensions.height,
+  };
+}
+
 function buildLegacyCheckData() {
   const product = getActiveProduct();
 
@@ -2166,9 +2381,11 @@ function buildLegacyCheckData() {
     checks[item.id] = item.status === REVIEW_STATUSES.APPROVED;
 
     if (item.pin) {
-      pins[item.id] = {
-        ...item.pin,
-      };
+      const pixelPin = normalizedPinToPixels(item.pin);
+
+      if (pixelPin) {
+        pins[item.id] = pixelPin;
+      }
     }
   });
 
@@ -2269,6 +2486,40 @@ function renderAppState() {
 // INITIALIZATION
 // ============================================================
 
+function migrateImportData(data) {
+  if (!isPlainObject(data)) {
+    return null;
+  }
+
+  if (data.schemaVersion === CURRENT_SCHEMA_VERSION) {
+    return data;
+  }
+
+  if (data.schemaVersion === 1) {
+    try {
+      const dimensions = getArtworkBaseDimensions();
+
+      if (!dimensions || !isPlainObject(data.items)) {
+        return null;
+      }
+
+      const migratedData = JSON.parse(JSON.stringify(data));
+
+      migratedData.items = migrateItemsPinsToV2(migratedData.items, dimensions);
+
+      migratedData.schemaVersion = CURRENT_SCHEMA_VERSION;
+
+      return migratedData;
+    } catch (error) {
+      console.error("Failed to migrate imported review:", error);
+
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function validateImportData(data) {
   if (!isPlainObject(data)) {
     return {
@@ -2277,7 +2528,7 @@ function validateImportData(data) {
     };
   }
 
-  if (data.schemaVersion !== 1) {
+  if (data.schemaVersion !== CURRENT_SCHEMA_VERSION) {
     return {
       valid: false,
       message: "Unsupported review file version.",
@@ -2376,15 +2627,24 @@ function buildImportedProduct(importedData) {
 }
 
 function applyImportedReview(importedData) {
-  const validation = validateImportData(importedData);
+  const migratedData = migrateImportData(importedData);
+
+  if (!migratedData) {
+    return {
+      valid: false,
+      message: "Unsupported or incompatible review file.",
+    };
+  }
+
+  const validation = validateImportData(migratedData);
 
   if (!validation.valid) {
     return validation;
   }
 
-  const importedProduct = buildImportedProduct(importedData);
+  const importedProduct = buildImportedProduct(migratedData);
 
-  appState.schemaVersion = importedData.schemaVersion;
+  appState.schemaVersion = migratedData.schemaVersion;
 
   appState.activeProductId = importedProduct.id;
 
