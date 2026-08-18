@@ -23,6 +23,65 @@
 // representation of that state.
 // ============================================================
 
+/**
+ * @typedef {"pending" | "approved" | "rejected"} ReviewStatus
+ */
+
+/**
+ * Position of a checklist pin relative to the artwork dimensions.
+ *
+ * Both values are normalized between 0 and 1 so that pin positions
+ * remain stable when the artwork is resized or zoomed.
+ *
+ * @typedef {Object} NormalizedPin
+ * @property {number} xRatio - Horizontal position from 0 (left) to 1 (right).
+ * @property {number} yRatio - Vertical position from 0 (top) to 1 (bottom).
+ */
+
+/**
+ * Persistable identity information for an artwork image.
+ *
+ * The binary image itself is intentionally not stored in appState.
+ *
+ * @typedef {Object} ArtworkMetadata
+ * @property {string} name - Original file name.
+ * @property {string} type - MIME type, such as "image/png".
+ * @property {number} size - File size in bytes.
+ * @property {number} width - Natural image width in pixels.
+ * @property {number} height - Natural image height in pixels.
+ */
+
+/**
+ * Runtime review state for one checklist requirement.
+ *
+ * @typedef {Object} ReviewItem
+ * @property {string} id - Permanent checklist item identifier.
+ * @property {string} sectionId - Identifier of the section containing the item.
+ * @property {string} originalTitle - Immutable title defined by the checklist template.
+ * @property {string} currentTitle - Current or reviewer-edited title.
+ * @property {string} note - Supporting checklist guidance.
+ * @property {ReviewStatus} status - Current review decision.
+ * @property {string} comment - Reviewer comment or rejection reason.
+ * @property {NormalizedPin|null} pin - Optional position on the artwork.
+ */
+
+/**
+ * Complete review state for one product.
+ *
+ * @typedef {Object} Product
+ * @property {string} id - Permanent unique product identifier.
+ * @property {string} brand
+ * @property {string} productName
+ * @property {string} weight
+ * @property {string} sku
+ * @property {ArtworkMetadata|null} artwork
+ * @property {Object.<string, ReviewItem>} items
+ * @property {Object} reviewer
+ * @property {Object|null} signature
+ * @property {string} createdAt - ISO creation timestamp.
+ * @property {string} updatedAt - ISO last-modification timestamp.
+ */
+
 const CURRENT_SCHEMA_VERSION = 2;
 
 const ARTWORK_REPLACEMENT_MESSAGE =
