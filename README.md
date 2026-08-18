@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-284%2F284%20passing-success" alt="284/284 tests passing">
+  <img src="https://img.shields.io/badge/tests-312%2F312%20passing-success" alt="312/312 tests passing">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -147,7 +147,8 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 259 browser-based tests                     |
+| ✅ Automated regression suite     | 312 browser-based tests                     |
+| ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 
 ---
 
@@ -1158,7 +1159,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-284 / 284 tests passing
+312 / 312 tests passing
 ```
 
 The suite covers:
@@ -1376,6 +1377,18 @@ Development is guided by a separate development roadmap maintained outside this 
 The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and colour specifications are now implemented through Layer G5.
 
 Layers F1 and G were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
+
+### UX Polish — Product Tab Context Menu
+
+* [x] Custom right-click menu.
+* [x] Rename target product.
+* [x] Duplicate target product.
+* [x] New Product shortcut.
+* [x] Delete target product.
+* [x] Last-product deletion disabled.
+* [x] Viewport-safe positioning.
+* [x] Outside-click / Escape dismissal.
+* [x] Product tab visual refinement.
 
 ---
 

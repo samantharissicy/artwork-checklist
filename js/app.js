@@ -3521,7 +3521,7 @@ function renameProduct(productId, newName) {
 }
 
 /**
- * Opens the rename dialog for the currently active product.
+ * Runs the interactive rename flow for any product.
  *
  * This function belongs to the UI interaction layer. It requests the new
  * product name through the custom application dialog and delegates the actual
@@ -3531,13 +3531,16 @@ function renameProduct(productId, newName) {
  * is rejected and produces user feedback.
  *
  * @async
- * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product to rename.
+ * @returns {Promise<boolean>} True when the product was successfully renamed,
+ *   false when it was not found, the dialog was cancelled or the name was
+ *   rejected.
  */
-async function renameActiveProduct() {
-  const product = getActiveProduct();
+async function renameProductWithDialog(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   const proposedName = await showPromptDialog({
@@ -3552,15 +3555,38 @@ async function renameActiveProduct() {
   });
 
   if (proposedName === null) {
-    return;
+    return false;
   }
 
-  if (!renameProduct(product.id, proposedName)) {
+  if (!renameProduct(productId, proposedName)) {
     showToast("Product name cannot be empty.");
-    return;
+
+    return false;
   }
 
   showToast("Product renamed.");
+
+  return true;
+}
+
+/**
+ * Opens the rename dialog for the currently active product.
+ *
+ * This is a convenience UI wrapper around renameProductWithDialog(). The
+ * dialog flow and validation rules remain centralized in the reusable
+ * product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ */
+async function renameActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  await renameProductWithDialog(product.id);
 }
 
 /**
@@ -3738,7 +3764,7 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
 }
 
 /**
- * Runs the interactive deletion flow for the currently active product.
+ * Runs the interactive deletion flow for a specific product.
  *
  * The function performs preliminary UI checks and displays the custom danger
  * confirmation dialog. If the reviewer confirms the operation, deletion is
@@ -3751,23 +3777,27 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
  * The last remaining product cannot enter the destructive deletion flow.
  *
  * @async
- * @returns {Promise<void>} Resolves after deletion is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product to delete.
+ * @returns {Promise<boolean>} True when the product was deleted, false when
+ *   cancellation occurred or deletion was rejected.
  */
-async function deleteActiveProduct() {
-  const product = getActiveProduct();
+async function deleteProductWithDialog(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   const productIds = getProductIds();
 
   if (productIds.length <= 1) {
     showToast("At least one product must remain.");
-    return;
+
+    return false;
   }
 
-  const productIndex = productIds.indexOf(product.id);
+  const productIndex = productIds.indexOf(productId);
+
   const displayName = getProductDisplayName(product, productIndex);
 
   const confirmed = await showConfirmDialog({
@@ -3779,10 +3809,32 @@ async function deleteActiveProduct() {
   });
 
   if (!confirmed) {
+    return false;
+  }
+
+  deleteProduct(productId, () => true);
+
+  return true;
+}
+
+/**
+ * Runs the interactive deletion flow for the currently active product.
+ *
+ * This is a convenience UI wrapper around deleteProductWithDialog(). The
+ * dialog flow, last-product protection and deletion rules remain centralized
+ * in the reusable product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after deletion is completed or cancelled.
+ */
+async function deleteActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
     return;
   }
 
-  deleteProduct(product.id, () => true);
+  await deleteProductWithDialog(product.id);
 }
 
 // ============================================================
@@ -7707,7 +7759,8 @@ function bindArtworkInput() {
  * - receives the tab accessibility role;
  * - exposes aria-selected according to activeProductId;
  * - displays Product Name or the configured fallback label;
- * - switches the active product when clicked.
+ * - switches the active product when clicked;
+ * - opens the custom context menu when right-clicked.
  *
  * The active tab receives the "active" CSS class for visual identification.
  *
@@ -7725,6 +7778,14 @@ function renderProductTabs() {
   if (!container) {
     return;
   }
+
+  /*
+   * The tab bar is rebuilt below, which discards every current tab element
+   * including a possible context-menu highlight. Close the menu so no visual
+   * target reference is left orphaned after the rebuild.
+   */
+
+  closeProductContextMenu();
 
   container.innerHTML = "";
 
@@ -7759,6 +7820,16 @@ function renderProductTabs() {
       switchProduct(product.id);
     });
 
+    tab.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+
+      openProductContextMenu({
+        productId: product.id,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    });
+
     container.appendChild(tab);
   });
 }
@@ -7787,6 +7858,444 @@ function scrollActiveProductTabIntoView() {
     block: "nearest",
     inline: "nearest",
   });
+}
+
+// ============================================================
+// PRODUCT CONTEXT MENU — G2 UX POLISH
+// ============================================================
+
+/**
+ * Transient UI state of the product tab context menu.
+ *
+ * This state belongs exclusively to the UI interaction layer:
+ *
+ * - it is never written into appState;
+ * - it is never serialized into JSON;
+ * - it is never persisted into localStorage;
+ * - it holds no DOM element references (tabs are rebuilt by
+ *   renderProductTabs(), so only the permanent product ID is stored).
+ *
+ * Every action executed from the menu operates on this productId, never on
+ * appState.activeProductId.
+ *
+ * @type {{ productId: string|null, isOpen: boolean }}
+ */
+const productContextMenuState = {
+  productId: null,
+  isOpen: false,
+};
+
+/** Distance in pixels kept between the menu and the viewport edges. */
+const CONTEXT_MENU_MARGIN = 8;
+
+/**
+ * Calculates a viewport-safe fixed position for the product context menu.
+ *
+ * The requested cursor coordinates are preferred, but when the menu would
+ * overflow the right or bottom viewport edge it is flipped to the other side
+ * of the cursor. A final clamp keeps the menu fully inside the viewport with
+ * the configured margin.
+ *
+ * This function is pure: it reads no document, no window and no state, and it
+ * only receives and returns numbers. Keeping the math here makes positioning
+ * deterministic and unit-testable without a layout engine.
+ *
+ * @param {Object} options - Positioning inputs.
+ * @param {number} options.clientX - Cursor X coordinate.
+ * @param {number} options.clientY - Cursor Y coordinate.
+ * @param {number} options.menuWidth - Measured menu width.
+ * @param {number} options.menuHeight - Measured menu height.
+ * @param {number} options.viewportWidth - Window inner width.
+ * @param {number} options.viewportHeight - Window inner height.
+ * @param {number} [options.margin=CONTEXT_MENU_MARGIN] - Edge safety margin.
+ * @returns {{ left: number, top: number }} Final fixed position for the menu.
+ */
+function calculateContextMenuPosition({
+  clientX,
+  clientY,
+  menuWidth,
+  menuHeight,
+  viewportWidth,
+  viewportHeight,
+  margin = CONTEXT_MENU_MARGIN,
+}) {
+  let left =
+    clientX + menuWidth > viewportWidth - margin
+      ? clientX - menuWidth
+      : clientX;
+
+  let top =
+    clientY + menuHeight > viewportHeight - margin
+      ? clientY - menuHeight
+      : clientY;
+
+  left = Math.max(
+    margin,
+    Math.min(left, viewportWidth - menuWidth - margin),
+  );
+
+  top = Math.max(
+    margin,
+    Math.min(top, viewportHeight - menuHeight - margin),
+  );
+
+  return { left, top };
+}
+
+/**
+ * Returns the Product Tab element for a given product ID.
+ *
+ * Tabs are rebuilt by renderProductTabs(), so DOM references are never stored
+ * by the context menu. The current tab is always located at call time by
+ * scanning the live tab list; product IDs are looked up by value, which is
+ * safe for any valid ID value.
+ *
+ * @param {string} productId - Permanent product ID.
+ * @returns {HTMLElement|null} The matching tab element, or null when it does
+ *   not exist.
+ */
+function findProductTab(productId) {
+  const tabs = document.querySelectorAll(".product-tab");
+
+  for (const tab of tabs) {
+    if (tab.dataset.productId === productId) {
+      return tab;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Locates the delete menu item inside the product context menu.
+ *
+ * @returns {HTMLButtonElement|null} The delete item, or null when the menu is
+ *   not present in the document.
+ */
+function getProductContextMenuDeleteItem() {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu) {
+    return null;
+  }
+
+  return (
+    menu.querySelector('[data-product-context-action="delete"]') || null
+  );
+}
+
+/**
+ * Synchronizes the enabled/disabled state of the product context menu.
+ *
+ * The workspace must always contain at least one product, so the Delete item
+ * is disabled while only one product exists. The item remains visible so the
+ * rule stays predictable.
+ *
+ * @returns {void}
+ */
+function refreshProductContextMenuDisabledState() {
+  const deleteItem = getProductContextMenuDeleteItem();
+
+  if (!deleteItem) {
+    return;
+  }
+
+  const singleProductWorkspace = getProductIds().length <= 1;
+
+  deleteItem.disabled = singleProductWorkspace;
+
+  if (singleProductWorkspace) {
+    deleteItem.setAttribute("aria-disabled", "true");
+    deleteItem.title = "At least one product must remain.";
+  } else {
+    deleteItem.removeAttribute("aria-disabled");
+    deleteItem.title = "Delete the selected product";
+  }
+}
+
+/**
+ * Opens the custom product context menu at the requested cursor position.
+ *
+ * The menu targets the supplied product ID, which may differ from the active
+ * product. Opening the menu never changes the active product.
+ *
+ * Responsibilities:
+ * - validates the target product;
+ * - closes any previously open menu;
+ * - stores the target product ID in transient state;
+ * - highlights the matching tab visually;
+ * - refreshes disabled items;
+ * - positions the menu inside the viewport.
+ *
+ * The function performs no business mutations.
+ *
+ * @param {Object} options - Menu opening inputs.
+ * @param {string} options.productId - Product ID that the menu will act on.
+ * @param {number} options.clientX - Cursor X coordinate from the event.
+ * @param {number} options.clientY - Cursor Y coordinate from the event.
+ * @returns {boolean} True when the menu was opened successfully.
+ */
+function openProductContextMenu({ productId, clientX, clientY }) {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu) {
+    return false;
+  }
+
+  if (!getProductById(productId)) {
+    return false;
+  }
+
+  closeProductContextMenu();
+
+  productContextMenuState.productId = productId;
+
+  productContextMenuState.isOpen = true;
+
+  const previousTarget = document.querySelector(
+    ".product-tab.context-target",
+  );
+
+  if (previousTarget) {
+    previousTarget.classList.remove("context-target");
+  }
+
+  const targetTab = findProductTab(productId);
+
+  if (targetTab) {
+    targetTab.classList.add("context-target");
+  }
+
+  refreshProductContextMenuDisabledState();
+
+  menu.hidden = false;
+
+  const position = calculateContextMenuPosition({
+    clientX,
+    clientY,
+    menuWidth: menu.offsetWidth,
+    menuHeight: menu.offsetHeight,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+
+  menu.style.left = `${position.left}px`;
+
+  menu.style.top = `${position.top}px`;
+
+  return true;
+}
+
+/**
+ * Closes the product context menu and clears its transient state.
+ *
+ * The function is idempotent: calling it when the menu is already closed or
+ * missing from the document is harmless.
+ *
+ * @returns {void}
+ */
+function closeProductContextMenu() {
+  const menu = document.getElementById("product-context-menu");
+
+  if (menu) {
+    menu.hidden = true;
+
+    menu.style.left = "";
+
+    menu.style.top = "";
+  }
+
+  const targetTab = document.querySelector(".product-tab.context-target");
+
+  if (targetTab) {
+    targetTab.classList.remove("context-target");
+  }
+
+  productContextMenuState.productId = null;
+
+  productContextMenuState.isOpen = false;
+}
+
+/**
+ * Moves keyboard focus between the enabled items of the product context menu.
+ *
+ * Arrow navigation wraps around, and disabled items such as the Delete item
+ * in a single-product workspace are skipped.
+ *
+ * @param {number} direction - +1 for ArrowDown, -1 for ArrowUp.
+ * @returns {void}
+ */
+function moveProductContextMenuFocus(direction) {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  const items = Array.from(
+    menu.querySelectorAll("[data-product-context-action]"),
+  ).filter((item) => !item.disabled);
+
+  if (items.length === 0) {
+    return;
+  }
+
+  const currentIndex = items.indexOf(document.activeElement);
+
+  const nextIndex =
+    currentIndex === -1
+      ? direction === 1
+        ? 0
+        : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
+
+  items[nextIndex].focus();
+}
+
+/**
+ * Dispatches a product context menu action.
+ *
+ * The action always operates on the target product stored when the menu was
+ * opened, never on the active product. The menu is closed before the action
+ * flow starts so no orphaned menu remains during dialogs.
+ *
+ * Every action reuses the existing product-level domain operations:
+ * - "rename": renameProductWithDialog() over the target product;
+ * - "duplicate": duplicateProduct() over the target product;
+ * - "new": createNewProduct();
+ * - "delete": deleteProductWithDialog() over the target product.
+ *
+ * @param {string} action - One of "rename", "duplicate", "new" or "delete".
+ * @returns {void}
+ */
+function handleProductContextMenuAction(action) {
+  const targetProductId = productContextMenuState.productId;
+
+  closeProductContextMenu();
+
+  switch (action) {
+    case "rename":
+      if (targetProductId !== null) {
+        renameProductWithDialog(targetProductId);
+      }
+
+      break;
+
+    case "duplicate":
+      if (targetProductId !== null) {
+        duplicateProduct(targetProductId);
+      }
+
+      break;
+
+    case "new":
+      createNewProduct();
+
+      break;
+
+    case "delete":
+      if (targetProductId !== null) {
+        deleteProductWithDialog(targetProductId);
+      }
+
+      break;
+  }
+}
+
+/**
+ * Wires up the product context menu interactions.
+ *
+ * Global listeners are registered exactly once. The menu itself uses event
+ * delegation so new menu items never need individual listeners.
+ *
+ * The menu closes automatically when:
+ * - a click happens outside the menu;
+ * - Escape is pressed while the dialog is not open;
+ * - the window is resized;
+ * - any scroll occurs;
+ * - renderProductTabs() rebuilds the tab bar (for example after product
+ *   switching, creation, duplication, deletion or import).
+ *
+ * @returns {void}
+ */
+function initializeProductContextMenu() {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu) {
+    return;
+  }
+
+  menu.addEventListener("click", (event) => {
+    const item = event.target.closest(
+      "[data-product-context-action]",
+    );
+
+    if (!item || item.disabled) {
+      return;
+    }
+
+    handleProductContextMenuAction(item.dataset.productContextAction);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!productContextMenuState.isOpen) {
+      return;
+    }
+
+    if (menu.contains(event.target)) {
+      return;
+    }
+
+    closeProductContextMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!productContextMenuState.isOpen) {
+      return;
+    }
+
+    if (appDialogState.isOpen) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+
+      closeProductContextMenu();
+
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+
+      moveProductContextMenuFocus(1);
+
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+
+      moveProductContextMenuFocus(-1);
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (productContextMenuState.isOpen) {
+      closeProductContextMenu();
+    }
+  });
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (productContextMenuState.isOpen) {
+        closeProductContextMenu();
+      }
+    },
+    true,
+  );
 }
 
 // ============================================================
@@ -8689,6 +9198,8 @@ function initializeApp() {
   bindArtworkInput();
 
   bindAppDialog();
+
+  initializeProductContextMenu();
 
   renderProductTabs();
 

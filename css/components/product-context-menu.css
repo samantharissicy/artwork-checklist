@@ -1,0 +1,112 @@
+/* ==========================================================
+   PRODUCT TAB CONTEXT MENU
+   ========================================================== */
+
+/*
+ * Custom right-click menu for Product Tabs (G2 UX polish).
+ *
+ * Positioned with position: fixed so cursor clientX/clientY
+ * coordinates can be used directly. The z-index sits above the
+ * product tabs, workspace, artwork viewer and toast (1000) but
+ * below the application dialog (2000).
+ */
+
+.product-context-menu {
+  position: fixed;
+
+  z-index: 1200;
+
+  min-width: 11rem;
+
+  padding: 0.25rem;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.product-context-menu[hidden] {
+  display: none;
+}
+
+.product-context-menu-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+
+  padding: 0.45rem 0.625rem;
+
+  border: 0;
+  border-radius: 0.35rem;
+
+  background: transparent;
+
+  color: #334155;
+
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.product-context-menu-item svg {
+  flex-shrink: 0;
+
+  color: #64748b;
+}
+
+.product-context-menu-item:hover:not(:disabled) {
+  background: #f1f5f9;
+
+  color: #0f172a;
+}
+
+.product-context-menu-item:hover:not(:disabled) svg {
+  color: #334155;
+}
+
+.product-context-menu-item:focus-visible {
+  outline: 2px solid #3b82f6;
+
+  outline-offset: -1px;
+}
+
+.product-context-menu-item:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+.product-context-menu-danger {
+  color: #dc2626;
+}
+
+.product-context-menu-danger svg {
+  color: #dc2626;
+}
+
+.product-context-menu-danger:hover:not(:disabled) {
+  background: #fef2f2;
+
+  color: #b91c1c;
+}
+
+.product-context-menu-danger:hover:not(:disabled) svg {
+  color: #b91c1c;
+}
+
+.product-context-menu-separator {
+  height: 1px;
+
+  margin: 0.25rem 0.375rem;
+
+  background: #e2e8f0;
+}

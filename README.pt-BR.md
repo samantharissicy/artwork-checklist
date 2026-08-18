@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-284%2F284%20passing-success" alt="284/284 testes passando">
+  <img src="https://img.shields.io/badge/tests-312%2F312%20passing-success" alt="312/312 testes passando">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -147,7 +147,8 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 259 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 312 testes de regressão no navegador           |
+| ✅ Menu de contexto da tab           | Clique direito na tab: Renomear/Duplicar/Novo/Excluir |
 
 ---
 
@@ -1152,7 +1153,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-284 / 284 testes passando
+312 / 312 testes passando
 ```
 
 A suíte cobre:
@@ -1370,6 +1371,18 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 O fluxo de produto único está estável desde a Camada E; tabs de múltiplos produtos, artwork layers e especificações de cor já estão implementados até a Camada G5.
 
 As camadas F1 e G foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
+
+### UX Polish — Menu de Contexto da Tab de Produto
+
+* [x] Menu customizado de clique direito.
+* [x] Renomear produto alvo.
+* [x] Duplicar produto alvo.
+* [x] Atalho de Novo Produto.
+* [x] Excluir produto alvo.
+* [x] Exclusão do último produto desabilitada.
+* [x] Posicionamento seguro dentro da viewport.
+* [x] Fechamento por clique fora / Escape.
+* [x] Refinamento visual das tabs de produto.
 
 ---
 
