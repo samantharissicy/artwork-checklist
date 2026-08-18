@@ -1,10 +1,26 @@
 // ============================================================
 // ARTWORK & PACK COPY CHECKLIST
-// Layer B — Centralized Domain Model
+// Main Application Logic
 // ============================================================
-
-// ============================================================
-// REVIEW STATUS DEFINITIONS
+//
+// This file contains the core application logic for the
+// Artwork & Pack Copy Checklist.
+//
+// Main responsibilities:
+// - checklist domain definitions;
+// - centralized application state;
+// - review status and validation;
+// - comments and inline copy editing;
+// - multi-product workspace management;
+// - artwork loading and identity;
+// - normalized artwork pins;
+// - local persistence;
+// - JSON import/export;
+// - UI rendering and dialogs.
+//
+// The application follows a data-first architecture:
+// appState is the source of truth and the DOM is a
+// representation of that state.
 // ============================================================
 
 const CURRENT_SCHEMA_VERSION = 2;
