@@ -428,10 +428,7 @@ const appState = {
   products: {},
 };
 
-const artworkSession = {
-  metadata: null,
-  objectUrl: null,
-};
+const artworkSessions = new Map();
 
 appState.products["product-1"] = createProduct("product-1");
 
@@ -441,6 +438,28 @@ appState.products["product-1"] = createProduct("product-1");
 
 function getActiveProduct() {
   return appState.products[appState.activeProductId] || null;
+}
+
+function getProductById(productId) {
+  return appState.products[productId] || null;
+}
+
+function getProductIds() {
+  return Object.keys(appState.products);
+}
+
+function getProductDisplayName(product, index = 0) {
+  if (!product) {
+    return "Product";
+  }
+
+  const name = product.productName.trim();
+
+  if (name) {
+    return name;
+  }
+
+  return `Product ${index + 1}`;
 }
 
 function generateProductId() {
@@ -553,14 +572,20 @@ function clearProductPins(product) {
 // DOMAIN HELPERS
 // ============================================================
 
-function touchActiveProduct() {
-  const product = getActiveProduct();
+function touchProduct(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   product.updatedAt = new Date().toISOString();
+
+  return true;
+}
+
+function touchActiveProduct() {
+  return touchProduct(appState.activeProductId);
 }
 
 function isValidReviewStatus(status) {
@@ -1122,6 +1147,12 @@ function renderChecklist() {
 const openCommentItemIds = new Set();
 
 let editingTitleItemId = null;
+
+function resetTransientReviewUiState() {
+  openCommentItemIds.clear();
+
+  editingTitleItemId = null;
+}
 
 let currentZoom = 1;
 
@@ -1910,8 +1941,12 @@ function unhighlightPin(itemId) {
   }
 }
 
-function applyArtworkIdentity(metadata, confirmReplacement = window.confirm) {
-  const product = getActiveProduct();
+function applyArtworkIdentity(
+  metadata,
+  confirmReplacement = window.confirm,
+  productId = appState.activeProductId,
+) {
+  const product = getProductById(productId);
 
   if (!product) {
     return {
@@ -1952,8 +1987,7 @@ function applyArtworkIdentity(metadata, confirmReplacement = window.confirm) {
 
   product.artwork = cloneArtworkMetadata(metadata);
 
-  touchActiveProduct();
-
+  touchProduct(productId);
   saveStateToStorage();
 
   return {
@@ -1973,30 +2007,75 @@ function createArtworkMetadata(file, width, height) {
   };
 }
 
-function releaseSessionArtwork() {
-  if (artworkSession.objectUrl) {
-    URL.revokeObjectURL(artworkSession.objectUrl);
+function getArtworkSession(
+  productId = appState.activeProductId,
+  createIfMissing = false,
+) {
+  if (!productId) {
+    return null;
   }
 
-  artworkSession.metadata = null;
-
-  artworkSession.objectUrl = null;
-}
-
-function adoptSessionArtwork(metadata, objectUrl) {
-  if (artworkSession.objectUrl && artworkSession.objectUrl !== objectUrl) {
-    URL.revokeObjectURL(artworkSession.objectUrl);
+  if (!artworkSessions.has(productId) && createIfMissing) {
+    artworkSessions.set(productId, {
+      metadata: null,
+      objectUrl: null,
+    });
   }
 
-  artworkSession.metadata = cloneArtworkMetadata(metadata);
-
-  artworkSession.objectUrl = objectUrl;
+  return artworkSessions.get(productId) || null;
 }
 
-function isArtworkLoadedInSession(metadata) {
+function releaseSessionArtwork(productId = appState.activeProductId) {
+  const session = getArtworkSession(productId, false);
+
+  if (!session) {
+    return;
+  }
+
+  if (session.objectUrl) {
+    URL.revokeObjectURL(session.objectUrl);
+  }
+
+  artworkSessions.delete(productId);
+}
+
+function releaseAllSessionArtworks() {
+  [...artworkSessions.keys()].forEach((productId) => {
+    releaseSessionArtwork(productId);
+  });
+}
+
+function adoptSessionArtwork(
+  metadata,
+  objectUrl,
+  productId = appState.activeProductId,
+) {
+  if (!productId) {
+    return false;
+  }
+
+  const session = getArtworkSession(productId, true);
+
+  if (session.objectUrl && session.objectUrl !== objectUrl) {
+    URL.revokeObjectURL(session.objectUrl);
+  }
+
+  session.metadata = cloneArtworkMetadata(metadata);
+
+  session.objectUrl = objectUrl;
+
+  return true;
+}
+
+function isArtworkLoadedInSession(
+  metadata,
+  productId = appState.activeProductId,
+) {
+  const session = getArtworkSession(productId, false);
+
   return (
-    Boolean(artworkSession.objectUrl) &&
-    isSameArtworkIdentity(artworkSession.metadata, metadata)
+    Boolean(session?.objectUrl) &&
+    isSameArtworkIdentity(session.metadata, metadata)
   );
 }
 
@@ -2144,7 +2223,9 @@ function renderArtworkState() {
     artworkButton.textContent = "Replace Artwork";
   }
 
-  const isLoaded = isArtworkLoadedInSession(metadata);
+  const artworkSession = getArtworkSession(product.id, false);
+
+  const isLoaded = isArtworkLoadedInSession(metadata, product.id);
 
   if (isLoaded) {
     if (demoArtwork) {
@@ -2903,6 +2984,8 @@ function selectArtwork() {
 async function handleArtworkFileChange(event) {
   const file = event.target.files?.[0];
 
+  const targetProductId = appState.activeProductId;
+
   if (!file) {
     return;
   }
@@ -2916,7 +2999,11 @@ async function handleArtworkFileChange(event) {
 
     const { metadata, objectUrl } = await inspectArtworkFile(file);
 
-    const result = applyArtworkIdentity(metadata);
+    const result = applyArtworkIdentity(
+      metadata,
+      window.confirm,
+      targetProductId,
+    );
 
     if (!result.applied) {
       URL.revokeObjectURL(objectUrl);
@@ -2930,11 +3017,13 @@ async function handleArtworkFileChange(event) {
       return;
     }
 
-    adoptSessionArtwork(metadata, objectUrl);
+    adoptSessionArtwork(metadata, objectUrl, targetProductId);
 
-    renderArtworkState();
+    if (appState.activeProductId === targetProductId) {
+      renderArtworkState();
 
-    renderPins();
+      renderPins();
+    }
 
     if (result.sameArtwork) {
       showToast("Artwork file loaded.");
