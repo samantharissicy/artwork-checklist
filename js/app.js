@@ -1541,7 +1541,18 @@ function openCheck() {
       return;
     }
 
-    console.log("Selected check file:", file.name);
+    const reader = new FileReader();
+
+    reader.onload = function () {
+      console.log("Check file loaded:", file.name);
+      console.log("File contents:", reader.result);
+    };
+
+    reader.onerror = function () {
+      console.error("Failed to read check file.");
+    };
+
+    reader.readAsText(file);
   };
 
   fileInput.click();
