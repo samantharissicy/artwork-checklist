@@ -1544,12 +1544,73 @@ function openCheck() {
     const reader = new FileReader();
 
     reader.onload = function () {
-      console.log("Check file loaded:", file.name);
-      console.log("File contents:", reader.result);
+      try {
+        console.log("Check file loaded:", file.name);
+
+        const importedData = JSON.parse(reader.result);
+
+        console.log("Imported check data:", importedData);
+
+        if (!importedData || typeof importedData !== "object") {
+          throw new Error("Invalid check file.");
+        }
+
+        if (!importedData.items || typeof importedData.items !== "object") {
+          throw new Error("Check file does not contain checklist items.");
+        }
+
+        const productId =
+          importedData.product && importedData.product.id
+            ? importedData.product.id
+            : "product-1";
+
+        const existingProduct =
+          appState.products[productId] || appState.products["product-1"];
+
+        if (!existingProduct) {
+          throw new Error("No product available to import into.");
+        }
+
+        const importedProduct = {
+          ...existingProduct,
+          ...(importedData.product || {}),
+          id: productId,
+          items: {
+            ...existingProduct.items,
+            ...importedData.items,
+          },
+          artwork:
+            importedData.artwork !== undefined
+              ? importedData.artwork
+              : existingProduct.artwork,
+          reviewer:
+            importedData.reviewer !== undefined
+              ? importedData.reviewer
+              : existingProduct.reviewer,
+          updatedAt: new Date().toISOString(),
+        };
+
+        appState.products[productId] = importedProduct;
+        appState.activeProductId = productId;
+
+        saveStateToStorage();
+
+        renderChecklist();
+        bindProductInputs();
+        renderAppState();
+
+        showToast("Check opened successfully.");
+
+        console.log("Check imported successfully:", productId);
+      } catch (error) {
+        console.error("Failed to import check:", error);
+        showToast("Unable to open check file.");
+      }
     };
 
     reader.onerror = function () {
       console.error("Failed to read check file.");
+      showToast("Unable to read check file.");
     };
 
     reader.readAsText(file);
