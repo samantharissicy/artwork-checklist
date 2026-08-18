@@ -921,8 +921,6 @@ function setItemComment(itemId, comment) {
 
   touchActiveProduct();
 
-  saveStateToStorage();
-
   return true;
 }
 
@@ -1371,7 +1369,11 @@ function renderChecklist() {
       });
 
       commentTextarea.addEventListener("input", (event) => {
-        setItemComment(item.id, event.target.value);
+        if (!setItemComment(item.id, event.target.value)) {
+          return;
+        }
+
+        saveStateToStorage();
 
         renderCommentState(item.id);
       });
@@ -2183,15 +2185,30 @@ function createNewProduct() {
 
   saveStateToStorage();
 
-  renderProductTabs();
-
-  renderAppState();
-
-  scrollActiveProductTabIntoView();
+  renderWorkspaceState({
+    scrollActiveTab: true,
+  });
 
   showToast("New product created.");
 
   return productId;
+}
+
+function renderWorkspaceState({
+  scrollActiveTab = false,
+  rebuildChecklist = false,
+} = {}) {
+  if (rebuildChecklist) {
+    renderChecklist();
+  }
+
+  renderProductTabs();
+
+  renderAppState();
+
+  if (scrollActiveTab) {
+    scrollActiveProductTabIntoView();
+  }
 }
 
 /**
@@ -2228,11 +2245,9 @@ function switchProduct(productId) {
 
   saveStateToStorage();
 
-  renderProductTabs();
-
-  renderAppState();
-
-  scrollActiveProductTabIntoView();
+  renderWorkspaceState({
+    scrollActiveTab: true,
+  });
 
   return true;
 }
@@ -2399,11 +2414,9 @@ function duplicateProduct(productId) {
 
   saveStateToStorage();
 
-  renderProductTabs();
-
-  renderAppState();
-
-  scrollActiveProductTabIntoView();
+  renderWorkspaceState({
+    scrollActiveTab: true,
+  });
 
   showToast("Product duplicated.");
 
@@ -2495,9 +2508,7 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
 
   saveStateToStorage();
 
-  renderProductTabs();
-
-  renderAppState();
+  renderWorkspaceState();
 
   showToast("Product deleted.");
 
@@ -3174,6 +3185,14 @@ function applyArtworkIdentity(
   const previousArtwork = product.artwork;
 
   const sameArtwork = isSameArtworkIdentity(previousArtwork, metadata);
+
+  if (sameArtwork) {
+    return {
+      applied: true,
+      sameArtwork: true,
+      pinsCleared: 0,
+    };
+  }
 
   const hasPins = productHasPins(product);
 
@@ -4339,6 +4358,20 @@ function migrateState(state) {
   return null;
 }
 
+function migrateLegacyItemsToV2(items) {
+  if (!isPlainObject(items)) {
+    return null;
+  }
+
+  const dimensions = getArtworkBaseDimensions();
+
+  if (!dimensions) {
+    return null;
+  }
+
+  return migrateItemsPinsToV2(items, dimensions);
+}
+
 /**
  * Locates persisted workspace data in browser localStorage.
  *
@@ -4580,21 +4613,7 @@ function exportReviewAsJson() {
     return;
   }
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
-
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-
-  link.download = `artwork-review-${Date.now()}.json`;
-
-  link.click();
-
-  URL.revokeObjectURL(url);
+  downloadJsonFile(data, `artwork-review-${Date.now()}.json`);
 
   showToast("Review exported successfully.");
 }
@@ -4727,10 +4746,15 @@ function saveCheck() {
 
   if (!data) {
     showToast("Unable to save checklist.");
-
     return;
   }
 
+  downloadJsonFile(data, `artwork-check-${Date.now()}.json`);
+
+  showToast("Checklist saved! JSON file downloaded.");
+}
+
+function downloadJsonFile(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: "application/json",
   });
@@ -4741,18 +4765,20 @@ function saveCheck() {
 
   link.href = url;
 
-  link.download = `artwork-check-${Date.now()}.json`;
+  link.download = filename;
 
-  link.click();
-
-  URL.revokeObjectURL(url);
-
-  showToast("Checklist saved! JSON file downloaded.");
+  try {
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 // ============================================================
 // TOAST
 // ============================================================
+
+let toastTimeoutId = null;
 
 /**
  * Displays a temporary non-blocking feedback message to the reviewer.
@@ -5756,13 +5782,10 @@ function applyImportedReview(importedData) {
 
   saveStateToStorage();
 
-  renderChecklist();
-
-  renderProductTabs();
-
-  renderAppState();
-
-  scrollActiveProductTabIntoView();
+  renderWorkspaceState({
+    rebuildChecklist: true,
+    scrollActiveTab: true,
+  });
 
   return {
     valid: true,
@@ -5855,6 +5878,36 @@ function openCheck() {
   fileInput.click();
 }
 
+function selectCheckFile() {
+  const fileInput = document.getElementById("check-file-input");
+
+  if (!fileInput) {
+    console.error("Check file input not found.");
+    return;
+  }
+
+  fileInput.value = "";
+
+  fileInput.click();
+}
+
+function bindCheckInput() {
+  const fileInput = document.getElementById("check-file-input");
+
+  if (!fileInput) {
+    return;
+  }
+
+  fileInput.addEventListener("change", handleCheckFileChange);
+}
+
+async function handleCheckFileChange(event) {
+  // file validation
+  // read
+  // deserialize
+  // applyImportedReview
+}
+
 /*
  * Release all session-only artwork Object URLs before the document
  * is unloaded. Persisted artwork metadata remains in appState/localStorage.
@@ -5918,6 +5971,8 @@ function initializeApp() {
   renderProductTabs();
 
   renderAppState();
+
+  bindCheckInput();
 }
 
 initializeApp();
