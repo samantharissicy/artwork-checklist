@@ -443,6 +443,22 @@ function getActiveProduct() {
   return appState.products[appState.activeProductId] || null;
 }
 
+function generateProductId() {
+  let productId;
+
+  do {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      productId = `product-${window.crypto.randomUUID()}`;
+    } else {
+      productId = `product-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
+    }
+  } while (Object.prototype.hasOwnProperty.call(appState.products, productId));
+
+  return productId;
+}
+
 function getItemById(itemId) {
   const product = getActiveProduct();
 
