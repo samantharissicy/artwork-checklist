@@ -35,6 +35,7 @@
       </div>
     </div>
     <input type="file" id="check-file-input" accept=".json,application/json" hidden />
+    <input type="file" id="artwork-file-input" accept="image/*" hidden />
 
     <!-- Main -->
     <div class="main">
@@ -68,10 +69,22 @@
       <div class="right-panel">
         <div class="viewer-toolbar">
           <div class="viewer-label">
-            Artwork Viewer
-            <span class="viewer-badge">Front & Back</span>
+            <span>Artwork Viewer</span>
+
+            <span class="viewer-badge" id="artwork-status-badge">
+              Demo
+            </span>
+
+            <span class="artwork-meta" id="artwork-meta">
+              Demo artwork
+            </span>
           </div>
           <div class="toolbar-actions">
+            <button type="button" class="btn-artwork" id="btn-artwork" onclick="selectArtwork()">
+              Set Artwork
+            </button>
+
+            <div class="divider"></div>
             <button onclick="zoom(-0.1)" title="Zoom Out">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M20 12H4" />
@@ -92,7 +105,7 @@
 
         <div class="canvas-area" id="canvas-area">
           <div class="artwork-wrapper" id="artwork-wrapper">
-            <div class="artwork">
+            <div class="artwork" id="demo-artwork">
               <!-- Front of Pack -->
               <div class="pack-front">
                 <div class="pack-label">Front of Pack</div>
@@ -206,6 +219,21 @@
                 </div>
               </div>
             </div>
+
+            <img class="artwork-image" id="artwork-image" alt="Selected packaging artwork" hidden />
+
+            <div class="artwork-missing" id="artwork-missing" hidden>
+              <div class="artwork-missing-title">
+                Artwork file not loaded
+              </div>
+
+              <div class="artwork-missing-name" id="artwork-missing-name"></div>
+
+              <div class="artwork-missing-text">
+                Select the same artwork file to continue reviewing it.
+              </div>
+            </div>
+
             <div class="pins-layer" id="pins-layer"></div>
           </div>
         </div>

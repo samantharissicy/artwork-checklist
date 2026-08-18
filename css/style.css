@@ -598,6 +598,33 @@ body {
   border-radius: 999px;
   font-weight: 500;
 }
+.artwork-meta {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.btn-artwork {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-artwork:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
 .toolbar-actions {
   display: flex;
   align-items: center;
@@ -665,6 +692,67 @@ body {
   border-radius: 8px;
   overflow: hidden;
 }
+
+.artwork-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 760px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.artwork-image[hidden] {
+  display: none;
+}
+
+.artwork-missing {
+  width: 480px;
+  min-height: 320px;
+  padding: 40px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+.artwork-missing[hidden] {
+  display: none;
+}
+
+.artwork-missing-title {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.artwork-missing-name {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.artwork-missing-text {
+  max-width: 320px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pins-layer[hidden] {
+  display: none;
+}
+
 .pack-front,
 .pack-back {
   padding: 24px;
