@@ -20,11 +20,23 @@
           </div>
         </div>
         <div class="header-right">
-          <span class="badge">Site: All Sites</span>
-          <span class="badge">Version: v2.1</span>
-          <button class="btn-save" onclick="exportReviewAsJson()">Save Check</button>
-        </div>
-      </div>
+  <span class="badge">Site: All Sites</span>
+  <span class="badge">Version: v2.1</span>
+
+  <button class="btn-open" onclick="openCheck()">
+    Open Check
+  </button>
+
+  <button class="btn-save" onclick="exportReviewAsJson()">
+    Save Check
+  </button>
+</div>
+        <input
+  type="file"
+  id="check-file-input"
+  accept=".json,application/json"
+  hidden
+/>
 
       <!-- Main -->
       <div class="main">
