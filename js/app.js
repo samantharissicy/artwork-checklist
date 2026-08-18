@@ -4488,8 +4488,6 @@ function saveStateToStorage() {
 
     localStorage.setItem(STORAGE_KEY, serializedState);
 
-    showToast("Saved locally");
-
     return true;
   } catch (error) {
     console.error("Failed to save state to localStorage:", error);
@@ -4778,12 +4776,18 @@ function showToast(message) {
     return;
   }
 
+  if (toastTimeoutId !== null) {
+    clearTimeout(toastTimeoutId);
+  }
+
   toast.textContent = message;
 
   toast.classList.add("show");
 
-  setTimeout(() => {
+  toastTimeoutId = setTimeout(() => {
     toast.classList.remove("show");
+
+    toastTimeoutId = null;
   }, 2500);
 }
 
@@ -5650,13 +5654,13 @@ function buildImportedProduct(importedData) {
 
   const product = createProduct(productId);
 
-  product.brand = importedData.product.brand;
+  product.brand = importedData.product.brand ?? "";
 
-  product.productName = importedData.product.productName;
+  product.productName = importedData.product.productName ?? "";
 
-  product.weight = importedData.product.weight;
+  product.weight = importedData.product.weight ?? "";
 
-  product.sku = importedData.product.sku;
+  product.sku = importedData.product.sku ?? "";
 
   product.items = rehydrateItems(importedData.items);
 
@@ -5735,8 +5739,6 @@ function applyImportedReview(importedData) {
 
   const importedProduct = buildImportedProduct(migratedData);
 
-  appState.schemaVersion = migratedData.schemaVersion;
-
   let importedProductId = importedProduct.id;
 
   if (
@@ -5750,10 +5752,6 @@ function applyImportedReview(importedData) {
   appState.products[importedProductId] = importedProduct;
 
   appState.activeProductId = importedProductId;
-
-  openCommentItemIds.clear();
-
-  editingTitleItemId = null;
 
   resetTransientReviewUiState();
 
@@ -5857,7 +5855,6 @@ function openCheck() {
 
   fileInput.click();
 }
-
 
 /*
  * Release all session-only artwork Object URLs before the document
