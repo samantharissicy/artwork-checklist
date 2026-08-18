@@ -1532,6 +1532,18 @@ function openCheck() {
     return;
   }
 
+  fileInput.value = "";
+
+  fileInput.onchange = function (event) {
+    const file = event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    console.log("Selected check file:", file.name);
+  };
+
   fileInput.click();
 }
 function initializeApp() {
