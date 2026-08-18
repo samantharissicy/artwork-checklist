@@ -105,7 +105,7 @@
 
         <div class="canvas-area" id="canvas-area">
           <div class="artwork-wrapper" id="artwork-wrapper">
-            <div class="artwork">
+            <div class="artwork" id="demo-artwork">
               <!-- Front of Pack -->
               <div class="pack-front">
                 <div class="pack-label">Front of Pack</div>
@@ -219,6 +219,21 @@
                 </div>
               </div>
             </div>
+
+            <img class="artwork-image" id="artwork-image" alt="Selected packaging artwork" hidden />
+
+            <div class="artwork-missing" id="artwork-missing" hidden>
+              <div class="artwork-missing-title">
+                Artwork file not loaded
+              </div>
+
+              <div class="artwork-missing-name" id="artwork-missing-name"></div>
+
+              <div class="artwork-missing-text">
+                Select the same artwork file to continue reviewing it.
+              </div>
+            </div>
+
             <div class="pins-layer" id="pins-layer"></div>
           </div>
         </div>

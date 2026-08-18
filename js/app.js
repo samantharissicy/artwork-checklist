@@ -9,6 +9,9 @@
 
 const CURRENT_SCHEMA_VERSION = 2;
 
+const ARTWORK_REPLACEMENT_MESSAGE =
+  "Replacing this artwork will invalidate existing pins.\nContinue?";
+
 const REVIEW_STATUSES = Object.freeze({
   PENDING: "pending",
   APPROVED: "approved",
@@ -425,6 +428,11 @@ const appState = {
   products: {},
 };
 
+const artworkSession = {
+  metadata: null,
+  objectUrl: null,
+};
+
 appState.products["product-1"] = createProduct("product-1");
 
 // ============================================================
@@ -443,6 +451,86 @@ function getItemById(itemId) {
   }
 
   return product.items[itemId] || null;
+}
+
+function cloneArtworkMetadata(metadata) {
+  if (!metadata) {
+    return null;
+  }
+
+  return {
+    name: metadata.name,
+    type: metadata.type,
+    size: metadata.size,
+    width: metadata.width,
+    height: metadata.height,
+  };
+}
+
+function isValidArtworkMetadata(metadata) {
+  if (!isPlainObject(metadata)) {
+    return false;
+  }
+
+  return (
+    typeof metadata.name === "string" &&
+    metadata.name.trim() !== "" &&
+    typeof metadata.type === "string" &&
+    metadata.type.startsWith("image/") &&
+    Number.isFinite(metadata.size) &&
+    metadata.size >= 0 &&
+    Number.isFinite(metadata.width) &&
+    metadata.width > 0 &&
+    Number.isFinite(metadata.height) &&
+    metadata.height > 0
+  );
+}
+
+function isSameArtworkIdentity(firstArtwork, secondArtwork) {
+  if (firstArtwork === null || secondArtwork === null) {
+    return firstArtwork === secondArtwork;
+  }
+
+  if (
+    !isValidArtworkMetadata(firstArtwork) ||
+    !isValidArtworkMetadata(secondArtwork)
+  ) {
+    return false;
+  }
+
+  return (
+    firstArtwork.name === secondArtwork.name &&
+    firstArtwork.type === secondArtwork.type &&
+    firstArtwork.size === secondArtwork.size &&
+    firstArtwork.width === secondArtwork.width &&
+    firstArtwork.height === secondArtwork.height
+  );
+}
+
+function productHasPins(product = getActiveProduct()) {
+  if (!product) {
+    return false;
+  }
+
+  return Object.values(product.items).some((item) => item.pin !== null);
+}
+
+function clearProductPins(product) {
+  if (!product) {
+    return 0;
+  }
+
+  let clearedCount = 0;
+
+  Object.values(product.items).forEach((item) => {
+    if (item.pin !== null) {
+      item.pin = null;
+
+      clearedCount += 1;
+    }
+  });
+
+  return clearedCount;
 }
 
 // ============================================================
@@ -1806,6 +1894,303 @@ function unhighlightPin(itemId) {
   }
 }
 
+function applyArtworkIdentity(metadata, confirmReplacement = window.confirm) {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return {
+      applied: false,
+      reason: "no-product",
+    };
+  }
+
+  if (!isValidArtworkMetadata(metadata)) {
+    return {
+      applied: false,
+      reason: "invalid-metadata",
+    };
+  }
+
+  const previousArtwork = product.artwork;
+
+  const sameArtwork = isSameArtworkIdentity(previousArtwork, metadata);
+
+  const hasPins = productHasPins(product);
+
+  if (!sameArtwork && hasPins) {
+    const confirmed = confirmReplacement(ARTWORK_REPLACEMENT_MESSAGE);
+
+    if (!confirmed) {
+      return {
+        applied: false,
+        reason: "cancelled",
+      };
+    }
+  }
+
+  let pinsCleared = 0;
+
+  if (!sameArtwork && hasPins) {
+    pinsCleared = clearProductPins(product);
+  }
+
+  product.artwork = cloneArtworkMetadata(metadata);
+
+  touchActiveProduct();
+
+  saveStateToStorage();
+
+  return {
+    applied: true,
+    sameArtwork,
+    pinsCleared,
+  };
+}
+
+function createArtworkMetadata(file, width, height) {
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    width,
+    height,
+  };
+}
+
+function releaseSessionArtwork() {
+  if (artworkSession.objectUrl) {
+    URL.revokeObjectURL(artworkSession.objectUrl);
+  }
+
+  artworkSession.metadata = null;
+
+  artworkSession.objectUrl = null;
+}
+
+function adoptSessionArtwork(metadata, objectUrl) {
+  if (artworkSession.objectUrl && artworkSession.objectUrl !== objectUrl) {
+    URL.revokeObjectURL(artworkSession.objectUrl);
+  }
+
+  artworkSession.metadata = cloneArtworkMetadata(metadata);
+
+  artworkSession.objectUrl = objectUrl;
+}
+
+function isArtworkLoadedInSession(metadata) {
+  return (
+    Boolean(artworkSession.objectUrl) &&
+    isSameArtworkIdentity(artworkSession.metadata, metadata)
+  );
+}
+
+function inspectArtworkFile(file) {
+  return new Promise((resolve, reject) => {
+    if (
+      !file ||
+      typeof file.type !== "string" ||
+      !file.type.startsWith("image/")
+    ) {
+      reject(new Error("Selected file is not an image."));
+
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    const image = new Image();
+
+    image.onload = () => {
+      const metadata = createArtworkMetadata(
+        file,
+        image.naturalWidth,
+        image.naturalHeight,
+      );
+
+      if (!isValidArtworkMetadata(metadata)) {
+        URL.revokeObjectURL(objectUrl);
+
+        reject(new Error("Invalid artwork metadata."));
+
+        return;
+      }
+
+      resolve({
+        metadata,
+        objectUrl,
+      });
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      reject(new Error("Unable to load artwork image."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes)) {
+    return "";
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatArtworkSummary(metadata) {
+  if (!isValidArtworkMetadata(metadata)) {
+    return "";
+  }
+
+  return [
+    metadata.name,
+    `${metadata.width}×${metadata.height}`,
+    formatFileSize(metadata.size),
+  ].join(" · ");
+}
+
+function renderArtworkState() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  const demoArtwork = document.getElementById("demo-artwork");
+
+  const artworkImage = document.getElementById("artwork-image");
+
+  const missingState = document.getElementById("artwork-missing");
+
+  const missingName = document.getElementById("artwork-missing-name");
+
+  const statusBadge = document.getElementById("artwork-status-badge");
+
+  const metadataText = document.getElementById("artwork-meta");
+
+  const artworkButton = document.getElementById("btn-artwork");
+
+  const metadata = product.artwork;
+
+  /*
+   * No artwork selected:
+   * preserve the original demo.
+   */
+  if (!metadata) {
+    if (demoArtwork) {
+      demoArtwork.hidden = false;
+    }
+
+    if (artworkImage) {
+      artworkImage.hidden = true;
+
+      artworkImage.removeAttribute("src");
+    }
+
+    if (missingState) {
+      missingState.hidden = true;
+    }
+
+    if (statusBadge) {
+      statusBadge.textContent = "Demo";
+    }
+
+    if (metadataText) {
+      metadataText.textContent = "Demo artwork";
+    }
+
+    if (artworkButton) {
+      artworkButton.textContent = "Set Artwork";
+    }
+
+    if (pinsLayer) {
+      pinsLayer.hidden = false;
+    }
+
+    return;
+  }
+
+  if (metadataText) {
+    metadataText.textContent = formatArtworkSummary(metadata);
+  }
+
+  if (artworkButton) {
+    artworkButton.textContent = "Replace Artwork";
+  }
+
+  const isLoaded = isArtworkLoadedInSession(metadata);
+
+  if (isLoaded) {
+    if (demoArtwork) {
+      demoArtwork.hidden = true;
+    }
+
+    if (missingState) {
+      missingState.hidden = true;
+    }
+
+    if (artworkImage) {
+      artworkImage.src = artworkSession.objectUrl;
+
+      artworkImage.hidden = false;
+    }
+
+    if (statusBadge) {
+      statusBadge.textContent = "Loaded";
+    }
+
+    if (pinsLayer) {
+      pinsLayer.hidden = false;
+    }
+
+    return;
+  }
+
+  /*
+   * Metadata was restored from localStorage or JSON,
+   * but browser file access cannot be persisted.
+   */
+  if (demoArtwork) {
+    demoArtwork.hidden = true;
+  }
+
+  if (artworkImage) {
+    artworkImage.hidden = true;
+
+    artworkImage.removeAttribute("src");
+  }
+
+  if (missingState) {
+    missingState.hidden = false;
+  }
+
+  if (missingName) {
+    missingName.textContent = metadata.name;
+  }
+
+  if (statusBadge) {
+    statusBadge.textContent = "File required";
+  }
+
+  /*
+   * Pins remain in appState but should not be shown
+   * over a placeholder.
+   */
+  if (pinsLayer) {
+    pinsLayer.hidden = true;
+  }
+}
+
 // ============================================================
 // CLEAR PINS
 // ============================================================
@@ -1817,9 +2202,7 @@ function clearPins() {
     return;
   }
 
-  Object.values(product.items).forEach((item) => {
-    item.pin = null;
-  });
+  clearProductPins(product);
 
   touchActiveProduct();
 
@@ -1829,6 +2212,7 @@ function clearPins() {
 
   showToast("All pins cleared");
 }
+
 // ============================================================
 // LAYER D — PERSISTENCE
 // D2 — LOCAL STORAGE
@@ -1969,7 +2353,7 @@ function validateSerializedProduct(product) {
     return false;
   }
 
-  if (product.artwork !== null && !isPlainObject(product.artwork)) {
+  if (product.artwork !== null && !isValidArtworkMetadata(product.artwork)) {
     return false;
   }
 
@@ -2065,7 +2449,9 @@ function rehydrateProduct(savedProduct) {
 
   product.sku = savedProduct.sku;
 
-  product.artwork = savedProduct.artwork ?? null;
+  product.artwork = savedProduct.artwork
+    ? cloneArtworkMetadata(savedProduct.artwork)
+    : null;
 
   product.items = rehydrateItems(savedProduct.items);
 
@@ -2307,7 +2693,7 @@ function buildExportData() {
 
     items: product.items,
 
-    artwork: product.artwork,
+    artwork: cloneArtworkMetadata(product.artwork),
 
     reviewer: product.reviewer,
   };
@@ -2473,6 +2859,8 @@ function renderAppState() {
 
   renderProductInputs();
 
+  renderArtworkState();
+
   Object.keys(product.items).forEach((itemId) => {
     renderItemState(itemId);
   });
@@ -2480,6 +2868,88 @@ function renderAppState() {
   renderPins();
 
   updateProgress();
+}
+
+function selectArtwork() {
+  const fileInput = document.getElementById("artwork-file-input");
+
+  if (!fileInput) {
+    console.error("Artwork file input not found.");
+
+    return;
+  }
+
+  fileInput.value = "";
+
+  fileInput.click();
+}
+
+async function handleArtworkFileChange(event) {
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    if (!file.type.startsWith("image/")) {
+      showToast("Please select an image file.");
+
+      return;
+    }
+
+    const { metadata, objectUrl } = await inspectArtworkFile(file);
+
+    const result = applyArtworkIdentity(metadata);
+
+    if (!result.applied) {
+      URL.revokeObjectURL(objectUrl);
+
+      if (result.reason === "cancelled") {
+        showToast("Artwork replacement cancelled.");
+      } else {
+        showToast("Unable to use selected artwork.");
+      }
+
+      return;
+    }
+
+    adoptSessionArtwork(metadata, objectUrl);
+
+    renderArtworkState();
+
+    renderPins();
+
+    if (result.sameArtwork) {
+      showToast("Artwork file loaded.");
+
+      return;
+    }
+
+    if (result.pinsCleared > 0) {
+      showToast("Artwork replaced and existing pins cleared.");
+
+      return;
+    }
+
+    showToast("Artwork loaded successfully.");
+  } catch (error) {
+    console.error("Failed to load artwork:", error);
+
+    showToast("Unable to load artwork image.");
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function bindArtworkInput() {
+  const fileInput = document.getElementById("artwork-file-input");
+
+  if (!fileInput) {
+    return;
+  }
+
+  fileInput.addEventListener("change", handleArtworkFileChange);
 }
 
 // ============================================================
@@ -2610,7 +3080,9 @@ function buildImportedProduct(importedData) {
 
   product.items = rehydrateItems(importedData.items);
 
-  product.artwork = importedData.artwork ?? null;
+  product.artwork = importedData.artwork
+    ? cloneArtworkMetadata(importedData.artwork)
+    : null;
 
   product.reviewer = {
     ...product.reviewer,
@@ -2651,6 +3123,12 @@ function applyImportedReview(importedData) {
   appState.products = {
     [importedProduct.id]: importedProduct,
   };
+
+  if (
+    !isSameArtworkIdentity(artworkSession.metadata, importedProduct.artwork)
+  ) {
+    releaseSessionArtwork();
+  }
 
   openCommentItemIds.clear();
 
@@ -2728,12 +3206,18 @@ function openCheck() {
   fileInput.click();
 }
 
+window.addEventListener("beforeunload", () => {
+  releaseSessionArtwork();
+});
+
 function initializeApp() {
   loadStateFromStorage();
 
   renderChecklist();
 
   bindProductInputs();
+
+  bindArtworkInput();
 
   renderAppState();
 }
