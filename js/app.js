@@ -2663,16 +2663,11 @@ function renderProductContext() {
 
   const siteElement = document.getElementById("ctx-site");
 
-  const artworkRevisionElement = document.getElementById(
-    "ctx-artwork-rev",
-  );
+  const artworkRevisionElement = document.getElementById("ctx-artwork-rev");
 
   if (productElement) {
     productElement.textContent = product
-      ? getProductDisplayName(
-          product,
-          getProductIds().indexOf(product.id),
-        )
+      ? getProductDisplayName(product, getProductIds().indexOf(product.id))
       : "—";
   }
 
@@ -2685,8 +2680,7 @@ function renderProductContext() {
   }
 
   if (artworkRevisionElement) {
-    artworkRevisionElement.textContent =
-      product?.artworkVersion || "—";
+    artworkRevisionElement.textContent = product?.artworkVersion || "—";
   }
 }
 
@@ -2713,15 +2707,11 @@ function renderProductInputs() {
 
   const skuInput = document.getElementById("inp-sku");
 
-  const productionCodeInput = document.getElementById(
-    "inp-production-code",
-  );
+  const productionCodeInput = document.getElementById("inp-production-code");
 
   const siteInput = document.getElementById("inp-site");
 
-  const artworkVersionInput = document.getElementById(
-    "inp-artwork-version",
-  );
+  const artworkVersionInput = document.getElementById("inp-artwork-version");
 
   if (brandInput) {
     brandInput.value = product.brand;
@@ -2785,15 +2775,11 @@ function bindProductInputs() {
 
   const skuInput = document.getElementById("inp-sku");
 
-  const productionCodeInput = document.getElementById(
-    "inp-production-code",
-  );
+  const productionCodeInput = document.getElementById("inp-production-code");
 
   const siteInput = document.getElementById("inp-site");
 
-  const artworkVersionInput = document.getElementById(
-    "inp-artwork-version",
-  );
+  const artworkVersionInput = document.getElementById("inp-artwork-version");
 
   if (brandInput) {
     brandInput.addEventListener("input", (event) => {
@@ -2826,6 +2812,8 @@ function bindProductInputs() {
       saveStateToStorage();
 
       renderProductTabs();
+
+      renderProductContext();
     });
   }
 
