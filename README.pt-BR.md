@@ -1,21 +1,22 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20C3-success" alt="MVP C3">
+  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-60%2F60%20passing-success" alt="60/60 testes passando">
+  <img src="https://img.shields.io/badge/tests-89%2F89%20passing-success" alt="89/89 testes passando">
+  <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
 </p>
 
 Ferramenta web de apoio à **revisão de artworks e textos de embalagens de produtos alimentícios**, alinhada ao padrão **BRCGS Product Labelling 5.2.1 | Multi-Site Aligned**.
 
-A aplicação combina um checklist regulatório estruturado com um workflow visual de revisão de artwork. Cada item pode ser classificado como **Pending**, **Approved** ou **Rejected**, receber comentários, registrar sugestões de correção de copy e ser fixado diretamente sobre a artwork.
+A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
-> **Estágio atual:** MVP funcional evoluindo incrementalmente por meio de um roadmap orientado por especificação.  
-> As camadas **A0**, **B1**, **C1**, **C2** e **C3** estão concluídas.  
-> A **Camada C — Workflow de revisão** está completa.
+> **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1 e E2** estão concluídas.  
+> A **Camada E — Geometria e identidade da artwork está completa.**
 
 ---
 
@@ -26,16 +27,19 @@ A aplicação combina um checklist regulatório estruturado com um workflow visu
 3. [Workflow de revisão](#workflow-de-revisão)
 4. [Comentários e validação de rejeição](#comentários-e-validação-de-rejeição)
 5. [Correções inline de copy](#correções-inline-de-copy)
-6. [As 6 seções do checklist](#as-6-seções-do-checklist)
-7. [Como executar](#como-executar)
-8. [Como usar](#como-usar)
-9. [Estrutura do projeto](#estrutura-do-projeto)
-10. [Arquitetura](#arquitetura)
-11. [Testes automatizados](#testes-automatizados)
-12. [Limitações conhecidas](#limitações-conhecidas)
-13. [Roadmap](#roadmap)
-14. [Workflow de desenvolvimento](#workflow-de-desenvolvimento)
-15. [Como contribuir](#como-contribuir)
+6. [Workflow da artwork](#workflow-da-artwork)
+7. [Pins e coordenadas proporcionais](#pins-e-coordenadas-proporcionais)
+8. [Persistência e arquivos JSON](#persistência-e-arquivos-json)
+9. [As 6 seções do checklist](#as-6-seções-do-checklist)
+10. [Como executar](#como-executar)
+11. [Como usar](#como-usar)
+12. [Estrutura do projeto](#estrutura-do-projeto)
+13. [Arquitetura](#arquitetura)
+14. [Testes automatizados](#testes-automatizados)
+15. [Limitações conhecidas](#limitações-conhecidas)
+16. [Roadmap](#roadmap)
+17. [Workflow de desenvolvimento](#workflow-de-desenvolvimento)
+18. [Como contribuir](#como-contribuir)
 
 ---
 
@@ -60,7 +64,7 @@ Antes de uma embalagem de alimento ir para produção, diversos elementos precis
 
 A aplicação organiza essa revisão em **49 itens distribuídos em 6 seções**.
 
-Cada item possui um estado:
+Cada item possui exatamente um status:
 
 ```text
 Pending
@@ -72,55 +76,72 @@ O revisor também pode:
 
 ```text
 adicionar comentários
-registrar correções de copy
+registrar justificativas de rejeição
+sugerir correções de copy
 restaurar o texto original
-associar itens à artwork através de pins
+associar requisitos à artwork através de pins
 navegar entre checklist e artwork
+salvar a revisão localmente
+exportar a revisão completa em JSON
+reabrir uma revisão exportada
+carregar uma artwork real
 ```
 
-O projeto continua propositalmente simples durante o MVP, sem framework, backend ou banco de dados enquanto essas tecnologias ainda não forem necessárias.
+O projeto continua propositalmente simples durante o MVP:
+
+```text
+HTML puro
+CSS puro
+JavaScript vanilla
+sem framework
+sem npm
+sem build
+sem backend
+sem banco de dados
+```
 
 ---
 
 ## Funcionalidades atuais
 
-| Funcionalidade | Descrição |
-|---|---|
-| ✅ Checklist interativo | 49 itens regulatórios |
-| ✅ Seções recolhíveis | 6 categorias |
-| ✅ Dados do produto | Brand, Product Name, Weight e SKU |
-| ✅ Estado centralizado | Dados de domínio armazenados em `appState` |
-| ✅ Workflow tri-state | Pending / Approved / Rejected |
-| ✅ Estado Approved | Visual verde |
-| ✅ Estado Rejected | Visual vermelho |
-| ✅ Estado Pending | Visual neutro |
-| ✅ Troca de status | Approved ↔ Rejected |
-| ✅ Reset para Pending | Clicar novamente no status ativo |
-| ✅ Progresso | `X / 49 reviewed` |
-| ✅ Comentários por item | Cada item possui seu comentário |
-| ✅ Abrir/recolher comentários | Textarea recolhível |
-| ✅ Validação de rejeição | Rejected exige comentário |
-| ✅ Feedback de validação | Mensagem clara para rejeição inválida |
-| ✅ Abertura automática | Reject abre o comentário |
-| ✅ Edição inline de copy | Alteração direta do título |
-| ✅ Enter confirma | Salva a correção |
-| ✅ Escape cancela | Descarta edição não confirmada |
-| ✅ Blur confirma | Clicar fora confirma edição válida |
-| ✅ Proteção contra título vazio | Texto vazio não substitui o atual |
-| ✅ Indicador Edited | Itens modificados são identificados |
-| ✅ Exibição do original | Texto original permanece disponível |
-| ✅ Restore original | Restaura `currentTitle` |
-| ✅ Artwork demonstrativa | Mock Front & Back em HTML/CSS |
-| ✅ Zoom | 50% a 200% |
-| ✅ Drag-and-drop | Arrastar requisitos para a artwork |
-| ✅ Pins | Pin criado no local do drop |
-| ✅ Pin → item | Clique leva ao checklist |
-| ✅ Item → pin | Hover destaca o pin |
-| ✅ Sincronização de copy | Tooltip do pin usa `currentTitle` |
-| ✅ Clear Pins | Remove pins do estado e UI |
-| ✅ Save Check | Exporta JSON legado |
-| ✅ Toast | Feedback visual |
-| ✅ Testes automatizados | Suíte B + C1 + C2 + C3 |
+| Funcionalidade                       | Descrição                                      |
+| ------------------------------------ | ---------------------------------------------- |
+| ✅ Checklist interativo              | 49 itens regulatórios                          |
+| ✅ Seções recolhíveis                | 6 categorias                                   |
+| ✅ Dados do produto                  | Brand, Product Name, Weight e SKU              |
+| ✅ Estado centralizado               | Dados de domínio em `appState`                 |
+| ✅ Single Source of Truth            | O DOM representa o estado, não o define        |
+| ✅ Workflow tri-state                | Pending / Approved / Rejected                  |
+| ✅ Troca de status                   | Approved ↔ Rejected ↔ Pending                  |
+| ✅ Progresso da revisão              | Approved + Rejected contam como revisados      |
+| ✅ Comentários por item              | Cada item possui seu próprio comentário        |
+| ✅ Validação de rejeição             | Rejected exige comentário                      |
+| ✅ Abertura automática               | Reject abre o editor de comentário             |
+| ✅ Edição inline de copy             | Texto atual pode ser alterado diretamente      |
+| ✅ Original preservado               | `originalTitle` permanece imutável             |
+| ✅ Indicador Edited                  | Itens alterados são identificados              |
+| ✅ Restore original                  | Restaura a copy original                       |
+| ✅ Autosave                          | Estado salvo automaticamente no `localStorage` |
+| ✅ Restauração após reload           | Estado salvo é restaurado ao abrir a página    |
+| ✅ Proteção contra estado corrompido | Storage inválido não derruba a aplicação       |
+| ✅ Serialização versionada           | Estado canônico usa schema versão 2            |
+| ✅ Migração de estado                | Pins legados do schema v1 podem migrar para v2 |
+| ✅ Export JSON versionado            | Save Check exporta o estado completo           |
+| ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
+| ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
+| ✅ Artwork real                      | Imagens locais podem ser carregadas no viewer  |
+| ✅ Metadata da artwork               | Nome, tipo, tamanho, largura e altura          |
+| ✅ Proteção na troca da artwork      | Troca com pins exige confirmação               |
+| ✅ Arquivo somente em sessão         | A imagem binária não é persistida              |
+| ✅ Pins normalizados                 | Posições armazenadas proporcionalmente         |
+| ✅ Pins resistentes ao zoom          | Geometria permanece coerente                   |
+| ✅ Drag-and-drop                     | Arrastar requisitos para a artwork             |
+| ✅ Pin → item                        | Clique no pin localiza o item                  |
+| ✅ Item → pin                        | Hover no item destaca o pin                    |
+| ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
+| ✅ Clear Pins                        | Remove pins do estado e interface              |
+| ✅ Toasts                            | Feedback visual de ações                       |
+| ✅ Testes automatizados              | 89 testes de regressão no navegador            |
 
 ---
 
@@ -138,7 +159,7 @@ rejected
 
 Estado inicial.
 
-Ainda não existe uma decisão de revisão.
+O requisito ainda não recebeu uma decisão.
 
 ### Approved
 
@@ -148,7 +169,7 @@ O item fica visualmente verde.
 
 ### Rejected
 
-Foi identificado um problema.
+Foi identificado algum problema.
 
 O item fica visualmente vermelho.
 
@@ -165,13 +186,15 @@ Approved → Pending
 Rejected → Pending
 ```
 
-Clicar novamente no status já ativo retorna para Pending.
+Clicar novamente no status já ativo retorna o item para Pending.
 
-O progresso considera revisados todos os itens cujo status não seja Pending:
+O progresso atual considera:
 
 ```js
-item.status !== REVIEW_STATUSES.PENDING
+reviewed = status !== REVIEW_STATUSES.PENDING;
 ```
+
+Logo, tanto Approved quanto Rejected contam como revisados.
 
 Exemplo:
 
@@ -179,33 +202,29 @@ Exemplo:
 10 Approved
 5 Rejected
 34 Pending
+
+= 15 / 49 reviewed
 ```
 
-resulta em:
-
-```text
-15 / 49 reviewed
-```
+Métricas mais detalhadas pertencem à Camada F.
 
 ---
 
 ## Comentários e validação de rejeição
 
-Cada item possui um botão de comentário.
+Cada item possui um controle de comentário.
 
-Ao clicar nele, um textarea é aberto.
-
-O conteúdo digitado é armazenado diretamente em:
+O valor faz parte do domínio:
 
 ```js
-item.comment
+item.comment;
 ```
 
-Recolher o textarea não apaga o comentário.
+Recolher o textarea não apaga seu conteúdo.
 
-Alterar status, título ou pin também não remove o comentário.
+Alterar status, copy ou pin também não remove o comentário.
 
-### Regra de negócio
+### Regra de rejeição
 
 ```text
 IF status = rejected
@@ -215,50 +234,38 @@ THEN comment.trim().length > 0
 Portanto:
 
 ```text
-Rejected sem comentário
-=
-inválido
+Rejected + comentário vazio
+= inválido
 ```
 
 e:
 
 ```text
-Rejected com comentário
-=
-válido
+Rejected + comentário válido
+= válido
 ```
 
 Ao selecionar Reject:
 
 1. o status passa para Rejected;
-2. o textarea abre automaticamente;
-3. o item é validado;
-4. caso o comentário esteja vazio, uma mensagem clara é mostrada;
-5. ao escrever uma justificativa válida, o erro desaparece.
+2. o editor de comentário abre;
+3. a rejeição é validada;
+4. um comentário vazio gera feedback visual;
+5. uma justificativa válida remove o estado inválido.
 
 Itens Approved e Pending não exigem comentário.
-
-Exemplo:
-
-```text
-Status:
-Rejected
-
-Comentário:
-"Declared net quantity does not match the approved specification."
-```
 
 ---
 
 ## Correções inline de copy
 
-A Camada C3 permite registrar o texto existente e uma sugestão de correção sem destruir o valor original.
+A aplicação preserva o requisito original e permite registrar uma sugestão de correção.
 
 Cada item possui:
 
 ```js
-originalTitle
-currentTitle
+originalTitle;
+currentTitle;
 ```
 
 Exemplo:
@@ -273,23 +280,17 @@ Tikka Masala Spices
 
 ### `originalTitle`
 
-Representa o texto original do checklist.
+Representa a copy original.
 
 É imutável.
 
 ### `currentTitle`
 
-Representa o texto atualmente sugerido.
+Representa a copy atual ou sugerida.
 
-Pode ser alterado.
+Pode ser alterada.
 
-### Fluxo de edição
-
-Clique no lápis/Edit.
-
-O título passa a ser um input.
-
-Controles:
+### Controles da edição
 
 ```text
 Enter
@@ -299,56 +300,34 @@ Escape
 → cancela
 
 Blur
-→ confirma edição válida
+→ confirma uma edição válida
 ```
 
 Valores vazios ou compostos apenas por espaços não substituem o título atual.
 
-### Indicador `Edited`
+### Estado Edited
 
-Quando:
+Um item é considerado editado quando:
 
 ```js
-item.currentTitle !== item.originalTitle
+item.currentTitle !== item.originalTitle;
 ```
-
-o item é considerado editado.
 
 A interface mostra:
 
 ```text
 Edited
-```
-
-e também exibe o título original.
-
-### Restore original
-
-Itens modificados oferecem:
-
-```text
+Original: ...
 Restore original
 ```
 
-Ao clicar:
+Restore original executa:
 
 ```js
-currentTitle = originalTitle
+currentTitle = originalTitle;
 ```
 
-O estado Edited desaparece.
-
-### Integração com pins
-
-Os tooltips dos pins utilizam:
-
-```js
-item.currentTitle
-```
-
-Portanto uma correção de copy em um item já fixado na artwork atualiza imediatamente o texto do pin.
-
-Editar a copy não altera:
+A correção da copy não altera:
 
 ```text
 status
@@ -357,39 +336,307 @@ coordenadas do pin
 originalTitle
 ```
 
-A dupla:
+Os tooltips dos pins sempre utilizam:
 
-```text
-originalTitle
-currentTitle
+```js
+item.currentTitle;
 ```
 
-fica preparada para o futuro relatório mostrar Original / Suggested.
+Portanto, editar um item já fixado atualiza imediatamente o texto do pin.
+
+---
+
+## Workflow da artwork
+
+O viewer aceita tanto a artwork demonstrativa quanto imagens reais.
+
+### Modo demo
+
+Caso o produto ativo não possua metadata de artwork:
+
+```js
+product.artwork === null;
+```
+
+a aplicação mostra a artwork demonstrativa Front & Back.
+
+### Selecionar artwork
+
+Clique:
+
+```text
+Set Artwork
+```
+
+e escolha uma imagem.
+
+A aplicação lê a imagem e armazena apenas seus metadados:
+
+```js
+{
+  (name, type, size, width, height);
+}
+```
+
+Exemplo:
+
+```js
+{
+  name: "product-label.png",
+  type: "image/png",
+  size: 2481934,
+  width: 1600,
+  height: 2400
+}
+```
+
+O arquivo binário não é salvo em `appState`, JSON ou `localStorage`.
+
+### Imagem somente durante a sessão
+
+A imagem real é exibida utilizando um Object URL durante a sessão atual do navegador.
+
+Isso evita armazenar arquivos grandes no estado textual do MVP.
+
+### Reload ou importação
+
+Depois de recarregar a página ou importar um JSON:
+
+```text
+metadata → preservada
+pins → preservados
+arquivo da imagem → indisponível
+```
+
+A interface mostra:
+
+```text
+Artwork file not loaded
+```
+
+e solicita que o usuário selecione novamente a mesma imagem.
+
+### Selecionar novamente a mesma artwork
+
+A identidade considera:
+
+```text
+name
+type
+size
+width
+height
+```
+
+Selecionar exatamente a mesma artwork:
+
+```text
+não invalida pins
+não exige confirmação
+restaura a imagem durante a sessão
+```
+
+### Substituir artwork
+
+Quando existe uma artwork diferente e já existem pins:
+
+```text
+Replacing this artwork will invalidate existing pins.
+Continue?
+```
+
+Se o usuário cancelar:
+
+```text
+artwork atual permanece
+pins permanecem
+```
+
+Se confirmar:
+
+```text
+nova artwork torna-se ativa
+pins anteriores são removidos
+```
+
+---
+
+## Pins e coordenadas proporcionais
+
+Cada item pode possuir:
+
+```js
+item.pin = {
+  xRatio,
+  yRatio,
+};
+```
+
+Exemplo:
+
+```js
+{
+  xRatio: 0.438,
+  yRatio: 0.286
+}
+```
+
+Os valores devem permanecer entre:
+
+```text
+0 e 1
+```
+
+A renderização utiliza porcentagem:
+
+```text
+left = xRatio × 100%
+top  = yRatio × 100%
+```
+
+Assim, o pin continua apontando para a mesma posição relativa quando o tamanho visual da artwork muda.
+
+A geometria normalizada permanece coerente em:
+
+```text
+zoom 50%
+zoom 100%
+zoom 200%
+imagens de diferentes dimensões
+redimensionamento da janela
+serialização
+localStorage
+export/import JSON
+```
+
+Pins legados em pixels do schema v1 podem ser convertidos para o formato proporcional do schema v2.
+
+---
+
+## Persistência e arquivos JSON
+
+A Camada D criou persistência independente do DOM.
+
+### Autosave local
+
+Alterações relevantes da revisão são persistidas em `localStorage`.
+
+Entre elas:
+
+```text
+dados do produto
+status dos itens
+comentários
+correções de copy
+pins
+metadata da artwork
+produto ativo
+timestamps
+```
+
+Uma gravação bem-sucedida pode mostrar:
+
+```text
+Saved locally
+```
+
+O sistema também trata storage corrompido.
+
+Um JSON inválido no navegador nunca deve impedir a aplicação de abrir.
+
+### Schema atual
+
+```js
+const CURRENT_SCHEMA_VERSION = 2;
+```
+
+Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels.
+
+### Save Check
+
+Clique:
+
+```text
+Save Check
+```
+
+para baixar a revisão atual em JSON versionado.
+
+O arquivo inclui:
+
+```text
+schemaVersion
+exportedAt
+product
+items
+artwork
+reviewer
+```
+
+e preserva:
+
+```text
+Pending / Approved / Rejected
+comentários
+currentTitle
+originalTitle
+pins normalizados
+dados do produto
+metadata da artwork
+timestamps
+```
+
+### Open Check
+
+Clique:
+
+```text
+Open Check
+```
+
+para selecionar um JSON anteriormente exportado.
+
+A aplicação:
+
+```text
+lê o arquivo
+faz parse do JSON
+migra versões compatíveis
+valida a estrutura
+rehidrata o modelo de domínio
+restaura a revisão
+renderiza checklist
+restaura pins
+restaura dados do produto
+restaura metadata da artwork
+```
+
+Arquivos incompatíveis ou malformados são rejeitados sem derrubar a aplicação.
 
 ---
 
 ## As 6 seções do checklist
 
-| # | Seção | Itens | Foco |
-|---|---|:---:|---|
-| 1 | **Legal Core (BRCGS 5.2.1)** | 10 | Identificação legal |
-| 2 | **Ingredients & Allergens** | 5 | Ingredientes e alergênicos |
-| 3 | **Nutrition & Serving** | 10 | Nutrição e porções |
-| 4 | **Storage & Cooking** | 4 | Conservação e preparo |
-| 5 | **Claims & Certifications** | 12 | Claims e certificações |
-| 6 | **Packaging, Marks & Languages** | 8 | Marcas, idiomas e embalagem |
+| #   | Seção                            | Itens | Foco                        |
+| --- | -------------------------------- | :---: | --------------------------- |
+| 1   | **Legal Core (BRCGS 5.2.1)**     |  10   | Identificação legal         |
+| 2   | **Ingredients & Allergens**      |   5   | Ingredientes e alergênicos  |
+| 3   | **Nutrition & Serving**          |  10   | Nutrição e porções          |
+| 4   | **Storage & Cooking**            |   4   | Conservação e preparo       |
+| 5   | **Claims & Certifications**      |  12   | Claims e certificações      |
+| 6   | **Packaging, Marks & Languages** |   8   | Marcas, idiomas e embalagem |
 
 Total:
 
 ```text
-49 itens
+49 itens de revisão
 ```
 
 ---
 
 ## Como executar
 
-O projeto atualmente não exige:
+O MVP atualmente não exige:
 
 ```text
 npm
@@ -406,13 +653,15 @@ git clone https://github.com/samantharissicy/artwork-checklist.git
 cd artwork-checklist
 ```
 
-Durante o desenvolvimento:
+Durante o desenvolvimento, utilize um servidor HTTP local simples.
+
+Python:
 
 ```bash
 python -m http.server 5500
 ```
 
-ou:
+Windows:
 
 ```bash
 py -m http.server 5500
@@ -437,59 +686,42 @@ Weight
 SKU / Code
 ```
 
-Os valores atualizam o produto ativo no `appState`.
+Os valores atualizam o produto ativo em `appState` e são persistidos automaticamente.
 
-### 2. Revise um item
+### 2. Selecione uma artwork
 
-Todos começam como:
+Clique:
 
 ```text
-Pending
+Set Artwork
 ```
 
-Use:
+e escolha uma imagem.
+
+Ela será exibida durante a sessão atual e sua metadata ficará associada à revisão.
+
+### 3. Revise os itens
+
+Utilize:
 
 ```text
 ✓ Approve
 × Reject
 ```
 
-### 3. Adicione comentário
+Clicar novamente no status ativo retorna o item para Pending.
+
+### 4. Adicione comentários
 
 Clique no ícone de comentário.
 
-O textarea abre.
+Reject abre automaticamente o editor de comentário.
 
-O texto digitado é armazenado em:
+### 5. Corrija a copy
 
-```js
-item.comment
-```
+Clique no lápis/Edit.
 
-Clique novamente para recolher sem perder o conteúdo.
-
-### 4. Rejeite um item
-
-Clique Reject.
-
-A aplicação:
-
-```text
-define Rejected
-abre comentário
-valida a rejeição
-mostra erro se comentário estiver vazio
-```
-
-Digite a justificativa para tornar o item válido.
-
-### 5. Corrija o texto
-
-Clique no lápis.
-
-Digite a nova copy.
-
-Use:
+Utilize:
 
 ```text
 Enter → salvar
@@ -497,7 +729,7 @@ Escape → cancelar
 clicar fora → salvar valor válido
 ```
 
-Depois da alteração:
+Após uma alteração aparecem:
 
 ```text
 Edited
@@ -505,46 +737,76 @@ Original: ...
 Restore original
 ```
 
-são exibidos.
+### 6. Crie pins
 
-### 6. Fixe um item na artwork
+Arraste um item do checklist para a artwork.
 
-Arraste o corpo do item para a artwork.
-
-A posição é armazenada em:
+A posição proporcional fica em:
 
 ```js
-item.pin
+item.pin;
 ```
 
 ### 7. Navegue
 
-Clique em um pin para localizar o item.
+Clique em um pin para localizar o item correspondente.
 
 Passe o mouse sobre um item fixado para destacar seu pin.
 
 ### 8. Zoom
+
+Use:
 
 ```text
 −
 +
 ```
 
-Faixa aproximada:
+Faixa:
 
 ```text
 50% → 200%
 ```
 
+Os pins permanecem proporcionalmente posicionados.
+
 ### 9. Clear Pins
 
-Remove todos os pins.
+Clique:
 
-### 10. Save Check
+```text
+Clear Pins
+```
 
-Baixa o JSON legado atual.
+Todos os pins passam para:
 
-A serialização completa será implementada na Camada D.
+```js
+null;
+```
+
+### 10. Salve a revisão
+
+Clique:
+
+```text
+Save Check
+```
+
+Um JSON versionado contendo a revisão completa será baixado.
+
+### 11. Reabra uma revisão
+
+Clique:
+
+```text
+Open Check
+```
+
+e selecione um JSON compatível.
+
+O domínio da revisão é restaurado.
+
+Caso exista metadata de artwork, selecione novamente a mesma imagem para restaurar a visualização do arquivo.
 
 ---
 
@@ -573,63 +835,78 @@ artwork-checklist/
 
 ### `index.html`
 
-Estrutura principal da aplicação e artwork demonstrativa.
+Estrutura da aplicação, toolbar, inputs de arquivo e viewer da artwork.
+
+O checklist é gerado pelo JavaScript.
 
 ### `css/style.css`
 
-Contém:
+Contém estilos para:
 
-- layout;
-- checklist;
-- Pending / Approved / Rejected;
-- controles de revisão;
-- comentários;
-- validação;
-- edição inline;
-- estado Edited;
-- artwork;
-- pins;
-- progresso;
-- toolbar.
+```text
+layout
+checklist
+estados de revisão
+comentários
+validação
+edição inline
+indicador Edited
+artwork demonstrativa
+artwork real
+estado de arquivo ausente
+pins
+progresso
+toolbar
+```
 
 ### `js/app.js`
 
 Contém:
 
-- definições estáticas;
-- domínio;
-- `appState`;
-- criação de produtos;
-- workflow de status;
-- comentários;
-- validação;
-- edição inline;
-- restauração da copy;
-- renderização;
-- progresso;
-- inputs;
-- zoom;
-- drag-and-drop;
-- pins;
-- navegação;
-- exportação;
-- toast.
+```text
+definições do checklist
+modelo de domínio
+appState centralizado
+factory de produtos
+workflow de status
+comentários
+validação
+edição inline
+Restore original
+renderização
+sincronização dos inputs
+autosave
+serialização
+migração de schema
+export/import JSON
+metadata da artwork
+estado de sessão da artwork
+pins normalizados
+zoom
+drag-and-drop
+navegação dos pins
+toasts
+```
 
 ### `js/tests.js`
 
-Suíte automatizada executada no próprio navegador.
+Suíte automatizada executada diretamente no navegador.
 
-Sem Jest, Vitest ou outras dependências.
+Não utiliza Jest, Vitest ou outras dependências externas.
 
 ### `baseline.*.md`
 
-Registro histórico do comportamento original do protótipo.
+Documentação histórica do protótipo original.
 
-Não deve ser atualizado a cada evolução do sistema.
+Esses arquivos permanecem intencionalmente congelados.
 
 ### `roadmap.md`
 
-Plano incremental de evolução.
+Plano incremental de desenvolvimento orientado por especificação.
+
+### `prompt-mestre.md`
+
+Regras de engenharia utilizadas na evolução do projeto e na separação entre as fases.
 
 ---
 
@@ -641,13 +918,19 @@ O domínio vive em:
 
 ```js
 const appState = {
-  schemaVersion: 1,
+  schemaVersion: CURRENT_SCHEMA_VERSION,
   activeProductId: "product-1",
-  products: {}
+  products: {},
 };
 ```
 
-O fluxo é:
+Schema atual:
+
+```js
+const CURRENT_SCHEMA_VERSION = 2;
+```
+
+O fluxo principal é:
 
 ```text
 ação do usuário
@@ -656,12 +939,14 @@ alteração de domínio
       ↓
 appState
       ↓
+persistência quando necessária
+      ↓
 renderização
       ↓
 DOM
 ```
 
-O DOM não é fonte oficial de estado.
+O DOM não é a fonte oficial de estado.
 
 ---
 
@@ -669,19 +954,41 @@ O DOM não é fonte oficial de estado.
 
 ```js
 {
-  id,
-  brand,
-  productName,
-  weight,
-  sku,
-  artwork,
-  items,
-  reviewer,
-  signature,
-  createdAt,
-  updatedAt
+  (id,
+    brand,
+    productName,
+    weight,
+    sku,
+    artwork,
+    items,
+    reviewer,
+    signature,
+    createdAt,
+    updatedAt);
 }
 ```
+
+A arquitetura já armazena produtos dentro de uma coleção, embora a interface atual ainda exponha um fluxo de produto único.
+
+Operações de múltiplos produtos pertencem à Camada G.
+
+---
+
+### Metadata da artwork
+
+```js
+artwork: {
+  (name, type, size, width, height);
+}
+```
+
+ou:
+
+```js
+artwork: null;
+```
+
+O arquivo binário da imagem não pertence ao estado persistido.
 
 ---
 
@@ -705,23 +1012,36 @@ O DOM não é fonte oficial de estado.
 }
 ```
 
----
+Quando existe um pin:
 
-### Domínio vs estado de interface
-
-Dados persistíveis da revisão:
-
-```text
-status
-comment
-currentTitle
-pin
-dados do produto
+```js
+pin: {
+  (xRatio, yRatio);
+}
 ```
 
-ficam em `appState`.
+---
 
-Estados temporários da interface:
+### Domínio vs estado temporário
+
+Dados persistíveis pertencem ao `appState`.
+
+Exemplos:
+
+```text
+dados do produto
+status
+comentários
+currentTitle
+pins
+metadata da artwork
+reviewer
+timestamps
+```
+
+Estados temporários da interface permanecem fora do domínio.
+
+Exemplos:
 
 ```text
 currentZoom
@@ -729,7 +1049,9 @@ openCommentItemIds
 editingTitleItemId
 ```
 
-ficam fora do domínio.
+A disponibilidade do arquivo binário da artwork também é temporária.
+
+Seu Object URL permanece fora do `appState`.
 
 ---
 
@@ -749,50 +1071,29 @@ Existe apenas um status por item.
 
 ### Validação
 
+Regra principal de rejeição:
+
 ```text
 Rejected + comentário vazio = inválido
 ```
 
-Essa regra pertence ao domínio e não ao DOM.
+A validação pertence ao domínio e não é inferida pelo DOM ou pelo CSS.
 
 ---
 
-### Correção de copy
+### Serialização
 
-O texto original nunca é substituído.
+O estado canônico é serializado independentemente da interface renderizada.
+
+Isso permite preservar a revisão através de:
 
 ```text
-originalTitle
-→ valor original
-
-currentTitle
-→ valor atual/sugerido
+reload
+export JSON
+import JSON
+migração de schema
+futuras mudanças de interface
 ```
-
-Isso possibilita comparação futura no relatório.
-
----
-
-### Pins
-
-Cada pin pertence ao item:
-
-```js
-item.pin = {
-  x,
-  y
-};
-```
-
-O tooltip utiliza:
-
-```js
-item.currentTitle
-```
-
-As posições ainda são armazenadas em pixels.
-
-Coordenadas proporcionais serão implementadas na Camada E.
 
 ---
 
@@ -804,19 +1105,32 @@ Arquivo:
 js/tests.js
 ```
 
-Execute no Console:
+Abra a aplicação e execute no Console do navegador:
 
 ```js
-runArtworkTests()
+runArtworkTests();
 ```
 
 Checkpoint atual:
 
 ```text
-60 / 60 testes passando
+89 / 89 testes passando
 ```
 
-A suíte cobre **B + C1 + C2 + C3**.
+A suíte cobre:
+
+```text
+Camada B
+Camada C1
+Camada C2
+Camada C3
+Camada D1
+Camada D2
+Camada D3
+Camada D4
+Camada E1
+Camada E2
+```
 
 Entre os comportamentos testados:
 
@@ -828,161 +1142,184 @@ produto ativo
 
 status válidos
 Pending inicial
-Approved / Rejected exclusivos
+exclusividade Approved / Rejected
 proteção contra status inválido
 
-Pending → Approved
-Approved → Rejected
-Rejected → Approved
-Approved → Pending
-Rejected → Pending
-
+transições de status
 progresso
 
 comentários
-abrir / recolher comentário
-sincronização textarea → appState
-Reject abre comentário
-Rejected sem comentário inválido
-Rejected com comentário válido
-Approved sem comentário válido
+persistência de comentários
+validação de rejeição
 
 originalTitle imutável
 currentTitle editável
-
-Edit
-input inline
-Enter confirma
-Escape cancela
-Blur confirma
-proteção contra título vazio
+edição inline
+Enter / Escape / Blur
 indicador Edited
-exibição do original
 Restore original
 
-edição preserva:
-status
-comentário
-pin
+sincronização dos dados do produto
 
-pins
-renderização dos pins
-tooltip atualizado após correção
-Clear Pins
-drag/drop
+serialização
+desserialização
+validação do estado
+rehydration
+migração de schema
 
-campos do produto
-exportação JSON legada
+persistência local
+tratamento de localStorage corrompido
+
+export JSON versionado
+import JSON
+roundtrip export/import
+
+validação de pins normalizados
+conversão tela → ratios
+renderização percentual
+preservação durante zoom
+migração de pins em pixels
+migração schema v1 → v2
+
+validação da metadata da artwork
+comparação de identidade
+detecção de pins existentes
+cancelamento de substituição
+substituição confirmada
+seleção da mesma artwork
+serialização da artwork
+export/import da artwork
+estado visual de arquivo ausente
+
+regressão do DOM
 regressão do zoom
 ```
 
-A suíte cria um snapshot antes da execução e restaura o estado depois.
+A suíte cria um snapshot antes da execução e restaura o estado original posteriormente.
 
-Os testes automatizados complementam testes manuais de comportamento visual e drag-and-drop real.
+Os testes automatizados complementam testes manuais, especialmente para seleção real de arquivos, drag-and-drop e comportamento visual.
 
 ---
 
 ## Limitações conhecidas
 
-### 1. Sem persistência
+### 1. Interface de produto único
 
-Recarregar a página perde a revisão.
-
-A Camada D adicionará serialização e persistência local.
-
-### 2. JSON ainda é legado
-
-O formato atual ainda não representa corretamente todo o domínio.
-
-Ele não preserva completamente:
-
-```text
-Pending vs Rejected
-comentários
-correções de copy
-estado completo do produto
-```
-
-A serialização versionada pertence à Camada D.
-
-### 3. Sem importação
-
-Ainda não é possível abrir novamente uma revisão exportada.
-
-### 4. Sem upload real da artwork
-
-A interface usa atualmente um mock Front & Back feito em HTML/CSS.
-
-### 5. Pins em pixels
-
-Formato atual:
+O domínio já possui:
 
 ```js
-{
-  x,
-  y
-}
+products;
+activeProductId;
 ```
 
-A Camada E implementará coordenadas proporcionais.
+mas a interface ainda trabalha com uma revisão de produto por vez.
 
-### 6. Sem relatório
+Criação, alternância, duplicação, exclusão e tabs de produtos pertencem à Camada G.
+
+### 2. Métricas ainda básicas
+
+A interface atual exibe principalmente:
+
+```text
+X / 49 reviewed
+```
+
+Contadores detalhados de Approved, Rejected e Pending e os percentuais separados de revisão e aprovação pertencem à Camada F.
+
+### 3. Arquivo da artwork somente em sessão
+
+A metadata da artwork é persistida, mas o arquivo local da imagem não.
+
+Depois de:
+
+```text
+recarregar a página
+reiniciar o navegador
+importar uma revisão
+```
+
+é necessário selecionar novamente o mesmo arquivo.
+
+Metadata e posições dos pins permanecem preservadas.
+
+### 4. Sem reviewer e assinatura final
+
+Identificação do revisor e assinatura pertencem à Camada H.
+
+### 5. Sem relatório e PDF
 
 O domínio já preserva:
 
 ```text
 originalTitle
 currentTitle
-comment
 status
-pin
+comentário
+pins
+dados do produto
+metadata da artwork
 ```
 
-mas a interface de relatório ainda não existe.
+mas relatório imprimível e PDF pertencem à Camada J.
 
-A futura Camada J usará os dados para mostrar Original / Suggested e decisões da revisão.
+### 6. Interface orientada a desktop
 
-### 7. Foco em desktop
+A interface ainda é desenvolvida principalmente para desktop.
 
-A interface ainda é orientada principalmente a desktop.
+Responsividade e hardening para touchscreen pertencem às próximas fases do roadmap.
 
-Melhorias touch/tablet serão feitas posteriormente.
+### 7. Sem backend compartilhado
+
+O MVP é local ao navegador.
+
+Ainda não existem:
+
+```text
+autenticação
+banco compartilhado
+sincronização multiusuário
+auditoria no servidor
+histórico de revisões
+```
+
+Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdução de backend.
 
 ---
 
 ## Roadmap
 
-| Status | Camada | Entrega |
-|:---:|---|---|
-| ✅ | **A0** | Baseline congelado + documentação |
-| ✅ | **B1** | `appState` central |
-| ✅ | **C1** | Pending / Approved / Rejected |
-| ✅ | **C2** | Comentários + validação de rejeição |
-| ✅ | **C3** | Correções inline de copy |
-| 📋 | **D1** | Serialização canônica |
-| 📋 | **D2** | Persistência em `localStorage` |
-| 📋 | **D3** | Export JSON versionado |
-| 📋 | **D4** | Import JSON / Open Check |
-| 📋 | **E1** | Pins proporcionais |
-| 📋 | **E2** | Identidade da artwork |
-| 📋 | **F1** | Métricas |
-| 📋 | **G1–G2** | Múltiplos produtos |
-| 📋 | **H1–H2** | Revisor + assinatura |
-| 📋 | **I1–I2** | Alta resolução + responsividade |
-| 📋 | **J1–J3** | Relatório + PDF |
-| 📋 | **K1–K4** | UX, acessibilidade e touch |
-| 📋 | **L1** | Separação em módulos |
-| ⏳ | **M1–M4** | Backend, autenticação, revisões e auditoria |
+| Status | Camada    | Entrega                                          |
+| :----: | --------- | ------------------------------------------------ |
+|   ✅   | **A0**    | Baseline congelado + documentação                |
+|   ✅   | **B1**    | `appState` central / Single Source of Truth      |
+|   ✅   | **C1**    | Pending / Approved / Rejected                    |
+|   ✅   | **C2**    | Comentários + validação de rejeição              |
+|   ✅   | **C3**    | Correções inline de copy                         |
+|   ✅   | **D1**    | Serialização canônica                            |
+|   ✅   | **D2**    | Persistência em `localStorage`                   |
+|   ✅   | **D3**    | Export JSON versionado                           |
+|   ✅   | **D4**    | Import JSON / Open Check                         |
+|   ✅   | **E1**    | Pins proporcionais normalizados                  |
+|   ✅   | **E2**    | Identidade da artwork e proteção na substituição |
+|   📋   | **F1**    | Métricas da revisão                              |
+|   📋   | **G1**    | Modelo de múltiplos produtos                     |
+|   📋   | **G2**    | Interface de tabs                                |
+|   📋   | **H1–H2** | Reviewer + assinatura                            |
+|   📋   | **I1–I2** | Alta resolução + responsividade                  |
+|   📋   | **J1–J3** | Relatório imprimível + PDF                       |
+|   📋   | **K1–K4** | UX, acessibilidade, touch e regressão            |
+|   📋   | **L1**    | Separação em módulos                             |
+|   ⏳   | **M1–M4** | Backend, autenticação, revisões e auditoria      |
 
-Próxima implementação:
+O fluxo de produto único está considerado estável até a Camada E.
 
-```text
-D1 — Serialização canônica
-```
+Caso F e G sejam desenvolvidas em paralelo, cada uma deve permanecer isolada em sua própria branch.
 
 ---
 
 ## Workflow de desenvolvimento
+
+O projeto segue:
 
 ```text
 AUDIT
@@ -1002,17 +1339,18 @@ REPORT
 
 Para cada feature:
 
-1. analisar estado atual;
-2. definir requisitos;
+1. analisar o estado atual;
+2. definir requisitos testáveis;
 3. registrar regras de negócio;
-4. confirmar modelo de dados;
+4. confirmar o modelo de dados;
 5. documentar decisões;
 6. analisar impactos;
-7. decompor tarefas;
-8. implementar somente o escopo;
-9. testar manualmente;
-10. executar regressões;
-11. registrar conclusão.
+7. dividir a implementação em pequenas tasks;
+8. implementar somente o escopo solicitado;
+9. executar testes manuais;
+10. executar a suíte de regressão;
+11. registrar a conclusão;
+12. criar commit de checkpoint e Pull Request.
 
 Princípios:
 
@@ -1022,7 +1360,7 @@ Preservação
 Simplicidade
 Single Source of Truth
 Data-first
-Compatibilidade com MVP
+Compatibilidade com o MVP
 Não misturar fases
 ```
 
@@ -1030,48 +1368,49 @@ Não misturar fases
 
 ## Como contribuir
 
-1. Trabalhe em uma feature por vez;
-2. crie uma branch específica;
-3. não antecipe outras camadas;
-4. mantenha domínio em `appState`;
-5. mantenha DOM como representação do estado;
-6. preserve funcionalidades anteriores;
-7. atualize testes;
-8. execute regressão manual;
-9. revise `git diff`;
-10. faça commit descritivo;
-11. abra Pull Request.
+Ao trabalhar no projeto:
 
-Branches de exemplo:
+1. atualize sua `main`;
+2. crie uma branch específica;
+3. trabalhe em um problema do roadmap por vez;
+4. mantenha dados persistíveis em `appState`;
+5. mantenha o DOM como representação do estado;
+6. mantenha dados de sessão fora do domínio;
+7. preserve funcionalidades anteriores;
+8. adicione ou atualize testes;
+9. execute regressão manual;
+10. revise `git diff`;
+11. faça commit descritivo;
+12. abra um Pull Request;
+13. revise antes de fazer merge na `main`.
+
+Exemplos de branches:
 
 ```text
-feat/domain-model
 feat/review-status
 feat/review-comments
 feat/copy-corrections
 feat/state-serialization
 feat/local-storage
+feat/normalized-pins
+feat/artwork-identity
+feat/review-metrics
+feat/multiple-products
 ```
 
-Checkpoints concluídos da Camada C:
-
-```text
-feat: add tri-state artwork review workflow
-feat: add per-item review comments
-feat: support inline copy corrections
-```
-
-### Critérios globais
+### Critérios globais de aceite
 
 Todo milestone deve garantir:
 
-1. aplicação abre normalmente;
-2. nenhum erro funcional no console;
-3. recursos anteriores continuam funcionando;
-4. requisitos são atendidos;
-5. testes automatizados passam;
-6. testes manuais passam;
-7. nenhuma feature futura foi implementada acidentalmente.
+```text
+aplicação abre normalmente
+nenhum erro funcional no console
+recursos anteriores continuam funcionando
+requisitos foram atendidos
+testes automatizados passam
+testes manuais passam
+nenhuma feature futura foi introduzida acidentalmente
+```
 
 ---
 

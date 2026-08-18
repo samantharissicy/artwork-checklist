@@ -1,21 +1,22 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20C3-success" alt="MVP C3">
+  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-60%2F60%20passing-success" alt="60/60 tests passing">
+  <img src="https://img.shields.io/badge/tests-89%2F89%20passing-success" alt="89/89 tests passing">
+  <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
 
 A web tool to support the review of **artworks and pack copy for food products**, aligned with the **BRCGS Product Labelling 5.2.1 | Multi-Site Aligned** standard.
 
-The application combines a structured regulatory checklist with a visual artwork review workflow. Each checklist item can be classified as **Pending**, **Approved**, or **Rejected**, can receive review comments, can record proposed copy corrections, and can be pinned directly onto the artwork.
+The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
-> **Current stage:** functional MVP evolving incrementally through a specification-driven roadmap.  
-> Layers **A0**, **B1**, **C1**, **C2**, and **C3** are complete.  
-> The complete **Layer C — Review Workflow** is now implemented.
+> **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1 and E2** are complete.  
+> **Layer E — Artwork Geometry and Identity is complete.**
 
 ---
 
@@ -26,16 +27,19 @@ The application combines a structured regulatory checklist with a visual artwork
 3. [Review workflow](#review-workflow)
 4. [Comments and rejection validation](#comments-and-rejection-validation)
 5. [Inline copy corrections](#inline-copy-corrections)
-6. [The 6 checklist sections](#the-6-checklist-sections)
-7. [How to run](#how-to-run)
-8. [How to use](#how-to-use)
-9. [Project structure](#project-structure)
-10. [Architecture](#architecture)
-11. [Automated tests](#automated-tests)
-12. [Known limitations](#known-limitations)
-13. [Roadmap](#roadmap)
-14. [Development workflow](#development-workflow)
-15. [Contributing](#contributing)
+6. [Artwork workflow](#artwork-workflow)
+7. [Pins and proportional coordinates](#pins-and-proportional-coordinates)
+8. [Persistence and JSON files](#persistence-and-json-files)
+9. [The 6 checklist sections](#the-6-checklist-sections)
+10. [How to run](#how-to-run)
+11. [How to use](#how-to-use)
+12. [Project structure](#project-structure)
+13. [Architecture](#architecture)
+14. [Automated tests](#automated-tests)
+15. [Known limitations](#known-limitations)
+16. [Roadmap](#roadmap)
+17. [Development workflow](#development-workflow)
+18. [Contributing](#contributing)
 
 ---
 
@@ -60,7 +64,7 @@ Before food packaging goes into production, relevant copy and regulatory informa
 
 The application organizes this work into **49 review items across 6 sections**.
 
-Each item has its own review state and supporting information:
+Each item has one review status:
 
 ```text
 Pending
@@ -72,55 +76,72 @@ A reviewer can also:
 
 ```text
 add comments
+record rejection reasons
 suggest copy corrections
-restore the original copy
+restore original copy
 pin requirements to the artwork
 navigate between checklist and artwork
+save the review locally
+export the complete review as JSON
+reopen an exported review
+load a real artwork image
 ```
 
-The project is being developed incrementally, without introducing a framework, backend or database before they are necessary.
+The project deliberately remains lightweight during the MVP:
+
+```text
+plain HTML
+plain CSS
+vanilla JavaScript
+no framework
+no npm
+no build step
+no backend
+no database
+```
 
 ---
 
 ## Current features
 
-| Feature | Description |
-|---|---|
-| ✅ Interactive checklist | 49 regulatory review items |
-| ✅ Collapsible sections | 6 expandable checklist categories |
-| ✅ Product data | Brand, Product Name, Weight and SKU |
-| ✅ Central application state | Domain data stored in `appState` |
-| ✅ Tri-state review workflow | Pending / Approved / Rejected |
-| ✅ Approved visual state | Approved items become green |
-| ✅ Rejected visual state | Rejected items become red |
-| ✅ Pending visual state | Pending items remain neutral |
-| ✅ Status switching | Approved ↔ Rejected |
-| ✅ Reset to Pending | Selecting the active status again resets it |
-| ✅ Review progress | `X / 49 reviewed` |
-| ✅ Per-item comments | Every item has its own review comment |
-| ✅ Comment collapse/expand | Comments can be opened and collapsed |
-| ✅ Rejection validation | Rejected items require a comment |
-| ✅ Validation feedback | Invalid rejected items display a clear message |
-| ✅ Automatic comment opening | Rejecting an item opens its comment editor |
-| ✅ Inline copy editing | Checklist copy can be edited directly |
-| ✅ Enter to confirm | Confirms copy correction |
-| ✅ Escape to cancel | Cancels copy correction |
-| ✅ Blur to confirm | Clicking away confirms a valid correction |
-| ✅ Empty-title protection | Empty copy does not replace current text |
-| ✅ Edited indicator | Modified items display `Edited` |
-| ✅ Original copy display | Original title remains visible after editing |
-| ✅ Restore original | Restores `currentTitle` to `originalTitle` |
-| ✅ Demo artwork | Front & Back HTML/CSS packaging mock |
-| ✅ Zoom | Artwork zoom between 50% and 200% |
-| ✅ Drag-and-drop | Drag checklist requirements onto artwork |
-| ✅ Pin creation | Creates a pin at the drop location |
-| ✅ Pin → item navigation | Clicking a pin scrolls to the checklist item |
-| ✅ Item → pin navigation | Hovering an item highlights its pin |
-| ✅ Pin title synchronization | Pin tooltip uses `currentTitle` |
-| ✅ Clear Pins | Removes pins from state and UI |
-| ✅ Save Check | Downloads the current legacy JSON |
-| ✅ Toast notifications | Feedback for selected actions |
-| ✅ Automated tests | Browser-based B + C1 + C2 + C3 suite |
+| Feature                           | Description                                 |
+| --------------------------------- | ------------------------------------------- |
+| ✅ Interactive checklist          | 49 regulatory review items                  |
+| ✅ Collapsible sections           | 6 expandable checklist categories           |
+| ✅ Product data                   | Brand, Product Name, Weight and SKU         |
+| ✅ Central application state      | Domain data stored in `appState`            |
+| ✅ Single source of truth         | DOM represents state instead of defining it |
+| ✅ Tri-state workflow             | Pending / Approved / Rejected               |
+| ✅ Status switching               | Approved ↔ Rejected ↔ Pending               |
+| ✅ Review progress                | Reviewed items are Approved + Rejected      |
+| ✅ Per-item comments              | Every checklist item can store a comment    |
+| ✅ Rejection validation           | Rejected items require a comment            |
+| ✅ Automatic comment opening      | Reject opens its comment editor             |
+| ✅ Inline copy editing            | Current copy can be edited directly         |
+| ✅ Immutable original copy        | `originalTitle` is preserved                |
+| ✅ Edited indicator               | Modified items display `Edited`             |
+| ✅ Restore original               | Restores the original checklist copy        |
+| ✅ Autosave                       | Review state is persisted in `localStorage` |
+| ✅ Reload restoration             | Saved state is restored on page load        |
+| ✅ Corrupted-state protection     | Invalid storage does not crash the app      |
+| ✅ Versioned serialization        | Canonical state uses schema version 2       |
+| ✅ State migration                | Legacy schema v1 pin data can migrate to v2 |
+| ✅ Versioned JSON export          | Save Check exports complete review data     |
+| ✅ JSON import                    | Open Check restores compatible reviews      |
+| ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
+| ✅ Real artwork selection         | Local image files can be displayed          |
+| ✅ Artwork metadata               | Name, type, size, width and height          |
+| ✅ Artwork replacement protection | Existing pins trigger confirmation          |
+| ✅ Session-only image handling    | Binary image data is not persisted          |
+| ✅ Normalized pins                | Pins use proportional coordinates           |
+| ✅ Zoom-safe pins                 | Pin geometry survives viewer zoom           |
+| ✅ Drag-and-drop                  | Drag checklist requirements onto artwork    |
+| ✅ Pin → item navigation          | Clicking a pin locates its checklist item   |
+| ✅ Item → pin navigation          | Hovering a pinned item highlights its pin   |
+| ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
+| ✅ Clear Pins                     | Removes pin data from state and UI          |
+| ✅ Toast notifications            | Feedback for relevant actions               |
+| ✅ Automated regression suite     | 89 browser-based tests                      |
 
 ---
 
@@ -138,7 +159,7 @@ rejected
 
 Default state.
 
-The item has not yet received a review decision.
+The requirement has not yet received a review decision.
 
 ### Approved
 
@@ -148,11 +169,11 @@ Approved items are displayed in green.
 
 ### Rejected
 
-The reviewer identified a problem.
+The reviewer identified an issue.
 
 Rejected items are displayed in red.
 
-### Available transitions
+### Status transitions
 
 ```text
 Pending → Approved
@@ -165,25 +186,15 @@ Approved → Pending
 Rejected → Pending
 ```
 
-Selecting the currently active status again returns the item to Pending.
+Selecting the already active status returns the item to Pending.
 
-Example:
+Review progress currently follows:
 
-```text
-Pending
-   ↓ Approve
-
-Approved
-   ↓ Approve again
-
-Pending
+```js
+reviewed = status !== REVIEW_STATUSES.PENDING;
 ```
 
-Review progress counts both Approved and Rejected items:
-
-```text
-reviewed = status !== pending
-```
+Therefore both Approved and Rejected items count as reviewed.
 
 Example:
 
@@ -191,13 +202,11 @@ Example:
 10 Approved
 5 Rejected
 34 Pending
+
+= 15 / 49 reviewed
 ```
 
-results in:
-
-```text
-15 / 49 reviewed
-```
+More detailed metrics belong to Layer F.
 
 ---
 
@@ -205,21 +214,17 @@ results in:
 
 Every checklist item contains a Comment control.
 
-Selecting it expands a textarea associated with that item.
-
-Comment text is stored directly in:
+The comment value belongs to the domain:
 
 ```js
-item.comment
+item.comment;
 ```
 
 Collapsing the editor does not delete the comment.
 
-Changing status, title or pin data also does not delete the comment.
+Changing status, copy or pin information does not delete it either.
 
 ### Rejection rule
-
-The domain rule is:
 
 ```text
 IF status = rejected
@@ -230,49 +235,37 @@ Therefore:
 
 ```text
 Rejected + empty comment
-=
-invalid
+= invalid
 ```
 
-and:
+while:
 
 ```text
 Rejected + valid comment
-=
-valid
+= valid
 ```
 
 When Reject is selected:
 
-1. the item becomes Rejected;
-2. the comment editor opens automatically;
-3. an empty comment marks the item as invalid;
-4. a clear validation message is displayed;
-5. entering a valid explanation removes the invalid state.
+1. status becomes Rejected;
+2. the comment editor opens;
+3. the rejection is validated;
+4. an empty comment produces visible validation feedback;
+5. entering a valid reason removes the invalid state.
 
 Approved and Pending items do not require comments.
-
-Example:
-
-```text
-Status:
-Rejected
-
-Comment:
-"Declared net quantity does not match the approved specification."
-```
 
 ---
 
 ## Inline copy corrections
 
-Layer C3 introduces inline copy correction without overwriting the original checklist text.
+The application preserves the original requirement while allowing a proposed copy correction.
 
-Each item stores:
+Each item contains:
 
 ```js
-originalTitle
-currentTitle
+originalTitle;
+currentTitle;
 ```
 
 Example:
@@ -285,25 +278,19 @@ Suggested:
 Tikka Masala Spices
 ```
 
-### Original title
+### `originalTitle`
 
-`originalTitle` represents the original checklist copy.
+Represents the original checklist copy.
 
 It is immutable.
 
-### Current title
+### `currentTitle`
 
-`currentTitle` represents the current proposed copy.
+Represents the currently proposed copy.
 
-It can be edited.
+It may be edited.
 
-### Editing workflow
-
-Select the pencil/Edit action.
-
-The current title becomes an input.
-
-Available controls:
+### Editing controls
 
 ```text
 Enter
@@ -316,75 +303,328 @@ Blur
 → confirm a valid edit
 ```
 
-Whitespace-only or empty values do not replace the current title.
+Empty or whitespace-only values never replace the current title.
 
-### Edited indicator
+### Edited state
 
-When:
+An item is considered edited when:
 
 ```js
-item.currentTitle !== item.originalTitle
+item.currentTitle !== item.originalTitle;
 ```
-
-the item is considered edited.
 
 The interface displays:
 
 ```text
 Edited
-```
-
-and also shows the original value.
-
-### Restore original
-
-Edited items expose:
-
-```text
+Original: ...
 Restore original
 ```
 
-Selecting it restores:
+Selecting Restore original performs:
 
 ```js
-currentTitle = originalTitle
+currentTitle = originalTitle;
 ```
 
-and removes the Edited state.
-
-### Pins and corrected copy
-
-Pin tooltips use:
-
-```js
-item.currentTitle
-```
-
-Therefore editing an already pinned item immediately updates the text displayed by the pin.
-
-Copy correction does not modify:
+Copy corrections do not alter:
 
 ```text
-review status
+status
 comment
 pin coordinates
 originalTitle
 ```
 
-The preserved `originalTitle` / `currentTitle` pair will later be used by the reporting layer to display Original vs Suggested copy.
+Pin tooltips always use:
+
+```js
+item.currentTitle;
+```
+
+so editing an already pinned item immediately updates its pin tooltip.
+
+---
+
+## Artwork workflow
+
+The viewer supports both the original demonstration artwork and real image files.
+
+### Demo mode
+
+If the active product has no artwork metadata:
+
+```js
+product.artwork === null;
+```
+
+the original Front & Back demonstration artwork is displayed.
+
+### Selecting an artwork
+
+Use:
+
+```text
+Set Artwork
+```
+
+The browser reads the selected image and stores only its metadata in the domain:
+
+```js
+{
+  (name, type, size, width, height);
+}
+```
+
+Example:
+
+```js
+{
+  name: "product-label.png",
+  type: "image/png",
+  size: 2481934,
+  width: 1600,
+  height: 2400
+}
+```
+
+The binary image itself is not stored in `appState`, JSON or `localStorage`.
+
+### Session-only image
+
+The image is displayed through an Object URL during the current browser session.
+
+This keeps persisted review data small and avoids storing large binary files in browser storage.
+
+### Reload or imported review
+
+After a page reload or JSON import:
+
+```text
+artwork metadata → preserved
+pin coordinates → preserved
+binary image → unavailable
+```
+
+The application displays:
+
+```text
+Artwork file not loaded
+```
+
+and asks the reviewer to select the same image file again.
+
+### Selecting the same artwork
+
+Artwork identity is determined from:
+
+```text
+name
+type
+size
+width
+height
+```
+
+Selecting the same artwork again:
+
+```text
+does not invalidate pins
+does not require replacement confirmation
+restores the visual artwork for the session
+```
+
+### Replacing an artwork
+
+When a different artwork is selected while pins exist, the application asks:
+
+```text
+Replacing this artwork will invalidate existing pins.
+Continue?
+```
+
+If cancelled:
+
+```text
+current artwork remains
+existing pins remain
+```
+
+If confirmed:
+
+```text
+new artwork becomes active
+existing pins are cleared
+```
+
+---
+
+## Pins and proportional coordinates
+
+Each checklist item may contain:
+
+```js
+item.pin = {
+  xRatio,
+  yRatio,
+};
+```
+
+Example:
+
+```js
+{
+  xRatio: 0.438,
+  yRatio: 0.286
+}
+```
+
+Both values must remain between:
+
+```text
+0 and 1
+```
+
+The viewer renders them as percentages:
+
+```text
+left = xRatio × 100%
+top  = yRatio × 100%
+```
+
+This allows pins to remain attached to the same relative artwork position when the viewer dimensions change.
+
+Normalized geometry survives:
+
+```text
+50% zoom
+100% zoom
+200% zoom
+different artwork display sizes
+window resizing
+serialization
+localStorage
+JSON export/import
+```
+
+Legacy pixel coordinates from schema v1 can be migrated to the normalized schema v2 format.
+
+---
+
+## Persistence and JSON files
+
+Layer D introduced canonical persistence independent from the DOM.
+
+### Local autosave
+
+Relevant review mutations are persisted in browser `localStorage`.
+
+This includes:
+
+```text
+product information
+item statuses
+comments
+copy corrections
+pins
+artwork metadata
+active product identifier
+timestamps
+```
+
+A successful persistence operation can display:
+
+```text
+Saved locally
+```
+
+The application also protects itself against corrupted local storage.
+
+Invalid stored JSON must never prevent the application from opening.
+
+### Schema
+
+Current canonical schema:
+
+```js
+const CURRENT_SCHEMA_VERSION = 2;
+```
+
+The application supports migration from compatible schema v1 state where pins were stored as pixels.
+
+### Save Check
+
+Use:
+
+```text
+Save Check
+```
+
+to download the current review as versioned JSON.
+
+The exported review contains:
+
+```text
+schemaVersion
+exportedAt
+product
+items
+artwork metadata
+reviewer data
+```
+
+It preserves:
+
+```text
+Pending / Approved / Rejected
+comments
+currentTitle
+originalTitle
+normalized pins
+product data
+artwork metadata
+timestamps
+```
+
+### Open Check
+
+Use:
+
+```text
+Open Check
+```
+
+to select a previously exported compatible JSON file.
+
+The application:
+
+```text
+reads the file
+parses JSON
+migrates compatible older data
+validates its structure
+rehydrates the domain model
+restores the review
+renders checklist state
+restores pins
+restores product data
+restores artwork metadata
+```
+
+Incompatible or malformed files are rejected without crashing the application.
 
 ---
 
 ## The 6 checklist sections
 
-| # | Section | Items | Focus |
-|---|---|:---:|---|
-| 1 | **Legal Core (BRCGS 5.2.1)** | 10 | Legal product identification |
-| 2 | **Ingredients & Allergens** | 5 | Ingredients and allergens |
-| 3 | **Nutrition & Serving** | 10 | Nutrition and serving information |
-| 4 | **Storage & Cooking** | 4 | Storage and preparation |
-| 5 | **Claims & Certifications** | 12 | Claims and certifications |
-| 6 | **Packaging, Marks & Languages** | 8 | Marks, languages and packaging |
+| #   | Section                          | Items | Focus                             |
+| --- | -------------------------------- | :---: | --------------------------------- |
+| 1   | **Legal Core (BRCGS 5.2.1)**     |  10   | Legal product identification      |
+| 2   | **Ingredients & Allergens**      |   5   | Ingredients and allergens         |
+| 3   | **Nutrition & Serving**          |  10   | Nutrition and serving information |
+| 4   | **Storage & Cooking**            |   4   | Storage and preparation           |
+| 5   | **Claims & Certifications**      |  12   | Claims and certifications         |
+| 6   | **Packaging, Marks & Languages** |   8   | Marks, languages and packaging    |
 
 Total:
 
@@ -396,7 +636,7 @@ Total:
 
 ## How to run
 
-The current MVP requires:
+The MVP currently requires:
 
 ```text
 no npm
@@ -406,22 +646,22 @@ no backend
 no database
 ```
 
-Clone the repository:
+Clone:
 
 ```bash
 git clone https://github.com/samantharissicy/artwork-checklist.git
 cd artwork-checklist
 ```
 
-For development, a simple local HTTP server is recommended.
+For development, start a simple local HTTP server.
 
-With Python:
+Python:
 
 ```bash
 python -m http.server 5500
 ```
 
-or on Windows:
+Windows:
 
 ```bash
 py -m http.server 5500
@@ -448,15 +688,21 @@ Weight
 SKU / Code
 ```
 
-The inputs update the active product in `appState`.
+The values update the active product in `appState` and are automatically persisted.
 
-### 2. Review an item
+### 2. Select an artwork
 
-Every item starts as:
+Click:
 
 ```text
-Pending
+Set Artwork
 ```
+
+Choose an image file.
+
+The artwork is loaded for the current session and its metadata is saved with the review.
+
+### 3. Review checklist items
 
 Use:
 
@@ -465,40 +711,17 @@ Use:
 × Reject
 ```
 
-### 3. Add a comment
+Selecting an active status again returns the item to Pending.
 
-Select the Comment icon.
+### 4. Add comments
 
-The textarea opens.
+Select the Comment icon and enter the review note.
 
-Type a comment and it is immediately stored in:
-
-```js
-item.comment
-```
-
-Selecting Comment again collapses the editor without deleting its value.
-
-### 4. Reject an item
-
-Select Reject.
-
-The application:
-
-```text
-changes status to Rejected
-opens the comment editor
-validates the rejection
-shows an error while the comment is empty
-```
-
-Enter a valid justification to resolve the validation error.
+Rejecting an item automatically opens the comment editor.
 
 ### 5. Correct copy
 
-Select the pencil icon.
-
-Edit the title.
+Select the pencil/Edit control.
 
 Use:
 
@@ -508,7 +731,7 @@ Escape → cancel
 click outside → save valid value
 ```
 
-After a correction, the application displays:
+Edited items display:
 
 ```text
 Edited
@@ -516,36 +739,38 @@ Original: ...
 Restore original
 ```
 
-### 6. Pin an item to the artwork
+### 6. Pin requirements
 
-Drag the checklist item body onto the artwork.
+Drag a checklist item onto the artwork.
 
-The pin position is stored in:
+Its normalized position is stored in:
 
 ```js
-item.pin
+item.pin;
 ```
 
 ### 7. Navigate
 
-Click a pin to locate the corresponding checklist item.
+Click a pin to locate its checklist item.
 
 Hover a pinned checklist item to highlight its pin.
 
 ### 8. Zoom
 
-Use:
+Use the viewer controls:
 
 ```text
 −
 +
 ```
 
-The current range is approximately:
+Range:
 
 ```text
 50% → 200%
 ```
+
+Normalized pins keep their relative artwork positions.
 
 ### 9. Clear pins
 
@@ -555,13 +780,13 @@ Select:
 Clear Pins
 ```
 
-All item pin values return to:
+All item pin values become:
 
 ```js
-null
+null;
 ```
 
-### 10. Save the current check
+### 10. Save the review
 
 Select:
 
@@ -569,9 +794,21 @@ Select:
 Save Check
 ```
 
-The application downloads the current legacy JSON representation.
+A complete versioned JSON review file is downloaded.
 
-Proper versioned serialization belongs to Layer D.
+### 11. Reopen a review
+
+Select:
+
+```text
+Open Check
+```
+
+Choose a compatible review JSON.
+
+The domain state is restored.
+
+If the review has artwork metadata, select the same image file again to restore the image itself.
 
 ---
 
@@ -600,65 +837,78 @@ artwork-checklist/
 
 ### `index.html`
 
-Application shell and artwork demonstration.
+Application shell, toolbar, file inputs and artwork viewer.
 
-The checklist is generated by JavaScript.
+The checklist itself is generated by JavaScript.
 
 ### `css/style.css`
 
-Contains:
+Contains styling for:
 
-- application layout;
-- checklist styling;
-- Pending / Approved / Rejected states;
-- review controls;
-- comment interface;
-- validation styling;
-- inline copy editing;
-- Edited indicator;
-- artwork viewer;
-- pins;
-- progress bar;
-- toolbar.
+```text
+application layout
+checklist
+review states
+comments
+validation
+inline copy editing
+Edited state
+artwork viewer
+real artwork images
+missing-artwork state
+pins
+progress
+toolbar
+```
 
 ### `js/app.js`
 
 Contains:
 
-- checklist definitions;
-- domain model;
-- centralized `appState`;
-- product factories;
-- status workflow;
-- comments;
-- domain validation;
-- inline copy editing;
-- copy restoration;
-- rendering;
-- progress calculation;
-- product input synchronization;
-- artwork zoom;
-- drag-and-drop;
-- pins;
-- navigation;
-- JSON export;
-- toast notifications.
+```text
+static checklist definitions
+domain model
+central appState
+product factory
+status workflow
+comments
+domain validation
+inline copy editing
+copy restoration
+rendering
+product input synchronization
+autosave
+serialization
+state migration
+JSON export/import
+artwork metadata
+artwork session handling
+normalized pin geometry
+zoom
+drag-and-drop
+pin navigation
+toast feedback
+```
 
 ### `js/tests.js`
 
-Browser-based automated test suite.
+Browser-based automated regression suite.
 
-No external testing framework is required.
+No Jest, Vitest or other testing framework is required.
 
 ### `baseline.*.md`
 
 Historical documentation of the original prototype.
 
-These files intentionally remain unchanged as the application evolves.
+These files intentionally remain unchanged as the project evolves.
 
 ### `roadmap.md`
 
-Incremental specification-oriented development roadmap.
+Specification-oriented incremental development roadmap.
+
+### `prompt-mestre.md`
+
+Engineering rules and workflow used to evolve the application without mixing roadmap phases.
 
 ---
 
@@ -670,10 +920,16 @@ Domain data lives in:
 
 ```js
 const appState = {
-  schemaVersion: 1,
+  schemaVersion: CURRENT_SCHEMA_VERSION,
   activeProductId: "product-1",
-  products: {}
+  products: {},
 };
+```
+
+Current schema:
+
+```js
+const CURRENT_SCHEMA_VERSION = 2;
 ```
 
 The architecture follows:
@@ -684,6 +940,8 @@ User action
 domain mutation
     ↓
 appState
+    ↓
+persistence when relevant
     ↓
 render function
     ↓
@@ -696,21 +954,47 @@ The DOM is not the official source of application state.
 
 ### Product model
 
+Each product follows the structure:
+
 ```js
 {
-  id,
-  brand,
-  productName,
-  weight,
-  sku,
-  artwork,
-  items,
-  reviewer,
-  signature,
-  createdAt,
-  updatedAt
+  (id,
+    brand,
+    productName,
+    weight,
+    sku,
+    artwork,
+    items,
+    reviewer,
+    signature,
+    createdAt,
+    updatedAt);
 }
 ```
+
+The architecture already stores products in a collection, although the current UI still exposes a single-product workflow.
+
+Multi-product operations belong to Layer G.
+
+---
+
+### Artwork metadata
+
+Artwork metadata belongs to the product:
+
+```js
+artwork: {
+  (name, type, size, width, height);
+}
+```
+
+or:
+
+```js
+artwork: null;
+```
+
+The image binary does not belong to persisted domain state.
 
 ---
 
@@ -734,23 +1018,34 @@ The DOM is not the official source of application state.
 }
 ```
 
+When pinned:
+
+```js
+pin: {
+  (xRatio, yRatio);
+}
+```
+
 ---
 
-### Domain state vs UI state
+### Domain state vs UI/session state
 
-Domain state belongs in `appState`.
+Persistible domain information belongs in `appState`.
 
 Examples:
 
 ```text
+product fields
 status
 comment
 currentTitle
 pin
-product data
+artwork metadata
+reviewer
+timestamps
 ```
 
-Temporary interface state remains outside the domain.
+Temporary UI state remains outside the domain.
 
 Examples:
 
@@ -760,7 +1055,9 @@ openCommentItemIds
 editingTitleItemId
 ```
 
-This distinction prevents UI details from contaminating the product/review model.
+Artwork binary availability is also session-only.
+
+The current artwork Object URL is kept outside `appState`.
 
 ---
 
@@ -778,81 +1075,68 @@ Only one status exists at a time.
 
 ---
 
-### Comment validation
+### Validation
+
+Core rejection rule:
 
 ```text
-Rejected
-+
-empty comment
-=
-invalid
+Rejected + empty comment = invalid
 ```
 
-Validation is handled by the domain rather than inferred from the DOM.
+Validation belongs to the domain instead of being inferred from CSS or DOM state.
 
 ---
 
-### Copy corrections
+### Serialization
 
-`originalTitle` is never replaced.
+Canonical review data is serialized independently from the rendered interface.
 
-`currentTitle` contains the active proposed text.
-
-This allows future reporting to distinguish:
+The state can therefore survive:
 
 ```text
-Original
-Suggested
+page reload
+JSON export
+JSON import
+schema migration
+future interface changes
 ```
-
-without losing history.
-
----
-
-### Pins
-
-Pins belong to individual items:
-
-```js
-item.pin = {
-  x,
-  y
-};
-```
-
-Pin tooltips use:
-
-```js
-item.currentTitle
-```
-
-Current coordinates are still pixel-based.
-
-Proportional coordinates are planned for Layer E.
 
 ---
 
 ## Automated tests
 
-The application contains a browser test suite in:
+The browser test suite lives in:
 
 ```text
 js/tests.js
 ```
 
-Run:
+Open the application and run in DevTools Console:
 
 ```js
-runArtworkTests()
+runArtworkTests();
 ```
 
 Current checkpoint:
 
 ```text
-60 / 60 tests passing
+89 / 89 tests passing
 ```
 
-The suite covers **Layer B + C1 + C2 + C3**.
+The suite covers:
+
+```text
+Layer B
+Layer C1
+Layer C2
+Layer C3
+Layer D1
+Layer D2
+Layer D3
+Layer D4
+Layer E1
+Layer E2
+```
 
 Coverage includes:
 
@@ -863,166 +1147,185 @@ active product
 6 sections
 
 valid review statuses
-Pending initial state
+Pending default
 Approved / Rejected exclusivity
 invalid status protection
 
-Pending → Approved
-Approved → Rejected
-Rejected → Approved
-Approved → Pending
-Rejected → Pending
-
+status transitions
 review progress
 
 comments
-comment collapse / reopen
-comment → appState synchronization
-automatic comment opening on Reject
-Rejected without comment validation
-Rejected with comment validation
-Approved without comment
+comment persistence
+rejection validation
 
 immutable originalTitle
 editable currentTitle
-
-Edit control
-inline input
-Enter confirm
-Escape cancel
-Blur confirm
-empty-title protection
+inline editing
+Enter / Escape / Blur behavior
 Edited indicator
-original-title display
 Restore original
 
-copy edit preservation of:
-status
-comment
-pin
+product field synchronization
 
-pin state
-pin rendering
-pin tooltip update after copy correction
-Clear Pins
-drag/drop path
+canonical serialization
+deserialization
+state validation
+state rehydration
+schema migration
 
-product input synchronization
-legacy JSON export
+localStorage persistence
+corrupted localStorage handling
+
+versioned JSON export
+JSON import
+export/import roundtrip
+
+normalized pin validation
+screen → ratio conversion
+percentage rendering
+zoom preservation
+legacy pixel migration
+schema v1 → v2 migration
+
+artwork metadata validation
+artwork identity comparison
+existing-pin detection
+replacement cancellation
+confirmed replacement
+same-artwork reselection
+artwork serialization
+artwork export/import
+missing-file UI state
+
+baseline DOM regression
 zoom regression
 ```
 
 The runner snapshots application state before the suite and restores it afterward.
 
-Automated tests complement, but do not replace, manual browser smoke tests.
+Automated tests complement manual browser testing, especially for actual file selection, drag-and-drop and visual behavior.
 
 ---
 
 ## Known limitations
 
-### 1. No persistence
+### 1. Single-product user interface
 
-Reloading the page loses the current review.
-
-Layer D will introduce serialization and local persistence.
-
-### 2. Legacy JSON export
-
-The current export still represents checklist checks using the legacy boolean model.
-
-Therefore it cannot yet completely represent:
-
-```text
-Pending vs Rejected
-comments
-copy corrections
-complete product state
-```
-
-Proper versioned serialization is planned for Layer D.
-
-### 3. No JSON import
-
-A previously exported review cannot yet be reopened.
-
-### 4. No real artwork upload
-
-The current viewer uses a Front & Back HTML/CSS demonstration artwork.
-
-Artwork file identity is planned for later layers.
-
-### 5. Pins use pixel coordinates
-
-Current format:
+The domain already contains:
 
 ```js
-{
-  x,
-  y
-}
+products;
+activeProductId;
 ```
 
-Proportional coordinates are planned for Layer E.
+but the current interface still operates as a single-product review.
 
-### 6. No report yet
+Multiple products, switching, duplication, deletion and tabs belong to Layer G.
 
-The domain already preserves:
+### 2. Basic progress presentation
+
+The current interface primarily displays:
+
+```text
+X / 49 reviewed
+```
+
+Detailed Approved / Rejected / Pending counters and separate review/approval percentages belong to Layer F.
+
+### 3. Artwork binary is session-only
+
+Artwork metadata is persisted, but the local image file itself is not.
+
+After:
+
+```text
+page reload
+browser restart
+JSON import
+```
+
+the reviewer must select the same artwork file again.
+
+Persisted metadata and normalized pin positions remain available.
+
+### 4. No reviewer/signature workflow yet
+
+Reviewer identity and final signature belong to Layer H.
+
+### 5. No printable report or PDF yet
+
+The domain already preserves the data needed for future reports:
 
 ```text
 originalTitle
 currentTitle
-comments
 status
+comment
 pins
+product data
+artwork metadata
 ```
 
-but reporting is not implemented yet.
+Report and PDF generation belong to Layer J.
 
-The future reporting layer will use these values to show Original / Suggested copy and review decisions.
+### 6. Desktop-oriented interface
 
-### 7. Desktop-oriented interface
+The interface is still primarily designed for desktop use.
 
-The current UI is primarily optimized for desktop.
+Responsive and touch hardening belong to later roadmap layers.
 
-Touch/tablet improvements belong to later UX milestones.
+### 7. No shared backend
+
+The MVP is browser-local.
+
+There is currently no:
+
+```text
+authentication
+shared database
+multi-user synchronization
+server-side audit trail
+revision history
+```
+
+These belong to Layer M if real usage justifies a backend.
 
 ---
 
 ## Roadmap
 
-| Status | Layer | Deliverable |
-|:---:|---|---|
-| ✅ | **A0** | Frozen baseline + documentation |
-| ✅ | **B1** | Central `appState` / single source of truth |
-| ✅ | **C1** | Pending / Approved / Rejected workflow |
-| ✅ | **C2** | Per-item comments + rejection validation |
-| ✅ | **C3** | Inline copy corrections |
-| 📋 | **D1** | Canonical serialization |
-| 📋 | **D2** | `localStorage` persistence |
-| 📋 | **D3** | Versioned JSON export |
-| 📋 | **D4** | JSON import / Open Check |
-| 📋 | **E1** | Proportional pin coordinates |
-| 📋 | **E2** | Artwork identity |
-| 📋 | **F1** | Review metrics |
-| 📋 | **G1–G2** | Multiple products + tabs |
-| 📋 | **H1–H2** | Reviewer + signature |
-| 📋 | **I1–I2** | High-resolution artwork + responsiveness |
-| 📋 | **J1–J3** | Printable report + PDF |
-| 📋 | **K1–K4** | UX, accessibility, touch and regression hardening |
-| 📋 | **L1** | Module separation |
-| ⏳ | **M1–M4** | Backend, auth, revisions and audit trail |
+| Status | Layer     | Deliverable                                       |
+| :----: | --------- | ------------------------------------------------- |
+|   ✅   | **A0**    | Frozen baseline + documentation                   |
+|   ✅   | **B1**    | Central `appState` / single source of truth       |
+|   ✅   | **C1**    | Pending / Approved / Rejected workflow            |
+|   ✅   | **C2**    | Per-item comments + rejection validation          |
+|   ✅   | **C3**    | Inline copy corrections                           |
+|   ✅   | **D1**    | Canonical serialization                           |
+|   ✅   | **D2**    | `localStorage` persistence                        |
+|   ✅   | **D3**    | Versioned JSON export                             |
+|   ✅   | **D4**    | JSON import / Open Check                          |
+|   ✅   | **E1**    | Normalized proportional pins                      |
+|   ✅   | **E2**    | Artwork identity and replacement safeguards       |
+|   📋   | **F1**    | Review metrics                                    |
+|   📋   | **G1**    | Multiple-product domain operations                |
+|   📋   | **G2**    | Product tabs                                      |
+|   📋   | **H1–H2** | Reviewer + signature                              |
+|   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
+|   📋   | **J1–J3** | Printable report + PDF                            |
+|   📋   | **K1–K4** | UX, accessibility, touch and regression hardening |
+|   📋   | **L1**    | Module separation                                 |
+|   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-Next implementation target:
+The single-product workflow is considered stable through Layer E.
 
-```text
-D1 — Canonical serialization
-```
+Layers F and G should remain isolated in dedicated branches if developed in parallel.
 
 ---
 
 ## Development workflow
 
-The project follows a specification-driven process:
+The project follows:
 
 ```text
 AUDIT
@@ -1043,16 +1346,17 @@ REPORT
 For each feature:
 
 1. understand the current state;
-2. define requirements;
+2. define testable requirements;
 3. define business rules;
 4. confirm the data model;
 5. document design decisions;
 6. perform impact analysis;
-7. break work into tasks;
-8. implement only the required scope;
+7. split work into small tasks;
+8. implement only the requested scope;
 9. run manual tests;
-10. run automated regressions;
-11. document completion.
+10. run automated regression tests;
+11. document completion;
+12. create a checkpoint commit and Pull Request.
 
 Core principles:
 
@@ -1072,48 +1376,47 @@ No phase mixing
 
 When contributing:
 
-1. work on one roadmap feature at a time;
-2. create a dedicated branch;
-3. do not prematurely implement future layers;
-4. keep domain state inside `appState`;
-5. treat the DOM as a representation of state;
-6. preserve existing behavior;
-7. add or update automated tests;
-8. perform manual regression testing;
-9. inspect `git diff`;
-10. commit with a descriptive checkpoint;
-11. open a Pull Request for review.
+1. update local `main`;
+2. create a dedicated feature branch;
+3. work on one roadmap concern at a time;
+4. keep persistent domain state in `appState`;
+5. treat DOM as a representation of state;
+6. keep session-only information outside the domain;
+7. preserve previous behavior;
+8. add or update automated tests;
+9. run manual regressions;
+10. inspect `git diff`;
+11. use a descriptive checkpoint commit;
+12. open a Pull Request;
+13. review before merging into `main`.
 
-Feature branch examples:
+Example branches:
 
 ```text
-feat/domain-model
 feat/review-status
 feat/review-comments
 feat/copy-corrections
 feat/state-serialization
 feat/local-storage
-```
-
-Completed Layer C checkpoints:
-
-```text
-feat: add tri-state artwork review workflow
-feat: add per-item review comments
-feat: support inline copy corrections
+feat/normalized-pins
+feat/artwork-identity
+feat/review-metrics
+feat/multiple-products
 ```
 
 ### Global acceptance criteria
 
-Every milestone must satisfy:
+Every milestone must guarantee:
 
-1. application opens normally;
-2. no functional console errors;
-3. previous features remain operational;
-4. requirements are satisfied;
-5. automated tests pass;
-6. manual tests pass;
-7. future-phase functionality was not accidentally introduced.
+```text
+application opens normally
+no functional console errors
+previous features remain operational
+requirements are satisfied
+automated tests pass
+manual tests pass
+future-phase functionality was not introduced accidentally
+```
 
 ---
 
