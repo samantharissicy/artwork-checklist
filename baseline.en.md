@@ -1,6 +1,6 @@
 # Baseline — Behavior Documentation
 
-> **Reference:** layer **A0** of [`roadmap.md`](roadmap.md) — baseline freeze.
+> **Reference:** layer **A0** — baseline freeze.
 > This document records, item by item, **how the prototype works today**. Any future evolution must preserve these behaviors (principle P-002).
 >
 > **How to verify the baseline:** open `index.html` in the browser and make sure the app opens normally with no console errors.

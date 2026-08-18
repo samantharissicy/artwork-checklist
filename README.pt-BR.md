@@ -823,8 +823,6 @@ artwork-checklist/
 │   ├── app.js
 │   └── tests.js
 │
-├── roadmap.md
-├── prompt-mestre.md
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
@@ -899,14 +897,6 @@ Não utiliza Jest, Vitest ou outras dependências externas.
 Documentação histórica do protótipo original.
 
 Esses arquivos permanecem intencionalmente congelados.
-
-### `roadmap.md`
-
-Plano incremental de desenvolvimento orientado por especificação.
-
-### `prompt-mestre.md`
-
-Regras de engenharia utilizadas na evolução do projeto e na separação entre as fases.
 
 ---
 
@@ -1287,6 +1277,8 @@ Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdu
 ---
 
 ## Roadmap
+
+O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório.
 
 | Status | Camada    | Entrega                                          |
 | :----: | --------- | ------------------------------------------------ |
