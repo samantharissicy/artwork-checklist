@@ -420,6 +420,20 @@ const sectionDefinitions = [
 // DOMAIN FACTORIES
 // ============================================================
 
+/**
+ * Creates a fresh review-state object for every checklist item defined
+ * in the static sectionDefinitions template.
+ *
+ * Every item starts as Pending, with an empty comment and no artwork pin.
+ * The originalTitle property is created as immutable so that reviewer
+ * edits can only affect currentTitle.
+ *
+ * A completely new object graph is returned on every call. This is
+ * important when creating or duplicating products because review state
+ * must never be accidentally shared between products.
+ *
+ * @returns {Object.<string, ReviewItem>} Fresh checklist items keyed by item ID.
+ */
 function createInitialItems() {
   const items = {};
 
@@ -462,6 +476,16 @@ function createInitialItems() {
   return items;
 }
 
+/**
+ * Creates a new product review with empty product information and a fresh
+ * copy of the complete checklist.
+ *
+ * Creation and update timestamps are initialized to the same ISO timestamp.
+ * Artwork, signature and review decisions start empty.
+ *
+ * @param {string} id - Permanent unique identifier assigned to the product.
+ * @returns {Product} Newly initialized product review.
+ */
 function createProduct(id) {
   const now = new Date().toISOString();
 
@@ -521,18 +545,52 @@ appState.products["product-1"] = createProduct("product-1");
 // DOMAIN GETTERS
 // ============================================================
 
+/**
+ * Returns the product currently selected by appState.activeProductId.
+ *
+ * This is the preferred entry point for functions that operate on the
+ * product currently visible in the interface.
+ *
+ * @returns {Product|null} Active product, or null if the ID is invalid.
+ */
 function getActiveProduct() {
   return appState.products[appState.activeProductId] || null;
 }
 
+/**
+ * Looks up a product directly by its permanent identifier.
+ *
+ * Unlike getActiveProduct(), this function does not depend on the currently
+ * selected product and is therefore useful for multi-product operations.
+ *
+ * @param {string} productId - Permanent product identifier.
+ * @returns {Product|null} Matching product, or null when it does not exist.
+ */
 function getProductById(productId) {
   return appState.products[productId] || null;
 }
 
+/**
+ * Returns the identifiers of every product currently stored in the workspace.
+ *
+ * The returned array reflects the current key order of appState.products.
+ *
+ * @returns {string[]} Product identifiers.
+ */
 function getProductIds() {
   return Object.keys(appState.products);
 }
 
+/**
+ * Determines the label used to represent a product in the interface.
+ *
+ * Product Name is preferred whenever available. Products without a name
+ * receive a numbered fallback such as "Product 2".
+ *
+ * @param {Product|null} product - Product whose label should be generated.
+ * @param {number} [index=0] - Zero-based product position used by the fallback label.
+ * @returns {string} Human-readable product label.
+ */
 function getProductDisplayName(product, index = 0) {
   if (!product) {
     return "Product";
@@ -547,6 +605,17 @@ function getProductDisplayName(product, index = 0) {
   return `Product ${index + 1}`;
 }
 
+/**
+ * Generates a permanent unique identifier for a new product.
+ *
+ * crypto.randomUUID() is preferred when supported by the browser.
+ * A timestamp-and-random fallback is used in older environments.
+ *
+ * The generated value is checked against appState.products before it is
+ * returned, preventing accidental replacement of an existing product.
+ *
+ * @returns {string} Unique product identifier prefixed with "product-".
+ */
 function generateProductId() {
   let productId;
 
@@ -563,6 +632,15 @@ function generateProductId() {
   return productId;
 }
 
+/**
+ * Retrieves a checklist item from the currently active product.
+ *
+ * Checklist item IDs are shared by all products, so the active product
+ * determines which review state is returned.
+ *
+ * @param {string} itemId - Permanent checklist item identifier, such as "1a".
+ * @returns {ReviewItem|null} Matching item from the active product, or null.
+ */
 function getItemById(itemId) {
   const product = getActiveProduct();
 
