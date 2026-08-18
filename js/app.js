@@ -792,6 +792,15 @@ function clearProductPins(product) {
 // DOMAIN HELPERS
 // ============================================================
 
+/**
+ * Updates a product's last-modified timestamp.
+ *
+ * This helper should be called whenever persistent review data belonging
+ * to the product is changed.
+ *
+ * @param {string} productId - Identifier of the modified product.
+ * @returns {boolean} True when the timestamp was updated, false if the product was not found.
+ */
 function touchProduct(productId) {
   const product = getProductById(productId);
 
@@ -804,14 +813,41 @@ function touchProduct(productId) {
   return true;
 }
 
+/**
+ * Updates the last-modified timestamp of the currently active product.
+ *
+ * This is a convenience wrapper around touchProduct() for actions that
+ * operate exclusively on the active review.
+ *
+ * @returns {boolean} True when the active product was successfully touched.
+ */
 function touchActiveProduct() {
   return touchProduct(appState.activeProductId);
 }
 
+/**
+ * Checks whether a value is one of the review statuses supported by the domain.
+ *
+ * @param {*} status - Status value to validate.
+ * @returns {boolean} True for pending, approved or rejected.
+ */
 function isValidReviewStatus(status) {
   return VALID_REVIEW_STATUSES.has(status);
 }
 
+/**
+ * Changes the review status of a checklist item in the active product.
+ *
+ * Invalid item IDs and unsupported status values are rejected without
+ * mutating the domain. A successful change also updates the active
+ * product's modification timestamp.
+ *
+ * Persistence and rendering are intentionally handled by the caller.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {ReviewStatus} status - New review status.
+ * @returns {boolean} True when the status was successfully changed.
+ */
 function setItemStatus(itemId, status) {
   const item = getItemById(itemId);
 
@@ -832,6 +868,17 @@ function setItemStatus(itemId, status) {
   return true;
 }
 
+/**
+ * Replaces the editable title of a checklist item.
+ *
+ * The supplied value is converted to a string and trimmed. Empty titles
+ * are rejected so that currentTitle always remains usable by the interface.
+ * originalTitle is never modified by this function.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {*} newTitle - Proposed replacement title.
+ * @returns {boolean} True when currentTitle was successfully updated.
+ */
 function setItemCurrentTitle(itemId, newTitle) {
   const item = getItemById(itemId);
 
@@ -852,6 +899,17 @@ function setItemCurrentTitle(itemId, newTitle) {
   return true;
 }
 
+/**
+ * Updates the reviewer comment associated with a checklist item.
+ *
+ * Comments are converted to strings and may intentionally be empty.
+ * Unlike several lower-level setters, this function immediately persists
+ * the change because comment input is treated as an autosave boundary.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {*} comment - New reviewer comment.
+ * @returns {boolean} True when the comment was successfully updated.
+ */
 function setItemComment(itemId, comment) {
   const item = getItemById(itemId);
 
@@ -868,6 +926,19 @@ function setItemComment(itemId, comment) {
   return true;
 }
 
+/**
+ * Assigns or removes the normalized artwork pin of a checklist item.
+ *
+ * Pins must use normalized xRatio/yRatio coordinates. Pixel-based or
+ * otherwise invalid pin objects are rejected.
+ *
+ * Passing null removes the pin. The product modification timestamp is
+ * updated, but persistence and rendering remain the caller's responsibility.
+ *
+ * @param {string} itemId - Checklist item identifier.
+ * @param {NormalizedPin|null} pin - Normalized pin position, or null to remove it.
+ * @returns {boolean} True when the pin state was successfully changed.
+ */
 function setItemPin(itemId, pin) {
   const item = getItemById(itemId);
 
