@@ -1341,6 +1341,37 @@ function saveStateToStorage() {
   }
 }
 // ============================================================
+// VERSIONED JSON EXPORT — D3
+// ============================================================
+
+function buildExportData() {
+  const product = getActiveProduct ();
+
+  if (!product) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+
+    exportedAt: new Date().toISOString(),
+
+    product: {
+      id: product.id,
+      brand: product.brand,
+      productName: product.productName,
+      weight: product.weight,
+      sku: product.sku,
+    },
+
+    items: product.items,
+
+    artwork: product.artwork,
+
+    reviwer: product.reviwer,
+  };
+}
+// ============================================================
 // LEGACY EXPORT
 // ============================================================
 //
