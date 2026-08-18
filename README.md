@@ -1,10 +1,10 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
+  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-259%2F259%20passing-success" alt="259/259 tests passing">
+  <img src="https://img.shields.io/badge/tests-284%2F284%20passing-success" alt="284/284 tests passing">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -15,7 +15,7 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5** are complete.  
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
 > **Layer G5 — Artwork Colour Specifications is complete.**
 
 ---
@@ -212,7 +212,7 @@ Example:
 = 15 / 49 reviewed
 ```
 
-More detailed metrics belong to Layer F.
+Per-status counters (Approved / Rejected / Pending) and a separate approval percentage are part of the pending Layer F1 review-metrics work.
 
 ---
 
@@ -579,11 +579,15 @@ The exported review contains:
 ```text
 schemaVersion
 exportedAt
-product (including artworkLayers and pantoneColors)
+product
 items
-artwork metadata
-reviewer data
+artworkLayers
+activeArtworkLayerId
+pantoneColors
+reviewer
 ```
+
+The export structure mirrors the appState product review: `artworkLayers`, `activeArtworkLayerId` and `pantoneColors` are top-level siblings of the `product` object.
 
 It preserves:
 
@@ -698,6 +702,9 @@ Brand
 Product Name / Legal Name
 Weight
 SKU / Code
+Production Code
+Site
+Artwork Revision
 ```
 
 The values update the active product in `appState` and are automatically persisted.
@@ -713,6 +720,8 @@ Set Artwork
 Choose an image file.
 
 The artwork is loaded for the current session and its metadata is saved with the review.
+
+Each artwork layer of the product owns an independent artwork identity: switch layers through the layer tabs above the canvas, add new layers with `+ Add Layer`, rename them and delete them with their per-layer pins.
 
 ### 3. Review checklist items
 
@@ -1149,7 +1158,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-259 / 259 tests passing
+284 / 284 tests passing
 ```
 
 The suite covers:
@@ -1261,30 +1270,17 @@ Automated tests complement manual browser testing, especially for actual file se
 
 ## Known limitations
 
-### 1. Single-product user interface
+### 1. Basic progress presentation
 
-The domain already contains:
-
-```js
-products;
-activeProductId;
-```
-
-but the current interface still operates as a single-product review.
-
-Multiple products, switching, duplication, deletion and tabs belong to Layer G.
-
-### 2. Basic progress presentation
-
-The current interface primarily displays:
+The interface displays:
 
 ```text
-X / 49 reviewed
+X / Y reviewed
 ```
 
-Detailed Approved / Rejected / Pending counters and separate review/approval percentages belong to Layer F.
+Per-status counters (Approved / Rejected / Pending) and a separate review/approval percentage are not implemented yet; they belong to the pending Layer F1 review-metrics work.
 
-### 3. Artwork binary is session-only
+### 2. Artwork binary is session-only
 
 Artwork metadata is persisted, but the local image file itself is not.
 
@@ -1300,11 +1296,11 @@ the reviewer must select the same artwork file again.
 
 Persisted metadata and normalized pin positions remain available.
 
-### 4. No reviewer/signature workflow yet
+### 3. No reviewer/signature workflow yet
 
 Reviewer identity and final signature belong to Layer H.
 
-### 5. No printable report or PDF yet
+### 4. No printable report or PDF yet
 
 The domain already preserves the data needed for future reports:
 
@@ -1320,13 +1316,13 @@ artwork metadata
 
 Report and PDF generation belong to Layer J.
 
-### 6. Desktop-oriented interface
+### 5. Desktop-oriented interface
 
 The interface is still primarily designed for desktop use.
 
 Responsive and touch hardening belong to later roadmap layers.
 
-### 7. No shared backend
+### 6. No shared backend
 
 The MVP is browser-local.
 
@@ -1342,7 +1338,7 @@ revision history
 
 These belong to Layer M if real usage justifies a backend.
 
-### 8. Pantone references are textual
+### 7. Pantone references are textual
 
 Colour specifications store the Pantone reference as free text. No official RGB or HEX equivalence is derived, and the neutral indicator rendered in the interface is not a colour swatch reproduction.
 
@@ -1365,7 +1361,7 @@ Development is guided by a separate development roadmap maintained outside this 
 |   ✅   | **D4**    | JSON import / Open Check                          |
 |   ✅   | **E1**    | Normalized proportional pins                      |
 |   ✅   | **E2**    | Artwork identity and replacement safeguards       |
-|   ✅   | **F1**    | Review metrics                                    |
+|   📋   | **F1**    | Review metrics (per-status counters, approval %)  |
 |   ✅   | **G1**    | Multiple-product domain operations                |
 |   ✅   | **G2**    | Product tabs                                      |
 |   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
@@ -1377,9 +1373,9 @@ Development is guided by a separate development roadmap maintained outside this 
 |   📋   | **L1**    | Module separation                                 |
 |   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-The single-product workflow is considered stable through Layer E.
+The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and colour specifications are now implemented through Layer G5.
 
-Layers F and G should remain isolated in dedicated branches if developed in parallel.
+Layers F1 and G were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
 
 ---
 

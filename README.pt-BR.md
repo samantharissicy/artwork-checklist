@@ -1,10 +1,10 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
+  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-259%2F259%20passing-success" alt="259/259 testes passando">
+  <img src="https://img.shields.io/badge/tests-284%2F284%20passing-success" alt="284/284 testes passando">
   <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -15,7 +15,7 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5** estão concluídas.  
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** estão concluídas.  
 > A **Camada G5 — Especificações de cor da artwork está completa.**
 
 ---
@@ -212,7 +212,7 @@ Exemplo:
 = 15 / 49 reviewed
 ```
 
-Métricas mais detalhadas pertencem à Camada F.
+Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação fazem parte do trabalho pendente da Camada F1 (métricas da revisão).
 
 ---
 
@@ -579,11 +579,15 @@ O arquivo inclui:
 ```text
 schemaVersion
 exportedAt
-product (incluindo artworkLayers e pantoneColors)
+product
 items
-artwork
+artworkLayers
+activeArtworkLayerId
+pantoneColors
 reviewer
 ```
+
+A estrutura exportada espelha a revisão em `appState`: `artworkLayers`, `activeArtworkLayerId` e `pantoneColors` são irmãos de nível superior do objeto `product`.
 
 e preserva:
 
@@ -696,6 +700,9 @@ Brand
 Product Name / Legal Name
 Weight
 SKU / Code
+Production Code
+Site
+Artwork Revision
 ```
 
 Os valores atualizam o produto ativo em `appState` e são persistidos automaticamente.
@@ -709,6 +716,8 @@ Set Artwork
 ```
 
 e escolha uma imagem.
+
+Cada artwork layer do produto possui identidade de artwork independente: alterne as camadas pelas tabs acima do canvas, adicione camadas com `+ Add Layer`, renomeie-as e exclua-as com seus pins por layer.
 
 Ela será exibida durante a sessão atual e sua metadata ficará associada à revisão.
 
@@ -1143,7 +1152,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-259 / 259 testes passando
+284 / 284 testes passando
 ```
 
 A suíte cobre:
@@ -1255,30 +1264,17 @@ Os testes automatizados complementam testes manuais, especialmente para seleçã
 
 ## Limitações conhecidas
 
-### 1. Interface de produto único
+### 1. Métricas ainda básicas
 
-O domínio já possui:
-
-```js
-products;
-activeProductId;
-```
-
-mas a interface ainda trabalha com uma revisão de produto por vez.
-
-Criação, alternância, duplicação, exclusão e tabs de produtos pertencem à Camada G.
-
-### 2. Métricas ainda básicas
-
-A interface atual exibe principalmente:
+A interface exibe:
 
 ```text
-X / 49 reviewed
+X / Y reviewed
 ```
 
-Contadores detalhados de Approved, Rejected e Pending e os percentuais separados de revisão e aprovação pertencem à Camada F.
+Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação ainda não foram implementados; pertencem ao trabalho pendente da Camada F1 (métricas da revisão).
 
-### 3. Arquivo da artwork somente em sessão
+### 2. Arquivo da artwork somente em sessão
 
 A metadata da artwork é persistida, mas o arquivo local da imagem não.
 
@@ -1294,11 +1290,11 @@ importar uma revisão
 
 Metadata e posições dos pins permanecem preservadas.
 
-### 4. Sem reviewer e assinatura final
+### 3. Sem reviewer e assinatura final
 
 Identificação do revisor e assinatura pertencem à Camada H.
 
-### 5. Sem relatório e PDF
+### 4. Sem relatório e PDF
 
 O domínio já preserva:
 
@@ -1314,13 +1310,13 @@ metadata da artwork
 
 mas relatório imprimível e PDF pertencem à Camada J.
 
-### 6. Interface orientada a desktop
+### 5. Interface orientada a desktop
 
 A interface ainda é desenvolvida principalmente para desktop.
 
 Responsividade e hardening para touchscreen pertencem às próximas fases do roadmap.
 
-### 7. Sem backend compartilhado
+### 6. Sem backend compartilhado
 
 O MVP é local ao navegador.
 
@@ -1336,7 +1332,7 @@ histórico de revisões
 
 Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdução de backend.
 
-### 8. Referências Pantone são textuais
+### 7. Referências Pantone são textuais
 
 As especificações de cor armazenam a referência Pantone como texto livre. Nenhuma equivalência oficial de RGB ou HEX é derivada, e o indicador neutro renderizado na interface não é uma reprodução de amostra de cor.
 
@@ -1359,7 +1355,7 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   ✅   | **D4**    | Import JSON / Open Check                         |
 |   ✅   | **E1**    | Pins proporcionais normalizados                  |
 |   ✅   | **E2**    | Identidade da artwork e proteção na substituição |
-|   ✅   | **F1**    | Métricas da revisão                              |
+|   📋   | **F1**    | Métricas da revisão (contadores e % de aprovação) |
 |   ✅   | **G1**    | Modelo de múltiplos produtos                     |
 |   ✅   | **G2**    | Interface de tabs                                |
 |   ✅   | **G3–G4** | Workspace multi-layer de artwork                 |
@@ -1371,9 +1367,9 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   📋   | **L1**    | Separação em módulos                             |
 |   ⏳   | **M1–M4** | Backend, autenticação, revisões e auditoria      |
 
-O fluxo de produto único está considerado estável até a Camada E.
+O fluxo de produto único está estável desde a Camada E; tabs de múltiplos produtos, artwork layers e especificações de cor já estão implementados até a Camada G5.
 
-Caso F e G sejam desenvolvidas em paralelo, cada uma deve permanecer isolada em sua própria branch.
+As camadas F1 e G foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
 
 ---
 

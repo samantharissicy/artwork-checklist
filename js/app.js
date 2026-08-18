@@ -118,6 +118,7 @@
  * @property {string} artworkVersion - Revision of the artwork under review.
  * @property {ArtworkLayer[]} artworkLayers - Independent artwork layers.
  * @property {string} activeArtworkLayerId - Identifier of the layer currently under review.
+ * @property {PantoneColour[]} pantoneColors - Colour specifications registered for the product.
  * @property {Object.<string, ReviewItem>} items
  * @property {Object} reviewer
  * @property {Object|null} signature
@@ -566,7 +567,8 @@ function createArtworkLayer(id, name, artwork = null) {
  * Artwork, signature and review decisions start empty.
  *
  * Every new product starts with a single default artwork layer named
- * "Main Artwork" (identifier "layer-main"), which is also the active layer.
+ * "Main Artwork" (identifier "layer-main"), which is also the active layer,
+ * and an empty pantoneColors registry.
  *
  * @param {string} id - Permanent unique identifier assigned to the product.
  * @returns {Product} Newly initialized product review.
@@ -1069,37 +1071,54 @@ function deleteArtworkLayer(productId, layerId) {
 //
 // The Pantone reference is stored as authoritative text. No RGB or
 // HEX equivalence is derived or implied.
+//
+// The Pantone reference, name and notes lengths enforced by the
+// inline editor (maxlength 120 / 120 / 500 in index.html) are
+// mirrored here so domain and import validation never accept
+// strings the HTML editor cannot produce. index.html and this
+// constant must stay aligned; the domain validator is the
+// source of truth.
+//
+const PANTONE_LIMITS = Object.freeze({
+  CODE: 120,
+  NAME: 120,
+  NOTES: 500,
+});
 
 /**
- * Generates the next permanent colour identifier for a product.
+ * Generates a collision-resistant permanent colour identifier for a product.
  *
- * Identifiers follow the "colour-N" sequence. Numbers of deleted
- * colours are not reused so audit history never collides with newly
- * created specifications.
+ * New identifiers use the cryptographically strong random format
+ * "colour-<uuid>" when window.crypto.randomUUID() is available, falling
+ * back to "colour-<timestamp>-<random hex>". Each generated ID is checked
+ * against the product's existing colour IDs before it is returned.
+ *
+ * IDs are never derived from a reused counter: once an ID has been issued,
+ * deleting that colour never makes the same ID eligible for future
+ * creations. Legacy numeric IDs such as "colour-1" remain valid and are
+ * preserved by rehydration; they simply are not reproduced by this
+ * generator.
  *
  * @param {Product|null} product - Product that will receive the colour.
- * @returns {string} Unique colour identifier.
+ * @returns {string} Unique permanent colour identifier.
  */
 function generatePantoneColourId(product) {
-  let highest = 0;
+  const existingIds = new Set(getPantoneColourIds(product));
 
-  getPantoneColourIds(product).forEach((colourId) => {
-    const match = /^colour-(\d+)$/.exec(colourId);
+  let colourId;
 
-    if (match) {
-      highest = Math.max(highest, Number(match[1]));
+  do {
+    if (
+      window.crypto &&
+      typeof window.crypto.randomUUID === "function"
+    ) {
+      colourId = `colour-${window.crypto.randomUUID()}`;
+    } else {
+      colourId = `colour-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
     }
-  });
-
-  let candidate = highest + 1;
-
-  let colourId = `colour-${candidate}`;
-
-  while (getPantoneColourIds(product).includes(colourId)) {
-    candidate += 1;
-
-    colourId = `colour-${candidate}`;
-  }
+  } while (existingIds.has(colourId));
 
   return colourId;
 }
@@ -1245,6 +1264,11 @@ function normalizePantoneLayerIds(product, layerIds) {
  * without duplicates where every entry references an existing artwork
  * layer of the same product. An empty layerIds array is valid.
  *
+ * String lengths mirror the HTML editor limits defined by
+ * PANTONE_LIMITS: code and name up to 120 trimmed characters, notes up
+ * to 500 characters. Oversized strings are rejected by persisted-state
+ * and import validation alike.
+ *
  * This function never mutates the inspected colour or product.
  *
  * @param {*} colour - Candidate PantoneColour to validate.
@@ -1260,18 +1284,26 @@ function validatePantoneColour(colour, product) {
     return false;
   }
 
-  if (typeof colour.name !== "string" || colour.name.trim() === "") {
+  if (
+    typeof colour.name !== "string" ||
+    colour.name.trim() === "" ||
+    colour.name.trim().length > PANTONE_LIMITS.NAME
+  ) {
     return false;
   }
 
   if (
     typeof colour.pantoneCode !== "string" ||
-    colour.pantoneCode.trim() === ""
+    colour.pantoneCode.trim() === "" ||
+    colour.pantoneCode.trim().length > PANTONE_LIMITS.CODE
   ) {
     return false;
   }
 
-  if (typeof colour.notes !== "string") {
+  if (
+    typeof colour.notes !== "string" ||
+    colour.notes.length > PANTONE_LIMITS.NOTES
+  ) {
     return false;
   }
 
@@ -1362,6 +1394,10 @@ function clearPantoneLayerReferences(product, layerId) {
  * feedback. Name and Pantone reference are trimmed, layer associations are
  * normalized and the product's updatedAt timestamp is refreshed.
  *
+ * String lengths are bounded by PANTONE_LIMITS (mirroring the HTML editor
+ * maxlength attributes) and oversized values are rejected, never silently
+ * truncated.
+ *
  * @param {string} productId - Permanent ID of the receiving product.
  * @param {Object} data - Colour field values.
  * @param {string} data.name - Name or usage intention of the colour.
@@ -1388,13 +1424,31 @@ function addPantoneColour(productId, data) {
     return { ok: false, error: "Colour name is required." };
   }
 
+  if (name.length > PANTONE_LIMITS.NAME) {
+    return {
+      ok: false,
+      error: "Colour name must be 120 characters or fewer.",
+    };
+  }
+
   const pantoneCode = String(data.pantoneCode ?? "").trim();
 
   if (pantoneCode === "") {
     return { ok: false, error: "Pantone reference is required." };
   }
 
+  if (pantoneCode.length > PANTONE_LIMITS.CODE) {
+    return {
+      ok: false,
+      error: "Pantone reference must be 120 characters or fewer.",
+    };
+  }
+
   const notes = String(data.notes ?? "").trim();
+
+  if (notes.length > PANTONE_LIMITS.NOTES) {
+    return { ok: false, error: "Notes must be 500 characters or fewer." };
+  }
 
   const rawLayerIds =
     data.layerIds === undefined || data.layerIds === null
@@ -1440,7 +1494,7 @@ function addPantoneColour(productId, data) {
  *
  * The permanent colour ID is preserved. Name, pantoneCode and notes are
  * trimmed; layer associations are normalized. Validation rules match
- * addPantoneColour().
+ * addPantoneColour(), including the PANTONE_LIMITS string bounds.
  *
  * @param {string} productId - Permanent ID of the product.
  * @param {string} colourId - Permanent ID of the colour to update.
@@ -1471,13 +1525,31 @@ function updatePantoneColour(productId, colourId, data) {
     return { ok: false, error: "Colour name is required." };
   }
 
+  if (name.length > PANTONE_LIMITS.NAME) {
+    return {
+      ok: false,
+      error: "Colour name must be 120 characters or fewer.",
+    };
+  }
+
   const pantoneCode = String(data.pantoneCode ?? "").trim();
 
   if (pantoneCode === "") {
     return { ok: false, error: "Pantone reference is required." };
   }
 
+  if (pantoneCode.length > PANTONE_LIMITS.CODE) {
+    return {
+      ok: false,
+      error: "Pantone reference must be 120 characters or fewer.",
+    };
+  }
+
   const notes = String(data.notes ?? "").trim();
+
+  if (notes.length > PANTONE_LIMITS.NOTES) {
+    return { ok: false, error: "Notes must be 500 characters or fewer." };
+  }
 
   const rawLayerIds =
     data.layerIds === undefined || data.layerIds === null
@@ -1520,7 +1592,8 @@ function updatePantoneColour(productId, colourId, data) {
  * Removes a single Pantone colour specification from a product.
  *
  * Artwork layers, artwork metadata, pins and the checklist are never
- * modified. The colour ID is freed but never reused by future creations.
+ * modified. Deleting a colour removes the specification only. Existing
+ * IDs are never reassigned by the current ID generator.
  *
  * @param {string} productId - Permanent ID of the product.
  * @param {string} colourId - Permanent ID of the colour to remove.
@@ -2641,7 +2714,14 @@ let editingTitleItemId = null;
  *
  * This resets:
  * - open comment panels;
- * - the item currently being edited inline.
+ * - the item currently being edited inline;
+ * - the open Pantone colour editor draft.
+ *
+ * The colour editor is closed here because every caller of this function
+ * (new product, product switch, duplication, product deletion and review
+ * import) changes the product context. Harmless navigation such as artwork
+ * layer switching never calls this function, so unsaved colour drafts
+ * survive layer switches.
  *
  * The function intentionally does not modify appState because these values
  * describe interface state rather than persisted review data.
@@ -2655,6 +2735,8 @@ function resetTransientReviewUiState() {
   openCommentItemIds.clear();
 
   editingTitleItemId = null;
+
+  closePantoneColourEditor();
 }
 
 let currentZoom = 1;
@@ -3492,6 +3574,7 @@ async function renameActiveProduct() {
  * - independent artwork layers with artwork metadata;
  * - per-layer normalized pins;
  * - the active layer identifier;
+ * - pantoneColors colour specifications with preserved permanent IDs;
  * - reviewer information.
  *
  * The duplicate receives:
@@ -5784,13 +5867,16 @@ function rehydrateItems(savedItems) {
  * - product identification fields;
  * - cloned artwork layers with independent artwork metadata;
  * - the active artwork layer identifier;
+ * - deeply cloned pantoneColors (products saved before G5 serialized
+ *   without a pantoneColors key are rehydrated with an empty registry);
  * - canonical checklist-item reconstruction;
  * - reviewer data merged over reviewer defaults;
  * - signature data;
  * - preserved creation and update timestamps when valid.
  *
- * The function intentionally creates new nested objects instead of reusing the
- * parsed JSON object directly.
+ * The function intentionally creates new nested objects instead of reusing
+ * the parsed JSON object directly, so no references into the parsed JSON
+ * graph survive rehydration.
  *
  * @param {Object} savedProduct - Validated persisted product data.
  * @returns {Product} Reconstructed product suitable for appState.
@@ -6280,11 +6366,15 @@ function saveStateToStorage() {
  * The export contains:
  * - current schema version;
  * - export timestamp;
- * - product identification fields;
+ * - product identification fields (nested under product);
  * - product creation and modification timestamps;
+ * - the complete checklist review items with per-layer pins;
  * - independent artwork layers and the active layer identifier;
- * - complete checklist review items with per-layer pins;
+ * - the product's pantoneColors colour specifications;
  * - reviewer information.
+ *
+ * artworkLayers, activeArtworkLayerId and pantoneColors are top-level
+ * siblings of the product object in the exported structure.
  *
  * Runtime-only artwork resources, UI state and other workspace products are
  * intentionally excluded.
@@ -6751,6 +6841,15 @@ async function deleteActiveArtworkLayer() {
 
   renderAppState();
 
+  /*
+   * When the colour editor is open, its layer checkboxes are rebuilt so a
+   * deleted layer disappears from the draft selection. Remaining draft
+   * fields and selected layers are preserved and nothing is saved.
+   */
+  if (pantoneColourEditorState.isOpen) {
+    renderPantoneColourEditorLayers(getSelectedPantoneLayerIds());
+  }
+
   scrollActiveArtworkLayerTabIntoView();
 
   showToast("Artwork layer deleted.");
@@ -6874,7 +6973,10 @@ function getPantoneColourLayerLabel(product, colour) {
  * Builds the DOM row for one Pantone colour specification.
  *
  * The Pantone reference is rendered as authoritative text next to a
- * neutral indicator. No RGB or HEX equivalence is ever shown.
+ * neutral indicator. No RGB or HEX equivalence is ever shown. When the
+ * colour carries trimmed non-empty notes, they are rendered below the
+ * name through textContent (never as HTML); empty notes produce no
+ * placeholder element.
  *
  * @param {PantoneColour} colour - Colour to render.
  * @param {Product} product - Product owning the colour.
@@ -6914,6 +7016,16 @@ function createPantoneColourRow(colour, product) {
   name.textContent = colour.name;
 
   row.appendChild(name);
+
+  if (colour.notes.trim() !== "") {
+    const notes = document.createElement("div");
+
+    notes.className = "pantone-colour-notes";
+
+    notes.textContent = colour.notes;
+
+    row.appendChild(notes);
+  }
 
   const footer = document.createElement("div");
 
@@ -7341,7 +7453,9 @@ async function confirmDeletePantoneColour(colourId) {
  * Rendering is delegated to specialized functions:
  *
  * - renderProductInputs() updates product fields;
+ * - renderProductContext() updates product context metadata;
  * - renderArtworkLayerTabs() rebuilds the artwork layer tabs;
+ * - renderPantoneColours() rebuilds the Colour Specification list;
  * - renderArtworkState() updates the artwork viewer;
  * - renderItemState() updates each checklist item;
  * - renderPins() rebuilds artwork pins;
@@ -7349,6 +7463,11 @@ async function confirmDeletePantoneColour(colourId) {
  *
  * The function reads existing domain state and does not perform business
  * mutations itself.
+ *
+ * The colour editor draft is transient UI state and is intentionally left
+ * open by this function: harmless navigation such as switching artwork
+ * layers must not discard an unsaved draft. Product-context changes close
+ * the editor explicitly through resetTransientReviewUiState().
  *
  * Product tabs are intentionally rendered separately by renderProductTabs()
  * because they represent the workspace rather than only the active product.
@@ -7367,8 +7486,6 @@ function renderAppState() {
   renderProductContext();
 
   renderArtworkLayerTabs();
-
-  closePantoneColourEditor();
 
   renderPantoneColours();
 
@@ -8151,7 +8268,8 @@ function migrateImportData(data) {
  * - the imported product has a non-empty permanent ID;
  * - checklist items exist;
  * - the reconstructed candidate product satisfies the normal persisted-product
- *   validation rules.
+ *   validation rules, including the pantoneColors specifications and their
+ *   PANTONE_LIMITS string bounds.
  *
  * Optional import fields receive safe defaults before product validation so
  * older compatible exports can omit non-essential values.
@@ -8264,6 +8382,8 @@ function validateImportData(data) {
  * - SKU;
  * - checklist review items;
  * - artwork metadata;
+ * - artwork layers and the active layer identifier;
+ * - pantoneColors (cloned when present, empty for pre-G5 exports);
  * - reviewer information;
  * - original creation timestamp when available.
  *

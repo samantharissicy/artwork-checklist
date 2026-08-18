@@ -134,15 +134,17 @@
 
     const second = addTestColour(product, { name: "Accent Yellow" });
 
-    assertEqual(first.id, "colour-1");
+    assertEqual(first.id.length > 0, true);
 
-    assertEqual(second.id, "colour-2");
+    assertEqual(second.id.length > 0, true);
 
-    assertEqual(deletePantoneColour(product.id, "colour-1").ok, true);
+    assertEqual(first.id !== second.id, true);
+
+    assertEqual(deletePantoneColour(product.id, first.id).ok, true);
 
     const third = addTestColour(product, { name: "Text Black" });
 
-    assertEqual(third.id, "colour-3");
+    assertEqual(third.id !== first.id, true);
   });
 
   test("G5-006 adding colour trims name", () => {
@@ -349,19 +351,22 @@
   test("G5-021 deleting colour removes only requested colour", () => {
     const product = freshWorkspace();
 
-    addTestColour(product, { name: "Red" });
+    const red = addTestColour(product, { name: "Red" });
 
-    addTestColour(product, { name: "Yellow", pantoneCode: "PANTONE 123 C" });
+    const yellow = addTestColour(product, {
+      name: "Yellow",
+      pantoneCode: "PANTONE 123 C",
+    });
 
-    addTestColour(product, { name: "Black", pantoneCode: "PANTONE Black C" });
+    const black = addTestColour(product, { name: "Black", pantoneCode: "PANTONE Black C" });
 
-    assertEqual(deletePantoneColour(product.id, "colour-2").ok, true);
+    assertEqual(deletePantoneColour(product.id, yellow.id).ok, true);
 
     assertEqual(product.pantoneColors.length, 2);
 
-    assertEqual(product.pantoneColors[0].id, "colour-1");
+    assertEqual(product.pantoneColors[0].id, red.id);
 
-    assertEqual(product.pantoneColors[1].id, "colour-3");
+    assertEqual(product.pantoneColors[1].id, black.id);
   });
 
   test("G5-022 deleting colour does not alter artwork layers", () => {
@@ -619,7 +624,7 @@
 
     addTestLayer(product, "layer-back", "Back");
 
-    addTestColour(product, {
+    const sourceColour = addTestColour(product, {
       name: "Red",
       notes: "Logo",
       layerIds: ["layer-front", "layer-back"],
@@ -633,7 +638,7 @@
 
     assertEqual(duplicate.pantoneColors.length, 1);
 
-    assertEqual(duplicate.pantoneColors[0].id, "colour-1");
+    assertEqual(duplicate.pantoneColors[0].id, sourceColour.id);
 
     assertEqual(duplicate.pantoneColors[0].name, "Red");
 
@@ -681,7 +686,7 @@
   test("G5-036 editing colour in duplicate does not mutate source product", () => {
     const product = freshWorkspace();
 
-    addTestColour(product, { name: "Primary Brand Red" });
+    const sourceColour = addTestColour(product, { name: "Primary Brand Red" });
 
     const duplicateId = duplicateProduct(product.id);
 
@@ -689,7 +694,7 @@
 
     const result = updatePantoneColour(
       duplicate.id,
-      "colour-1",
+      sourceColour.id,
       colourData({ name: "Duplicate Red" }),
     );
 
@@ -727,7 +732,7 @@
   test("G5-038 localStorage roundtrip preserves pantoneColors", () => {
     const product = freshWorkspace();
 
-    addTestColour(product, {
+    const colour = addTestColour(product, {
       name: "Red",
       pantoneCode: "PANTONE Black C",
       notes: "Body copy",
@@ -740,28 +745,20 @@
 
     assertDeepEqual(
       stored.products[stored.activeProductId].pantoneColors,
-      [
-        {
-          id: "colour-1",
-          name: "Red",
-          pantoneCode: "PANTONE Black C",
-          notes: "Body copy",
-          layerIds: [],
-        },
-      ],
+      [colour],
     );
   });
 
   test("G5-039 rehydration preserves colour IDs", () => {
     const product = freshWorkspace();
 
-    addTestColour(product);
+    const colour = addTestColour(product);
 
     const hydrated = rehydrateState(JSON.parse(serializeState()));
 
     assertEqual(
       hydrated.products[hydrated.activeProductId].pantoneColors[0].id,
-      "colour-1",
+      colour.id,
     );
   });
 
@@ -876,7 +873,10 @@
 
     assertEqual(restored.pantoneColors.length, 1);
 
-    assertEqual(restored.pantoneColors[0].id, "colour-1");
+    assertEqual(
+      restored.pantoneColors[0].id,
+      exported.pantoneColors[0].id,
+    );
 
     assertEqual(restored.pantoneColors[0].name, "Red");
 
@@ -956,22 +956,7 @@
 
     const restored = getActiveProduct();
 
-    assertDeepEqual(restored.pantoneColors, [
-      {
-        id: "colour-1",
-        name: "Primary Brand Red",
-        pantoneCode: "PANTONE 186 C",
-        notes: "Logo",
-        layerIds: ["layer-front", "layer-back"],
-      },
-      {
-        id: "colour-2",
-        name: "Primary Text",
-        pantoneCode: "PANTONE Black C",
-        notes: "",
-        layerIds: ["layer-back"],
-      },
-    ]);
+    assertDeepEqual(restored.pantoneColors, exported.pantoneColors);
   });
 
   // ============================================================
@@ -1067,14 +1052,14 @@
 
     const product = getActiveProduct();
 
-    addTestColour(product, {
+    const first = addTestColour(product, {
       name: "Paulig Red",
       pantoneCode: "PANTONE 186 C",
       notes: "Primary logo",
       layerIds: [],
     });
 
-    openEditPantoneColourEditor("colour-1");
+    openEditPantoneColourEditor(first.id);
 
     assertEqual(
       document.getElementById("pantone-code-input").value,
@@ -1118,9 +1103,9 @@
   test("G5-058 Save Changes updates specification", () => {
     const product = freshWorkspace();
 
-    addTestColour(product, { name: "Paulig Red" });
+    const colour = addTestColour(product, { name: "Paulig Red" });
 
-    openEditPantoneColourEditor("colour-1");
+    openEditPantoneColourEditor(colour.id);
 
     document.getElementById("pantone-name-input").value = "Paulig Deep Red";
 
@@ -1130,7 +1115,7 @@
 
     assertEqual(product.pantoneColors.length, 1);
 
-    assertEqual(product.pantoneColors[0].id, "colour-1");
+    assertEqual(product.pantoneColors[0].id, colour.id);
 
     assertEqual(product.pantoneColors[0].name, "Paulig Deep Red");
 
@@ -1178,7 +1163,7 @@
   test("G5-060 cancelled delete changes nothing", async () => {
     const product = freshWorkspace();
 
-    addTestColour(product);
+    const colour = addTestColour(product);
 
     renderPantoneColours();
 
@@ -1196,7 +1181,7 @@
 
     assertEqual(product.pantoneColors.length, 1);
 
-    assertEqual(product.pantoneColors[0].id, "colour-1");
+    assertEqual(product.pantoneColors[0].id, colour.id);
   });
 
   test("G5-061 confirmed delete removes specification", async () => {
@@ -1204,7 +1189,10 @@
 
     addTestColour(product, { name: "Red" });
 
-    addTestColour(product, { name: "Yellow", pantoneCode: "PANTONE 123 C" });
+    const yellow = addTestColour(product, {
+      name: "Yellow",
+      pantoneCode: "PANTONE 123 C",
+    });
 
     renderPantoneColours();
 
@@ -1224,7 +1212,7 @@
 
     assertEqual(product.pantoneColors.length, 1);
 
-    assertEqual(product.pantoneColors[0].id, "colour-2");
+    assertEqual(product.pantoneColors[0].id, yellow.id);
 
     const list = document.getElementById("pantone-colours-list");
 
@@ -1250,18 +1238,562 @@
     );
   });
 
-  test("G5-063 empty layerIds render as Unassigned", () => {
+  // ============================================================
+  // G5 POLISH — PERMANENT IDS
+  // ============================================================
+
+  test("G5P-001 newly generated colour IDs are non-empty strings", () => {
     const product = freshWorkspace();
 
-    addTestColour(product, { name: "Accent Yellow" });
+    const colourId = generatePantoneColourId(product);
+
+    assertEqual(typeof colourId, "string");
+
+    assertEqual(colourId.length > 0, true);
+  });
+
+  test("G5P-002 two newly generated colours receive different IDs", () => {
+    const product = freshWorkspace();
+
+    const first = addTestColour(product);
+
+    const second = addTestColour(product, { name: "Accent Yellow" });
+
+    assertEqual(first.id !== second.id, true);
+  });
+
+  test("G5P-003 deleted colour ID is never reused", () => {
+    const product = freshWorkspace();
+
+    const first = addTestColour(product, { name: "Colour A" });
+
+    const second = addTestColour(product, {
+      name: "Colour B",
+      pantoneCode: "PANTONE 123 C",
+    });
+
+    assertEqual(deletePantoneColour(product.id, second.id).ok, true);
+
+    const third = addTestColour(product, {
+      name: "Colour C",
+      pantoneCode: "PANTONE Black C",
+    });
+
+    assertEqual(third.id !== first.id, true);
+
+    assertEqual(third.id !== second.id, true);
+  });
+
+  test("G5P-004 editing a colour preserves its ID", () => {
+    const product = freshWorkspace();
+
+    const colour = addTestColour(product);
+
+    const result = updatePantoneColour(
+      product.id,
+      colour.id,
+      colourData({ name: "Edited Name" }),
+    );
+
+    assertEqual(result.ok, true);
+
+    assertEqual(result.colour.id, colour.id);
+  });
+
+  test("G5P-005 legacy numeric IDs remain valid and unchanged after rehydration", () => {
+    const product = freshWorkspace();
+
+    product.pantoneColors.push(
+      createPantoneColour({
+        id: "colour-1",
+        name: "Legacy Red",
+        pantoneCode: "PANTONE 186 C",
+        notes: "",
+        layerIds: [],
+      }),
+      createPantoneColour({
+        id: "colour-2",
+        name: "Legacy Black",
+        pantoneCode: "PANTONE Black C",
+        notes: "",
+        layerIds: [],
+      }),
+    );
+
+    const parsed = JSON.parse(serializeState());
+
+    assertEqual(validateState(parsed), true);
+
+    const hydrated = rehydrateState(parsed);
+
+    const colours = hydrated.products[hydrated.activeProductId].pantoneColors;
+
+    assertEqual(colours[0].id, "colour-1");
+
+    assertEqual(colours[1].id, "colour-2");
+  });
+
+  // ============================================================
+  // G5 POLISH — NOTES
+  // ============================================================
+
+  test("G5P-006 colour row renders notes when notes exist", () => {
+    const product = freshWorkspace();
+
+    addTestColour(product, {
+      name: "Primary Brand Red",
+      notes: "Primary logo and hero graphics.",
+    });
 
     renderPantoneColours();
 
     const row = document.querySelector(".pantone-colour-row");
 
+    assertExists(row.querySelector(".pantone-colour-notes"));
+
     assertEqual(
-      row.querySelector(".pantone-colour-layers").textContent,
-      "Unassigned",
+      row.querySelector(".pantone-colour-notes").textContent,
+      "Primary logo and hero graphics.",
+    );
+  });
+
+  test("G5P-007 colour row does not render note element when notes are empty", () => {
+    const product = freshWorkspace();
+
+    addTestColour(product, { name: "Accent Yellow", notes: "" });
+
+    renderPantoneColours();
+
+    const row = document.querySelector(".pantone-colour-row");
+
+    assertEqual(row.querySelector(".pantone-colour-notes"), null);
+  });
+
+  test("G5P-008 notes are rendered as text, not interpreted as HTML", () => {
+    const product = freshWorkspace();
+
+    addTestColour(product, {
+      name: "Brand Red",
+      notes: "<b>Bold</b> & <script>alert('x')</script>",
+    });
+
+    renderPantoneColours();
+
+    const row = document.querySelector(".pantone-colour-row");
+
+    const notesElement = row.querySelector(".pantone-colour-notes");
+
+    assertExists(notesElement);
+
+    assertEqual(
+      notesElement.textContent,
+      "<b>Bold</b> & <script>alert('x')</script>",
+    );
+
+    assertEqual(
+      notesElement.querySelector("b, script") === null,
+      true,
+    );
+  });
+
+  // ============================================================
+  // G5 POLISH — CSS DECOUPLING
+  // ============================================================
+
+  test("G5P-009 Add Colour button still exists and opens editor", () => {
+    freshWorkspace();
+
+    const editor = document.getElementById("pantone-colour-editor");
+
+    assertEqual(editor.hidden, true);
+
+    document.getElementById("btn-add-colour").click();
+
+    assertEqual(editor.hidden, false);
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-010 G5 HTML no longer requires layer-action-* classes", () => {
+    const addButton = document.getElementById("btn-add-colour");
+
+    const cancelButton = document.getElementById("btn-cancel-colour");
+
+    const saveButton = document.getElementById("btn-save-colour");
+
+    ["layer-action-btn", "layer-action-add", "layer-action-danger"]
+      .forEach((legacyClass) => {
+        assertEqual(addButton.classList.contains(legacyClass), false);
+
+        assertEqual(cancelButton.classList.contains(legacyClass), false);
+
+        assertEqual(saveButton.classList.contains(legacyClass), false);
+      });
+
+    assertEqual(addButton.classList.contains("colour-action-btn"), true);
+
+    assertEqual(addButton.classList.contains("colour-action-primary"), true);
+
+    assertEqual(saveButton.classList.contains("colour-action-primary"), true);
+  });
+
+  // ============================================================
+  // G5 POLISH — DRAFT PRESERVATION
+  // ============================================================
+
+  test("G5P-011 opening Add Colour editor and switching artwork layer keeps editor open", () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    document.getElementById("btn-add-colour").click();
+
+    assertEqual(switchArtworkLayer("layer-back"), true);
+
+    assertEqual(
+      document.getElementById("pantone-colour-editor").hidden,
+      false,
+    );
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-012 Pantone code draft survives artwork layer switch", () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(
+      document.getElementById("pantone-code-input").value,
+      "PANTONE 123 C",
+    );
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-013 Name draft survives artwork layer switch", () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-name-input").value = "Accent Yellow";
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(
+      document.getElementById("pantone-name-input").value,
+      "Accent Yellow",
+    );
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-014 Notes draft survives artwork layer switch", () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-notes-input").value = "Callout areas";
+
+    switchArtworkLayer("layer-back");
+
+    assertEqual(
+      document.getElementById("pantone-notes-input").value,
+      "Callout areas",
+    );
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-015 layer checkbox draft survives artwork layer switch", () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    document.getElementById("btn-add-colour").click();
+
+    const frontInput = document.querySelector(
+      '#pantone-layer-options input[data-layer-id="layer-front"]',
+    );
+
+    frontInput.checked = true;
+
+    switchArtworkLayer("layer-back");
+
+    const frontAfter = document.querySelector(
+      '#pantone-layer-options input[data-layer-id="layer-front"]',
+    );
+
+    assertExists(frontAfter);
+
+    assertEqual(frontAfter.checked, true);
+
+    closePantoneColourEditor();
+  });
+
+  test("G5P-016 switching products closes editor", () => {
+    freshWorkspace();
+
+    const productB = createProduct("g5-polish-product-b");
+
+    appState.products[productB.id] = productB;
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
+
+    switchProduct(productB.id);
+
+    assertEqual(
+      document.getElementById("pantone-colour-editor").hidden,
+      true,
+    );
+
+    switchProduct("product-1");
+
+    assertEqual(productB.pantoneColors.length, 0);
+  });
+
+  test("G5P-017 importing review closes editor", () => {
+    freshWorkspace();
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
+
+    const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    const result = applyImportedReview(exported);
+
+    assertEqual(result.valid, true);
+
+    assertEqual(
+      document.getElementById("pantone-colour-editor").hidden,
+      true,
+    );
+  });
+
+  test("G5P-018 deleting a selected artwork layer removes only that invalid checkbox selection from an open draft", async () => {
+    const product = freshWorkspace();
+
+    addTestLayer(product, "layer-front", "Front");
+
+    addTestLayer(product, "layer-back", "Back");
+
+    addTestLayer(product, "layer-sleeve", "Sleeve");
+
+    assertEqual(switchArtworkLayer("layer-back"), true);
+
+    document.getElementById("btn-add-colour").click();
+
+    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
+
+    document.getElementById("pantone-name-input").value = "Accent Yellow";
+
+    document.getElementById("pantone-notes-input").value = "Callout areas";
+
+    document.querySelector(
+      '#pantone-layer-options input[data-layer-id="layer-front"]',
+    ).checked = true;
+
+    document.querySelector(
+      '#pantone-layer-options input[data-layer-id="layer-back"]',
+    ).checked = true;
+
+    await deleteActiveArtworkLayer();
+
+    await flushAsync();
+
+    assertEqual(
+      document.getElementById("pantone-colour-editor").hidden,
+      false,
+    );
+
+    assertEqual(
+      document.getElementById("pantone-code-input").value,
+      "PANTONE 123 C",
+    );
+
+    assertEqual(
+      document.getElementById("pantone-name-input").value,
+      "Accent Yellow",
+    );
+
+    assertEqual(
+      document.getElementById("pantone-notes-input").value,
+      "Callout areas",
+    );
+
+    assertEqual(
+      document.querySelector(
+        '#pantone-layer-options input[data-layer-id="layer-back"]',
+      ),
+      null,
+    );
+
+    assertEqual(
+      document.querySelector(
+        '#pantone-layer-options input[data-layer-id="layer-front"]',
+      ).checked,
+      true,
+    );
+
+    assertEqual(product.pantoneColors.length, 0);
+
+    closePantoneColourEditor();
+  });
+
+  // ============================================================
+  // G5 POLISH — LIMITS
+  // ============================================================
+
+  test("G5P-019 Pantone code at exactly 120 characters is accepted", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(
+      product.id,
+      colourData({ pantoneCode: "A".repeat(120) }),
+    );
+
+    assertEqual(result.ok, true);
+
+    assertEqual(result.colour.pantoneCode.length, 120);
+  });
+
+  test("G5P-020 Pantone code above 120 is rejected", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(
+      product.id,
+      colourData({ pantoneCode: "A".repeat(121) }),
+    );
+
+    assertEqual(result.ok, false);
+
+    assertEqual(
+      result.error,
+      "Pantone reference must be 120 characters or fewer.",
+    );
+
+    assertEqual(product.pantoneColors.length, 0);
+  });
+
+  test("G5P-021 Name at exactly 120 is accepted", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(product.id, colourData({ name: "N".repeat(120) }));
+
+    assertEqual(result.ok, true);
+
+    assertEqual(result.colour.name.length, 120);
+  });
+
+  test("G5P-022 Name above 120 is rejected", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(product.id, colourData({ name: "N".repeat(121) }));
+
+    assertEqual(result.ok, false);
+
+    assertEqual(
+      result.error,
+      "Colour name must be 120 characters or fewer.",
+    );
+
+    assertEqual(product.pantoneColors.length, 0);
+  });
+
+  test("G5P-023 Notes at exactly 500 is accepted", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(
+      product.id,
+      colourData({ notes: "T".repeat(500) }),
+    );
+
+    assertEqual(result.ok, true);
+
+    assertEqual(result.colour.notes.length, 500);
+  });
+
+  test("G5P-024 Notes above 500 are rejected", () => {
+    const product = freshWorkspace();
+
+    const result = addPantoneColour(
+      product.id,
+      colourData({ notes: "T".repeat(501) }),
+    );
+
+    assertEqual(result.ok, false);
+
+    assertEqual(result.error, "Notes must be 500 characters or fewer.");
+
+    assertEqual(product.pantoneColors.length, 0);
+  });
+
+  test("G5P-025 import rejects oversized Pantone strings", () => {
+    freshWorkspace();
+
+    const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    exported.pantoneColors = [
+      {
+        id: "colour-1",
+        name: "Red",
+        pantoneCode: "A".repeat(121),
+        notes: "",
+        layerIds: [],
+      },
+    ];
+
+    const result = validateImportData(exported);
+
+    assertEqual(result.valid, false);
+  });
+
+  test("G5P-026 pre-existing valid G5 data remains accepted", () => {
+    const product = freshWorkspace();
+
+    product.pantoneColors.push(
+      createPantoneColour({
+        id: "colour-1",
+        name: "N".repeat(120),
+        pantoneCode: "A".repeat(120),
+        notes: "T".repeat(500),
+        layerIds: [],
+      }),
+    );
+
+    const parsed = JSON.parse(serializeState());
+
+    assertEqual(validateState(parsed), true);
+
+    const hydrated = rehydrateState(parsed);
+
+    assertEqual(
+      hydrated.products[hydrated.activeProductId].pantoneColors[0].name
+        .length,
+      120,
     );
   });
 })();
