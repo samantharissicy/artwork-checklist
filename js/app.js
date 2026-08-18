@@ -1066,90 +1066,60 @@ function escapeHtml(value) {
 }
 
 /**
- * Builds the complete checklist interface for the currently active product.
+ * Creates the collapsible DOM elements for one checklist section.
  *
- * The checklist structure comes from the static sectionDefinitions template,
- * while mutable review values such as title, status, comments and pins come
- * from the active product stored in appState.
- *
- * This function recreates the checklist DOM from scratch and binds all
- * checklist-related event handlers, including:
- *
- * - section collapse and expansion;
- * - comment panel toggling and editing;
- * - inline copy editing;
- * - Approve and Reject actions;
- * - drag-and-drop preparation;
- * - pin highlighting on item hover.
- *
- * User-controlled currentTitle values are escaped before being inserted into
- * the HTML template.
- *
- * The function only renders the currently active product. Switching products
- * therefore requires the interface state to be rendered again.
- *
- * @returns {void}
+ * @param {Object} section - Static checklist section definition.
+ * @param {number} sectionIndex - Zero-based section position.
+ * @returns {{button: HTMLButtonElement, content: HTMLDivElement}}
  */
-function renderChecklist() {
-  const checklistElement = document.getElementById("checklist");
+function createChecklistSectionElements(section, sectionIndex) {
+  const button = document.createElement("button");
 
-  if (!checklistElement) {
-    return;
-  }
+  button.type = "button";
 
-  checklistElement.innerHTML = "";
+  button.className = "section-btn" + (sectionIndex > 0 ? " collapsed" : "");
 
-  sectionDefinitions.forEach((section, sectionIndex) => {
-    const sectionButton = document.createElement("button");
+  button.innerHTML = `
+    <span>${escapeHtml(section.title)}</span>
 
-    sectionButton.className =
-      "section-btn" + (sectionIndex > 0 ? " collapsed" : "");
+    <svg
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M19 9l-7 7-7-7"/>
+    </svg>
+  `;
 
-    sectionButton.innerHTML = `
-      <span>${section.title}</span>
+  const content = document.createElement("div");
 
-      <svg
-        width="14"
-        height="14"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        viewBox="0 0 24 24"
-      >
-        <path d="M19 9l-7 7-7-7"/>
-      </svg>
-    `;
+  content.className = "section-content" + (sectionIndex > 0 ? " hidden" : "");
 
-    const sectionContent = document.createElement("div");
+  button.addEventListener("click", () => {
+    content.classList.toggle("hidden");
 
-    sectionContent.className =
-      "section-content" + (sectionIndex > 0 ? " hidden" : "");
+    button.classList.toggle("collapsed");
+  });
 
-    sectionButton.addEventListener("click", () => {
-      sectionContent.classList.toggle("hidden");
+  return {
+    button,
+    content,
+  };
+}
 
-      sectionButton.classList.toggle("collapsed");
-    });
-
-    section.items.forEach((itemDefinition) => {
-      const item = getItemById(itemDefinition.id);
-
-      if (!item) {
-        return;
-      }
-
-      const itemElement = document.createElement("div");
-
-      itemElement.className = "check-item";
-
-      itemElement.draggable = true;
-
-      itemElement.dataset.id = item.id;
-
-      itemElement.dataset.status = item.status;
-
-      itemElement.innerHTML = `
-        <div class="check-item-body">
+/**
+ * Builds the static markup used by one rendered checklist item.
+ *
+ * @param {ReviewItem} item - Review item to represent.
+ * @returns {string} Checklist item HTML.
+ */
+function buildChecklistItemMarkup(item) {
+  return `
+    <div class="check-item-body">
 
           <div class="check-item-top">
 
@@ -1330,163 +1300,238 @@ function renderChecklist() {
           </svg>
 
         </button>
-      `;
+  `;
+}
 
-      const approveButton = itemElement.querySelector(
-        '[data-action="approve"]',
-      );
+/**
+ * Registers all interactions owned by one checklist item element.
+ *
+ * @param {HTMLElement} itemElement - Rendered checklist item element.
+ * @param {ReviewItem} item - Review item represented by the element.
+ * @returns {void}
+ */
+function bindChecklistItemEvents(itemElement, item) {
+  const approveButton = itemElement.querySelector('[data-action="approve"]');
 
-      const rejectButton = itemElement.querySelector('[data-action="reject"]');
+  const rejectButton = itemElement.querySelector('[data-action="reject"]');
 
-      const commentButton = itemElement.querySelector(
-        '[data-action="comment"]',
-      );
+  const commentButton = itemElement.querySelector('[data-action="comment"]');
 
-      const commentTextarea = itemElement.querySelector(
-        '[data-role="comment-input"]',
-      );
+  const commentTextarea = itemElement.querySelector(
+    '[data-role="comment-input"]',
+  );
 
-      const editTitleButton = itemElement.querySelector(
-        '[data-action="edit-title"]',
-      );
+  const editTitleButton = itemElement.querySelector(
+    '[data-action="edit-title"]',
+  );
 
-      const titleEditInput = itemElement.querySelector(
-        '[data-role="title-edit-input"]',
-      );
+  const titleEditInput = itemElement.querySelector(
+    '[data-role="title-edit-input"]',
+  );
 
-      const restoreTitleButton = itemElement.querySelector(
-        '[data-action="restore-title"]',
-      );
+  const restoreTitleButton = itemElement.querySelector(
+    '[data-action="restore-title"]',
+  );
 
-      // ============================================================
-      // COMMENT EVENTS
-      // ============================================================
+  if (
+    !approveButton ||
+    !rejectButton ||
+    !commentButton ||
+    !commentTextarea ||
+    !editTitleButton ||
+    !titleEditInput ||
+    !restoreTitleButton
+  ) {
+    console.warn(`Unable to bind checklist item "${item.id}".`);
 
-      commentButton.addEventListener("click", (event) => {
-        event.stopPropagation();
+    return;
+  }
 
-        toggleCommentPanel(item.id);
-      });
+  // ============================================================
+  // COMMENT EVENTS
+  // ============================================================
 
-      commentTextarea.addEventListener("input", (event) => {
-        if (!setItemComment(item.id, event.target.value)) {
-          return;
-        }
+  commentButton.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-        saveStateToStorage();
+    toggleCommentPanel(item.id);
+  });
 
-        renderCommentState(item.id);
-      });
+  commentTextarea.addEventListener("input", (event) => {
+    if (!setItemComment(item.id, event.target.value)) {
+      return;
+    }
 
-      commentTextarea.addEventListener("pointerdown", (event) => {
-        event.stopPropagation();
-      });
+    saveStateToStorage();
 
-      commentTextarea.addEventListener("click", (event) => {
-        event.stopPropagation();
-      });
+    renderCommentState(item.id);
+  });
 
-      editTitleButton.addEventListener("click", (event) => {
-        event.stopPropagation();
+  commentTextarea.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
 
-        if (editingTitleItemId === item.id) {
-          commitTitleEdit(item.id);
-          return;
-        }
+  commentTextarea.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
 
-        beginTitleEdit(item.id);
-      });
+  // ============================================================
+  // TITLE EDIT EVENTS
+  // ============================================================
 
-      titleEditInput.addEventListener("keydown", (event) => {
-        event.stopPropagation();
+  editTitleButton.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-        if (event.key === "Enter") {
-          event.preventDefault();
+    if (editingTitleItemId === item.id) {
+      commitTitleEdit(item.id);
 
-          commitTitleEdit(item.id);
-          return;
-        }
+      return;
+    }
 
-        if (event.key === "Escape") {
-          event.preventDefault();
+    beginTitleEdit(item.id);
+  });
 
-          cancelTitleEdit(item.id);
-        }
-      });
+  titleEditInput.addEventListener("keydown", (event) => {
+    event.stopPropagation();
 
-      titleEditInput.addEventListener("blur", () => {
-        if (editingTitleItemId !== item.id) {
-          return;
-        }
+    if (event.key === "Enter") {
+      event.preventDefault();
 
-        commitTitleEdit(item.id);
-      });
+      commitTitleEdit(item.id);
 
-      titleEditInput.addEventListener("pointerdown", (event) => {
-        event.stopPropagation();
-      });
+      return;
+    }
 
-      restoreTitleButton.addEventListener("click", (event) => {
-        event.stopPropagation();
+    if (event.key === "Escape") {
+      event.preventDefault();
 
-        restoreOriginalTitle(item.id);
-      });
+      cancelTitleEdit(item.id);
+    }
+  });
 
-      // ============================================================
-      // REVIEW ACTION EVENTS
-      // ============================================================
+  titleEditInput.addEventListener("blur", () => {
+    if (editingTitleItemId === item.id) {
+      commitTitleEdit(item.id);
+    }
+  });
 
-      approveButton.addEventListener("click", (event) => {
-        event.stopPropagation();
+  titleEditInput.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
 
-        handleReviewAction(item.id, REVIEW_STATUSES.APPROVED);
-      });
+  restoreTitleButton.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-      rejectButton.addEventListener("click", (event) => {
-        event.stopPropagation();
+    restoreOriginalTitle(item.id);
+  });
 
-        handleReviewAction(item.id, REVIEW_STATUSES.REJECTED);
-      });
+  // ============================================================
+  // REVIEW EVENTS
+  // ============================================================
 
-      // ============================================================
-      // DRAG ITEM TO ARTWORK
-      // ============================================================
+  approveButton.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-      itemElement.addEventListener("dragstart", (event) => {
-        /*
-         * Interactive controls inside the checklist item must not
-         * start an artwork drag operation.
-         */
-        if (event.target.closest("button, textarea, input, label")) {
-          event.preventDefault();
-          return;
-        }
+    handleReviewAction(item.id, REVIEW_STATUSES.APPROVED);
+  });
 
-        event.dataTransfer.setData("text/plain", item.id);
+  rejectButton.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-        event.dataTransfer.effectAllowed = "copy";
+    handleReviewAction(item.id, REVIEW_STATUSES.REJECTED);
+  });
 
-        itemElement.classList.add("dragging");
-      });
+  // ============================================================
+  // ARTWORK DRAG / PIN HOVER
+  // ============================================================
 
-      itemElement.addEventListener("dragend", () => {
-        itemElement.classList.remove("dragging");
-      });
+  itemElement.addEventListener("dragstart", (event) => {
+    if (event.target.closest("button, textarea, input, label")) {
+      event.preventDefault();
 
-      itemElement.addEventListener("mouseenter", () => {
-        highlightPin(item.id);
-      });
+      return;
+    }
 
-      itemElement.addEventListener("mouseleave", () => {
-        unhighlightPin(item.id);
-      });
+    event.dataTransfer.setData("text/plain", item.id);
 
-      sectionContent.appendChild(itemElement);
+    event.dataTransfer.effectAllowed = "copy";
+
+    itemElement.classList.add("dragging");
+  });
+
+  itemElement.addEventListener("dragend", () => {
+    itemElement.classList.remove("dragging");
+  });
+
+  itemElement.addEventListener("mouseenter", () => {
+    highlightPin(item.id);
+  });
+
+  itemElement.addEventListener("mouseleave", () => {
+    unhighlightPin(item.id);
+  });
+}
+
+/**
+ * Creates one checklist item DOM node and binds its interactions.
+ *
+ * @param {ReviewItem} item - Review item to render.
+ * @returns {HTMLDivElement} Fully configured checklist item element.
+ */
+function createChecklistItemElement(item) {
+  const itemElement = document.createElement("div");
+
+  itemElement.className = "check-item";
+
+  itemElement.draggable = true;
+
+  itemElement.dataset.id = item.id;
+
+  itemElement.dataset.status = item.status;
+
+  itemElement.innerHTML = buildChecklistItemMarkup(item);
+
+  bindChecklistItemEvents(itemElement, item);
+
+  return itemElement;
+}
+
+/**
+ * Builds the complete checklist interface for the active product.
+ *
+ * Structural creation is delegated to specialized helpers so this function
+ * remains responsible only for coordinating section and item rendering.
+ *
+ * @returns {void}
+ */
+function renderChecklist() {
+  const checklistElement = document.getElementById("checklist");
+
+  if (!checklistElement) {
+    return;
+  }
+
+  checklistElement.innerHTML = "";
+
+  sectionDefinitions.forEach((section, sectionIndex) => {
+    const { button, content } = createChecklistSectionElements(
+      section,
+      sectionIndex,
+    );
+
+    section.items.forEach((itemDefinition) => {
+      const item = getItemById(itemDefinition.id);
+
+      if (!item) {
+        return;
+      }
+
+      const itemElement = createChecklistItemElement(item);
+
+      content.appendChild(itemElement);
     });
 
-    checklistElement.appendChild(sectionButton);
-
-    checklistElement.appendChild(sectionContent);
+    checklistElement.append(button, content);
   });
 }
 
@@ -5819,63 +5864,7 @@ function applyImportedReview(importedData) {
  * @returns {void}
  */
 function openCheck() {
-  const fileInput = document.getElementById("check-file-input");
-
-  if (!fileInput) {
-    console.error("Check file input not found.");
-
-    return;
-  }
-
-  fileInput.value = "";
-
-  fileInput.onchange = function (event) {
-    const file = event.target.files[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!file.name.toLowerCase().endsWith(".json")) {
-      showToast("Please select a JSON review file.");
-
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = function () {
-      const importedData = deserializeState(reader.result);
-
-      if (!importedData) {
-        showToast("Unable to parse review file.");
-
-        return;
-      }
-
-      const result = applyImportedReview(importedData);
-
-      if (!result.valid) {
-        console.warn("Review import rejected:", result.message);
-
-        showToast(result.message);
-
-        return;
-      }
-
-      showToast("Check opened successfully.");
-    };
-
-    reader.onerror = function () {
-      console.error("Failed to read check file.");
-
-      showToast("Unable to read check file.");
-    };
-
-    reader.readAsText(file);
-  };
-
-  fileInput.click();
+  selectCheckFile();
 }
 
 function selectCheckFile() {
@@ -5883,6 +5872,7 @@ function selectCheckFile() {
 
   if (!fileInput) {
     console.error("Check file input not found.");
+
     return;
   }
 
@@ -5902,10 +5892,47 @@ function bindCheckInput() {
 }
 
 async function handleCheckFileChange(event) {
-  // file validation
-  // read
-  // deserialize
-  // applyImportedReview
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      showToast("Please select a JSON review file.");
+
+      return;
+    }
+
+    const serializedReview = await file.text();
+
+    const importedData = deserializeState(serializedReview);
+
+    if (!importedData) {
+      showToast("Unable to parse review file.");
+
+      return;
+    }
+
+    const result = applyImportedReview(importedData);
+
+    if (!result.valid) {
+      console.warn("Review import rejected:", result.message);
+
+      showToast(result.message);
+
+      return;
+    }
+
+    showToast("Check opened successfully.");
+  } catch (error) {
+    console.error("Failed to read check file:", error);
+
+    showToast("Unable to read check file.");
+  } finally {
+    event.target.value = "";
+  }
 }
 
 /*
