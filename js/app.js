@@ -512,6 +512,8 @@ function setItemComment(itemId, comment) {
 
   touchActiveProduct();
 
+  saveStateToStorage();
+
   return true;
 }
 
@@ -1371,17 +1373,21 @@ function handleReviewAction(itemId, requestedStatus) {
 
   updateProgress();
 
-  if (nextStatus === REVIEW_STATUSES.REJECTED) {
-    const itemElement = document.querySelector(
-      `.check-item[data-id="${itemId}"]`,
-    );
+if (nextStatus === REVIEW_STATUSES.REJECTED) {
+  const itemElement = document.querySelector(
+    `.check-item[data-id="${itemId}"]`,
+  );
 
-    const textarea = itemElement?.querySelector('[data-role="comment-input"]');
+  const textarea = itemElement?.querySelector(
+    '[data-role="comment-input"]',
+  );
 
-    if (textarea) {
-      textarea.focus();
-    }
+  if (textarea) {
+    textarea.focus();
   }
+}
+
+saveStateToStorage();
 }
 
 // ============================================================
@@ -1476,6 +1482,8 @@ function bindProductInputs() {
       product.brand = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 
@@ -1487,9 +1495,11 @@ function bindProductInputs() {
         return;
       }
 
-      product.productName = event.target.value;
+    product.productName = event.target.value;
 
-      touchActiveProduct();
+touchActiveProduct();
+
+saveStateToStorage();
     });
   }
 
@@ -1504,6 +1514,8 @@ function bindProductInputs() {
       product.weight = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 
@@ -1518,6 +1530,8 @@ function bindProductInputs() {
       product.sku = event.target.value;
 
       touchActiveProduct();
+
+      saveStateToStorage();
     });
   }
 }
@@ -1713,7 +1727,175 @@ function clearPins() {
 
   showToast("All pins cleared");
 }
+// ============================================================
+// LAYER D — PERSISTENCE
+// D2 — LOCAL STORAGE
+// ============================================================
 
+const STORAGE_KEY = "artworkChecklist:v1";
+// ============================================================
+// STATE SERIALIZATION
+// ============================================================
+
+function serializeState() {
+  return JSON.stringify(appState);
+}
+// ============================================================
+// LAYER D — PERSISTENCE
+// D1 — DESERIALIZATION
+// ============================================================
+
+function deserializeState(serializedState) {
+  try {
+    return JSON.parse(serializedState);
+  } catch (error) {
+    console.error("Failed to deserialize state:", error);
+
+    return null;
+  }
+}
+function validateState(state) {
+  if (!state || typeof state !== "object") {
+    return false;
+  }
+
+  if (state.schemaVersion !== 1) {
+    return false;
+  }
+
+  if (!state.activeProductId) {
+    return false;
+  }
+
+  if (!state.products || typeof state.products !== "object") {
+    return false;
+  }
+
+  return true;
+}
+function migrateState(state) {
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  if (state.schemaVersion === 1) {
+    return state;
+  }
+
+  console.warn(
+    `Unsupported schema version: ${state.schemaVersion}`,
+  );
+
+  return null;
+}
+function loadStateFromStorage() {
+  try {
+    const serializedState = localStorage.getItem("artworkChecklist:v1");
+
+    if (!serializedState) {
+      return false;
+    }
+
+    const parsedState = deserializeState(serializedState);
+
+    if (!parsedState) {
+      return false;
+    }
+
+    const migratedState = migrateState(parsedState);
+
+    if (!migratedState) {
+      return false;
+    }
+
+    if (!validateState(migratedState)) {
+      console.warn("Saved state failed validation.");
+      return false;
+    }
+
+    appState.schemaVersion = migratedState.schemaVersion;
+    appState.activeProductId = migratedState.activeProductId;
+    appState.products = migratedState.products;
+
+    return true;
+  } catch (error) {
+    console.error("Failed to load state from storage:", error);
+
+    return false;
+  }
+}
+function saveStateToStorage() {
+  try {
+    const serializedState = serializeState();
+
+    localStorage.setItem(STORAGE_KEY, serializedState);
+   
+    showToast("Saved locally");
+
+    return true;
+  } catch (error) {
+    console.error("Failed to save state to localStorage:", error);
+
+    return false;
+  }
+}
+// ============================================================
+// VERSIONED JSON EXPORT — D3
+// ============================================================
+
+function buildExportData() {
+  const product = getActiveProduct ();
+
+  if (!product) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+
+    exportedAt: new Date().toISOString(),
+
+    product: {
+      id: product.id,
+      brand: product.brand,
+      productName: product.productName,
+      weight: product.weight,
+      sku: product.sku,
+    },
+
+    items: product.items,
+
+    artwork: product.artwork,
+
+    reviewer: product.reviewer,
+  };
+}
+function exportReviewAsJson() {
+  const data = buildExportData();
+
+  if (!data) {
+    showToast("Unable to export review.");
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+
+  link.download = `artwork-review-${Date.now()}.json`;
+
+  link.click();
+
+  URL.revokeObjectURL(url);
+
+  showToast("Review exported successfully.");
+}
 // ============================================================
 // LEGACY EXPORT
 // ============================================================
@@ -1841,8 +2023,103 @@ function renderAppState() {
 // ============================================================
 // INITIALIZATION
 // ============================================================
+function openCheck() {
+  const fileInput = document.getElementById("check-file-input");
 
+  if (!fileInput) {
+    console.error("Check file input not found.");
+    return;
+  }
+
+  fileInput.value = "";
+
+  fileInput.onchange = function (event) {
+    const file = event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function () {
+      try {
+        console.log("Check file loaded:", file.name);
+
+        const importedData = JSON.parse(reader.result);
+
+        console.log("Imported check data:", importedData);
+
+        if (!importedData || typeof importedData !== "object") {
+          throw new Error("Invalid check file.");
+        }
+
+        if (!importedData.items || typeof importedData.items !== "object") {
+          throw new Error("Check file does not contain checklist items.");
+        }
+
+        const productId =
+          importedData.product && importedData.product.id
+            ? importedData.product.id
+            : "product-1";
+
+        const existingProduct =
+          appState.products[productId] || appState.products["product-1"];
+
+        if (!existingProduct) {
+          throw new Error("No product available to import into.");
+        }
+
+        const importedProduct = {
+          ...existingProduct,
+          ...(importedData.product || {}),
+          id: productId,
+          items: {
+            ...existingProduct.items,
+            ...importedData.items,
+          },
+          artwork:
+            importedData.artwork !== undefined
+              ? importedData.artwork
+              : existingProduct.artwork,
+          reviewer:
+            importedData.reviewer !== undefined
+              ? importedData.reviewer
+              : existingProduct.reviewer,
+          updatedAt: new Date().toISOString(),
+        };
+
+        appState.products[productId] = importedProduct;
+        appState.activeProductId = productId;
+
+        saveStateToStorage();
+
+        renderChecklist();
+        bindProductInputs();
+        renderAppState();
+
+        showToast("Check opened successfully.");
+
+        console.log("Check imported successfully:", productId);
+      } catch (error) {
+        console.error("Failed to import check:", error);
+        showToast("Unable to open check file.");
+      }
+    };
+
+    reader.onerror = function () {
+      console.error("Failed to read check file.");
+      showToast("Unable to read check file.");
+    };
+
+    reader.readAsText(file);
+  };
+
+  fileInput.click();
+}
 function initializeApp() {
+  loadStateFromStorage();
+
   renderChecklist();
 
   bindProductInputs();
