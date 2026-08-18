@@ -1045,6 +1045,19 @@ function validateActiveProduct() {
 // CHECKLIST RENDERING
 // ============================================================
 
+/**
+ * Escapes characters that have special meaning in HTML.
+ *
+ * This helper is used when application-controlled or user-controlled text
+ * must be inserted into an HTML template string. Escaping prevents values
+ * such as "<", ">", quotes and ampersands from being interpreted as markup.
+ *
+ * Values are converted to strings before escaping so that the function
+ * behaves consistently with numbers, null-like values and other primitives.
+ *
+ * @param {*} value - Value that will be converted to text and escaped.
+ * @returns {string} HTML-safe string.
+ */
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -1054,6 +1067,31 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * Builds the complete checklist interface for the currently active product.
+ *
+ * The checklist structure comes from the static sectionDefinitions template,
+ * while mutable review values such as title, status, comments and pins come
+ * from the active product stored in appState.
+ *
+ * This function recreates the checklist DOM from scratch and binds all
+ * checklist-related event handlers, including:
+ *
+ * - section collapse and expansion;
+ * - comment panel toggling and editing;
+ * - inline copy editing;
+ * - Approve and Reject actions;
+ * - drag-and-drop preparation;
+ * - pin highlighting on item hover.
+ *
+ * User-controlled currentTitle values are escaped before being inserted into
+ * the HTML template.
+ *
+ * The function only renders the currently active product. Switching products
+ * therefore requires the interface state to be rendered again.
+ *
+ * @returns {void}
+ */
 function renderChecklist() {
   const checklistElement = document.getElementById("checklist");
 
@@ -1462,6 +1500,21 @@ const openCommentItemIds = new Set();
 
 let editingTitleItemId = null;
 
+/**
+ * Clears temporary checklist UI state that must not leak between products.
+ *
+ * This resets:
+ * - open comment panels;
+ * - the item currently being edited inline.
+ *
+ * The function intentionally does not modify appState because these values
+ * describe interface state rather than persisted review data.
+ *
+ * It also intentionally leaves currentZoom unchanged because zoom is treated
+ * as a viewer-level preference shared across products.
+ *
+ * @returns {void}
+ */
 function resetTransientReviewUiState() {
   openCommentItemIds.clear();
 
@@ -1474,6 +1527,21 @@ let currentZoom = 1;
 // ZOOM
 // ============================================================
 
+/**
+ * Changes the visual zoom level of the artwork viewer.
+ *
+ * The supplied delta is added to the current zoom and the result is clamped
+ * between 0.5 and 2, corresponding to 50% and 200%.
+ *
+ * Zoom affects only the rendered artwork wrapper. It does not modify artwork
+ * metadata or persisted pin coordinates. Pins remain stable because their
+ * positions are stored as normalized ratios rather than zoom-dependent pixels.
+ *
+ * The function also updates the visible percentage label in the toolbar.
+ *
+ * @param {number} delta - Amount to add to the current zoom level.
+ * @returns {void}
+ */
 function zoom(delta) {
   currentZoom = Math.max(0.5, Math.min(2, currentZoom + delta));
 
@@ -1494,6 +1562,19 @@ function zoom(delta) {
 // COMMENT UI
 // ============================================================
 
+/**
+ * Toggles the visibility state of a checklist item's comment editor.
+ *
+ * Open comment panels are tracked in the temporary openCommentItemIds Set
+ * rather than in appState because panel visibility is a UI concern and must
+ * not be persisted with the review.
+ *
+ * After changing the temporary state, the item's comment interface is
+ * re-rendered to reflect the new visibility.
+ *
+ * @param {string} itemId - Checklist item whose comment panel should toggle.
+ * @returns {void}
+ */
 function toggleCommentPanel(itemId) {
   if (openCommentItemIds.has(itemId)) {
     openCommentItemIds.delete(itemId);
@@ -1504,6 +1585,20 @@ function toggleCommentPanel(itemId) {
   renderCommentState(itemId);
 }
 
+/**
+ * Opens a checklist item's comment editor.
+ *
+ * Unlike toggleCommentPanel(), this function always leaves the panel open.
+ * It is useful for workflows that require comment input, such as rejecting
+ * an item.
+ *
+ * When shouldFocus is true, the function attempts to move keyboard focus
+ * directly to the item's comment textarea after rendering.
+ *
+ * @param {string} itemId - Checklist item whose comment panel should open.
+ * @param {boolean} [shouldFocus=false] - Whether to focus the comment textarea.
+ * @returns {void}
+ */
 function openCommentPanel(itemId, shouldFocus = false) {
   openCommentItemIds.add(itemId);
 
@@ -1522,6 +1617,32 @@ function openCommentPanel(itemId, shouldFocus = false) {
   }
 }
 
+/**
+ * Synchronizes the comment-related UI of one checklist item with domain and
+ * temporary interface state.
+ *
+ * The function reads:
+ * - item.comment from appState;
+ * - item validation from validateItemState();
+ * - panel visibility from openCommentItemIds.
+ *
+ * It then updates:
+ * - comment panel visibility;
+ * - textarea contents;
+ * - aria-invalid;
+ * - comment-button visual states;
+ * - aria-expanded;
+ * - validation error visibility and text;
+ * - the item's data-valid attribute.
+ *
+ * A rejected item without a non-empty comment is visually marked as invalid.
+ *
+ * This function does not mutate the review domain or persist data. Its
+ * responsibility is exclusively to represent the existing state in the DOM.
+ *
+ * @param {string} itemId - Checklist item whose comment UI should be rendered.
+ * @returns {void}
+ */
 function renderCommentState(itemId) {
   const item = getItemById(itemId);
 
@@ -1594,10 +1715,34 @@ function renderCommentState(itemId) {
 // INLINE COPY EDITING
 // ============================================================
 
+/**
+ * Determines whether the current item copy differs from its immutable
+ * original checklist title.
+ *
+ * This comparison drives the "Edited" indicator and the
+ * "Restore original" interface.
+ *
+ * @param {ReviewItem} item - Checklist item to inspect.
+ * @returns {boolean} True when currentTitle differs from originalTitle.
+ */
 function isItemTitleEdited(item) {
   return item.currentTitle !== item.originalTitle;
 }
 
+/**
+ * Starts inline copy editing for a checklist item.
+ *
+ * The item ID is stored in the temporary editingTitleItemId UI state and the
+ * item is re-rendered so that its normal title is replaced by the edit input.
+ *
+ * After rendering, the input is focused and its existing value is selected,
+ * allowing the reviewer to immediately type a replacement.
+ *
+ * No domain data is modified until commitTitleEdit() succeeds.
+ *
+ * @param {string} itemId - Checklist item whose currentTitle should be edited.
+ * @returns {void}
+ */
 function beginTitleEdit(itemId) {
   const item = getItemById(itemId);
 
@@ -1621,6 +1766,24 @@ function beginTitleEdit(itemId) {
   }
 }
 
+/**
+ * Commits the value currently entered in an item's inline title editor.
+ *
+ * The proposed value is trimmed before validation. Empty or whitespace-only
+ * titles are rejected and the edit is cancelled without changing currentTitle.
+ *
+ * On success the function:
+ * - updates currentTitle through the domain setter;
+ * - exits edit mode;
+ * - re-renders the checklist item;
+ * - refreshes the item's pin tooltip when a pin exists;
+ * - persists the updated review to localStorage.
+ *
+ * originalTitle is never modified.
+ *
+ * @param {string} itemId - Checklist item whose inline edit should be committed.
+ * @returns {boolean} True when the title was successfully saved.
+ */
 function commitTitleEdit(itemId) {
   const item = getItemById(itemId);
 
@@ -1669,6 +1832,15 @@ function commitTitleEdit(itemId) {
   return true;
 }
 
+/**
+ * Cancels inline editing for a checklist item without changing its domain data.
+ *
+ * The function only acts when the supplied item is currently being edited.
+ * It clears the temporary editing state and restores the normal rendered view.
+ *
+ * @param {string} itemId - Checklist item whose edit session should be cancelled.
+ * @returns {void}
+ */
 function cancelTitleEdit(itemId) {
   if (editingTitleItemId !== itemId) {
     return;
@@ -1679,6 +1851,21 @@ function cancelTitleEdit(itemId) {
   renderItemState(itemId);
 }
 
+/**
+ * Restores a checklist item's editable title to its immutable original value.
+ *
+ * Restoration is performed through setItemCurrentTitle() so that normal
+ * domain mutation rules remain centralized.
+ *
+ * On success the function:
+ * - exits inline edit mode;
+ * - re-renders the checklist item;
+ * - updates the pin tooltip when the item is pinned;
+ * - persists the restored value.
+ *
+ * @param {string} itemId - Checklist item whose original title should be restored.
+ * @returns {boolean} True when the original title was successfully restored.
+ */
 function restoreOriginalTitle(itemId) {
   const item = getItemById(itemId);
 
