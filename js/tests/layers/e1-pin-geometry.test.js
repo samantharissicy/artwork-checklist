@@ -18,6 +18,10 @@
     resetItem1A,
   } = window.ArtworkTests;
 
+  function getActiveLayerId() {
+    return getActiveArtworkLayer(getActiveProduct()).id;
+  }
+
   test("E1 normalized pin must stay between 0 and 1", () => {
     assertEqual(
       isNormalizedPin({
@@ -86,7 +90,10 @@
       yRatio: 0.75,
     });
 
-    const originalPin = getItemPinForLayer(getItemById("1a"), "layer-main");
+    const originalPin = getItemPinForLayer(
+      getItemById("1a"),
+      getActiveLayerId(),
+    );
 
     const previousZoom = currentZoom;
 
@@ -94,7 +101,7 @@
     renderPin("1a");
 
     assertDeepEqual(
-      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
       originalPin,
     );
 
@@ -102,7 +109,7 @@
     renderPin("1a");
 
     assertDeepEqual(
-      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
       originalPin,
     );
 
@@ -110,7 +117,7 @@
     renderPin("1a");
 
     assertDeepEqual(
-      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
       originalPin,
     );
 
@@ -179,7 +186,7 @@
 
     assertDeepEqual(pins, [
       {
-        layerId: "layer-main",
+        layerId: getActiveLayerId(),
         xRatio: 0.25,
         yRatio: 0.75,
       },
@@ -197,7 +204,7 @@
     const data = buildExportData();
 
     assertDeepEqual(data.items["1a"].pins[0], {
-      layerId: "layer-main",
+      layerId: getActiveLayerId(),
       xRatio: 0.25,
       yRatio: 0.75,
     });

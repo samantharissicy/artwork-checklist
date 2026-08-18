@@ -22,6 +22,10 @@
     getOriginalTitleElement,
   } = window.ArtworkTests;
 
+  function getActiveLayerId() {
+    return getActiveArtworkLayer(getActiveProduct()).id;
+  }
+
   test("every rendered item has an Edit control", () => {
     document.querySelectorAll(".check-item").forEach((item) => {
       assertExists(item.querySelector('[data-action="edit-title"]'));
@@ -186,7 +190,7 @@
 
     assertEqual(item.comment, "Keep this comment.");
 
-    assertDeepEqual(getItemPinForLayer(item, "layer-main"), {
+    assertDeepEqual(getItemPinForLayer(item, getActiveLayerId()), {
       xRatio: 0.25,
       yRatio: 0.5,
     });

@@ -19,6 +19,10 @@
     getTitleEditInput,
   } = window.ArtworkTests;
 
+  function getActiveLayerId() {
+    return getActiveArtworkLayer(getActiveProduct()).id;
+  }
+
   test("D1 serialize and deserialize preserve review state", () => {
     resetItem1A();
 
@@ -49,7 +53,7 @@
 
     assertDeepEqual(item.pins, [
       {
-        layerId: "layer-main",
+        layerId: getActiveLayerId(),
         xRatio: 0.25,
         yRatio: 0.5,
       },
@@ -121,7 +125,7 @@
     assertDeepEqual(
       stored.products[stored.activeProductId].items["1a"].pins[0],
       {
-        layerId: "layer-main",
+        layerId: getActiveLayerId(),
         xRatio: 0.25,
         yRatio: 0.5,
       },
@@ -188,7 +192,7 @@
     assertEqual(data.items["1a"].currentTitle, "Exported Legal Name");
 
     assertDeepEqual(data.items["1a"].pins[0], {
-      layerId: "layer-main",
+      layerId: getActiveLayerId(),
       xRatio: 0.25,
       yRatio: 0.5,
     });
@@ -238,7 +242,7 @@
 
     assertEqual(restored.currentTitle, "Roundtrip Title");
 
-    assertDeepEqual(getItemPinForLayer(restored, "layer-main"), {
+    assertDeepEqual(getItemPinForLayer(restored, getActiveLayerId()), {
       xRatio: 0.25,
       yRatio: 0.5,
     });

@@ -18,6 +18,10 @@
     resetArtworkForTest,
   } = window.ArtworkTests;
 
+  function getActiveLayerId() {
+    return getActiveArtworkLayer(getActiveProduct()).id;
+  }
+
   test("E2 validates complete artwork metadata", () => {
     const metadata = createTestArtworkMetadata();
 
@@ -82,10 +86,13 @@
 
     assertDeepEqual(getActiveArtworkMetadata(product), originalArtwork);
 
-    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
-      xRatio: 0.3,
-      yRatio: 0.4,
-    });
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
+      {
+        xRatio: 0.3,
+        yRatio: 0.4,
+      },
+    );
   });
 
   test("E2 confirmed artwork replacement clears pins", () => {
@@ -110,7 +117,7 @@
     assertEqual(result.pinsCleared, 1);
 
     assertEqual(
-      getItemPinForLayer(getItemById("1a"), "layer-main"),
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
       null,
     );
 
@@ -147,10 +154,13 @@
 
     assertEqual(confirmationCalls, 0);
 
-    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
-      xRatio: 0.45,
-      yRatio: 0.55,
-    });
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
+      {
+        xRatio: 0.45,
+        yRatio: 0.55,
+      },
+    );
   });
 
   test("E2 invalid artwork metadata makes serialized state invalid", () => {
@@ -178,10 +188,13 @@
 
     const parsed = deserializeState(serializeState());
 
-    assertDeepEqual(
-      parsed.products[parsed.activeProductId].artworkLayers[0].artwork,
-      metadata,
-    );
+    const parsedActiveLayer = parsed.products[
+      parsed.activeProductId
+    ].artworkLayers.find((layer) => layer.id === getActiveLayerId());
+
+    assertExists(parsedActiveLayer);
+
+    assertDeepEqual(parsedActiveLayer.artwork, metadata);
   });
 
   test("E2 export includes artwork metadata", () => {
@@ -195,9 +208,15 @@
 
     const data = buildExportData();
 
-    assertDeepEqual(data.artworkLayers[0].artwork, metadata);
+    const exportedActiveLayer = data.artworkLayers.find(
+      (layer) => layer.id === getActiveLayerId(),
+    );
 
-    assertEqual(data.activeArtworkLayerId, "layer-main");
+    assertExists(exportedActiveLayer);
+
+    assertDeepEqual(exportedActiveLayer.artwork, metadata);
+
+    assertEqual(data.activeArtworkLayerId, getActiveLayerId());
   });
 
   test("E2 export import roundtrip restores artwork metadata", () => {

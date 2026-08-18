@@ -21,6 +21,10 @@
     getItemTitleElement,
   } = window.ArtworkTests;
 
+  function getActiveLayerId() {
+    return getActiveArtworkLayer(getActiveProduct()).id;
+  }
+
   test("appState uses the current schema version", () => {
     assertExists(appState, "appState must exist.");
 
@@ -324,10 +328,13 @@
       yRatio: 0.5,
     });
 
-    assertDeepEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), {
-      xRatio: 0.25,
-      yRatio: 0.5,
-    });
+    assertDeepEqual(
+      getItemPinForLayer(getItemById("1a"), getActiveLayerId()),
+      {
+        xRatio: 0.25,
+        yRatio: 0.5,
+      },
+    );
   });
 
   test("renderAppState renders a pin stored in appState", () => {
@@ -376,7 +383,7 @@
 
     clearPins();
 
-    assertEqual(getItemPinForLayer(getItemById("1a"), "layer-main"), null);
+    assertEqual(getItemPinForLayer(getItemById("1a"), getActiveLayerId()), null);
 
     const pin = document.querySelector('.pin[data-pid="1a"]');
 
@@ -436,7 +443,7 @@
 
     layer.dispatchEvent(fakeDrop);
 
-    const pin = getItemPinForLayer(getItemById("1a"), "layer-main");
+    const pin = getItemPinForLayer(getItemById("1a"), getActiveLayerId());
 
     assertExists(pin, "Drop handler should store a pin in appState.");
 
