@@ -825,8 +825,6 @@ artwork-checklist/
 │   ├── app.js
 │   └── tests.js
 │
-├── roadmap.md
-├── prompt-mestre.md
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
@@ -901,14 +899,6 @@ No Jest, Vitest or other testing framework is required.
 Historical documentation of the original prototype.
 
 These files intentionally remain unchanged as the project evolves.
-
-### `roadmap.md`
-
-Specification-oriented incremental development roadmap.
-
-### `prompt-mestre.md`
-
-Engineering rules and workflow used to evolve the application without mixing roadmap phases.
 
 ---
 
@@ -1294,6 +1284,8 @@ These belong to Layer M if real usage justifies a backend.
 
 ## Roadmap
 
+Development is guided by a separate development roadmap maintained outside this repository.
+
 | Status | Layer     | Deliverable                                       |
 | :----: | --------- | ------------------------------------------------- |
 |   ✅   | **A0**    | Frozen baseline + documentation                   |
@@ -1356,7 +1348,7 @@ For each feature:
 9. run manual tests;
 10. run automated regression tests;
 11. document completion;
-12. create a checkpoint commit and Pull Request.
+12. create a descriptive conventional commit (e.g. `feat:`, `fix:`, `docs:`) and a Pull Request.
 
 Core principles:
 
@@ -1386,7 +1378,7 @@ When contributing:
 8. add or update automated tests;
 9. run manual regressions;
 10. inspect `git diff`;
-11. use a descriptive checkpoint commit;
+11. use a concise conventional commit message;
 12. open a Pull Request;
 13. review before merging into `main`.
 
