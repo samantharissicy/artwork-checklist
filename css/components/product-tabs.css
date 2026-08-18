@@ -1,0 +1,130 @@
+/* ==========================================================
+   PRODUCT WORKSPACE TABS
+   ========================================================== */
+
+/*
+ * Multi-product workspace navigation.
+ *
+ * Includes:
+ *
+ * - horizontally scrollable product tabs;
+ * - active-product state;
+ * - rename / duplicate / delete actions;
+ * - New Product action.
+ */
+.product-tabs-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-width: 0;
+
+  padding: 6px 12px;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+
+  flex-shrink: 0;
+}
+
+.product-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  min-width: 0;
+  flex: 1;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  scrollbar-width: thin;
+}
+
+.product-tab {
+  flex: 0 0 auto;
+
+  max-width: 220px;
+
+  padding: 6px 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+
+  background: #f8fafc;
+  color: #64748b;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.product-tab:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.product-tab.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.product-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  flex-shrink: 0;
+}
+
+.product-action-btn,
+.product-new-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+
+  background: #ffffff;
+  color: #475569;
+
+  padding: 6px 9px;
+
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.product-action-btn:hover {
+  background: #f8fafc;
+}
+
+.product-action-danger {
+  color: #b91c1c;
+}
+
+.product-action-danger:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.product-new-btn {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.product-new-btn:hover {
+  background: #1d4ed8;
+}

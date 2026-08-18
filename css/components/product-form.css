@@ -1,0 +1,33 @@
+/* ==========================================================
+   PRODUCT INFORMATION FORM
+   ========================================================== */
+
+/*
+ * Styles the editable product metadata fields displayed
+ * above the checklist.
+ *
+ * Domain behavior is handled by JavaScript.
+ * This file controls presentation only.
+ */
+
+.product-bar {
+  background: #fffbeb;
+  border-bottom: 1px solid #fcd34d;
+  padding: 10px 14px;
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.product-grid input {
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: white;
+  outline: none;
+}
+.product-grid input:focus {
+  border-color: #f59e0b;
+}

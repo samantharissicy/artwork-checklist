@@ -1,0 +1,14 @@
+/* ==========================================================
+   VISIBILITY UTILITIES
+   ========================================================== */
+
+/*
+ * Generic visibility helpers.
+ *
+ * Utilities intentionally load after component styles so they
+ * can override component display declarations when required.
+ */
+
+.hidden {
+  display: none !important;
+}

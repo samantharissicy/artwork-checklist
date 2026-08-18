@@ -1,0 +1,219 @@
+/* ==========================================================
+   APPLICATION DIALOG
+   ========================================================== */
+
+/*
+ * Reusable modal dialog used by confirmation and prompt flows.
+ *
+ * Includes:
+ *
+ * - modal backdrop;
+ * - dialog shell;
+ * - semantic icon tones;
+ * - prompt input;
+ * - action buttons;
+ * - destructive and warning variants.
+ *
+ * Generic visibility behavior lives in utilities/visibility.css.
+ */
+
+.app-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.app-dialog {
+  width: 100%;
+  max-width: 460px;
+
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+
+  box-shadow:
+    0 20px 40px rgba(15, 23, 42, 0.18),
+    0 6px 14px rgba(15, 23, 42, 0.08);
+
+  overflow: hidden;
+}
+
+.app-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  padding: 20px 20px 14px 20px;
+}
+
+.app-dialog-icon {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.app-dialog-icon.warning {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.app-dialog-icon.danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.app-dialog-icon.success {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.app-dialog-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-dialog-title {
+  margin: 0 0 6px 0;
+
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.app-dialog-message {
+  margin: 0;
+
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-dialog-input-wrapper {
+  padding: 0 20px 16px 20px;
+}
+
+.app-dialog-label {
+  display: block;
+  margin-bottom: 8px;
+
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-dialog-input {
+  width: 100%;
+
+  padding: 11px 12px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+
+  font: inherit;
+  font-size: 14px;
+  color: #0f172a;
+
+  outline: none;
+  box-sizing: border-box;
+}
+
+.app-dialog-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  padding: 14px 20px 20px 20px;
+}
+
+.app-dialog-btn {
+  min-width: 96px;
+
+  padding: 10px 14px;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.05s ease;
+}
+
+.app-dialog-btn:active {
+  transform: translateY(1px);
+}
+
+.app-dialog-btn-secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.app-dialog-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.app-dialog-btn-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.app-dialog-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.app-dialog-btn-warning {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+}
+
+.app-dialog-btn-warning:hover {
+  background: #c2410c;
+}
+
+.app-dialog-btn-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.app-dialog-btn-danger:hover {
+  background: #b91c1c;
+}

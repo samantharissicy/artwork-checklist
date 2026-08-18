@@ -1,0 +1,34 @@
+/* ==========================================================
+   REVIEW PROGRESS
+   ========================================================== */
+
+/*
+ * Displays completion progress for the active product review.
+ */
+
+ 
+.progress-footer {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 10px 16px;
+  flex-shrink: 0;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 5px;
+}
+.progress-track {
+  background: #e5e7eb;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  background: #3b82f6;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}

@@ -1,0 +1,16 @@
+/* ==========================================================
+   RESET
+   ========================================================== */
+
+/*
+ * Minimal application reset.
+ *
+ * Removes default browser spacing and makes element dimensions
+ * include padding and borders.
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}

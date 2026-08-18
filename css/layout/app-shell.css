@@ -1,0 +1,54 @@
+/* ==========================================================
+   APPLICATION SHELL
+   ========================================================== */
+
+/*
+ * Defines the primary application layout.
+ *
+ * This file controls structural regions only:
+ *
+ * - application container;
+ * - main workspace;
+ * - left checklist panel;
+ * - right artwork panel.
+ *
+ * Component styling belongs in the component stylesheets.
+ */
+
+.app {
+  display: flex;
+  flex-direction: column;
+
+  height: 100vh;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 420px;
+
+  display: flex;
+  flex-direction: column;
+
+  flex-shrink: 0;
+
+  background: white;
+
+  border-right: 1px solid #e5e7eb;
+}
+
+.right-panel {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  background: #f3f4f6;
+}
