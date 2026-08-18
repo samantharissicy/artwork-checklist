@@ -295,4 +295,219 @@
 
     assertEqual(appState.activeProductId, firstId);
   });
+
+  test("G3 new products start with empty review context metadata", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    assertEqual(product.productionCode, "");
+
+    assertEqual(product.site, "");
+
+    assertEqual(product.artworkVersion, "");
+  });
+
+  test("G3 production code is never derived from SKU", () => {
+    resetWorkspaceForMultiProductTest();
+
+    getActiveProduct().sku = "SKU-001";
+
+    assertEqual(getActiveProduct().productionCode, "");
+
+    assertNotEqual(getActiveProduct().productionCode, "SKU-001");
+  });
+
+  test("G3 allowed sites pass state validation", () => {
+    resetWorkspaceForMultiProductTest();
+
+    getActiveProduct().site = "OH1";
+
+    const parsed = deserializeState(serializeState());
+
+    assertEqual(validateState(parsed), true);
+
+    assertEqual(ALLOWED_SITES.includes("OH2"), true);
+
+    assertEqual(ALLOWED_SITES.includes("BL"), true);
+  });
+
+  test("G3 disallowed site fails state validation", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const parsed = deserializeState(serializeState());
+
+    parsed.products[parsed.activeProductId].site = "XX";
+
+    assertEqual(validateState(parsed), false);
+
+    parsed.products[parsed.activeProductId].site = "OH2";
+
+    assertEqual(validateState(parsed), true);
+  });
+
+  test("G3 export includes review context metadata", () => {
+    resetWorkspaceForMultiProductTest();
+
+    getActiveProduct().productionCode = "PRD-00458";
+
+    getActiveProduct().site = "OH1";
+
+    getActiveProduct().artworkVersion = "03";
+
+    const exported = buildExportData();
+
+    assertEqual(exported.product.productionCode, "PRD-00458");
+
+    assertEqual(exported.product.site, "OH1");
+
+    assertEqual(exported.product.artworkVersion, "03");
+  });
+
+  test("G3 import restores review context metadata", () => {
+    resetWorkspaceForMultiProductTest();
+
+    getActiveProduct().productionCode = "PRD-00458";
+
+    getActiveProduct().site = "BL";
+
+    getActiveProduct().artworkVersion = "05";
+
+    const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    exported.product.id = "context-import";
+
+    const result = applyImportedReview(exported);
+
+    assertEqual(result.valid, true);
+
+    const imported = getProductById("context-import");
+
+    assertEqual(imported.productionCode, "PRD-00458");
+
+    assertEqual(imported.site, "BL");
+
+    assertEqual(imported.artworkVersion, "05");
+  });
+
+  test("G3 legacy import without context metadata keeps defaults", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    delete exported.product.productionCode;
+
+    delete exported.product.site;
+
+    delete exported.product.artworkVersion;
+
+    exported.product.id = "legacy-import";
+
+    const result = applyImportedReview(exported);
+
+    assertEqual(result.valid, true);
+
+    const imported = getProductById("legacy-import");
+
+    assertEqual(imported.productionCode, "");
+
+    assertEqual(imported.site, "");
+
+    assertEqual(imported.artworkVersion, "");
+  });
+
+  test("G3 header context reflects the active product", () => {
+    resetWorkspaceForMultiProductTest();
+
+    const product = getActiveProduct();
+
+    product.productName = "Basmati";
+
+    product.productionCode = "PRD-001";
+
+    product.site = "OH2";
+
+    product.artworkVersion = "01";
+
+    renderWorkspaceState();
+
+    assertEqual(
+      document.getElementById("ctx-product").textContent,
+      "Basmati",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-code").textContent,
+      "PRD-001",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-site").textContent,
+      "OH2",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-artwork-rev").textContent,
+      "01",
+    );
+  });
+
+  test("G3 switching products updates header context immediately", () => {
+    const firstId = resetWorkspaceForMultiProductTest();
+
+    getActiveProduct().productName = "Alpha";
+
+    const secondId = createNewProduct();
+
+    getActiveProduct().productName = "Beta";
+
+    getActiveProduct().productionCode = "PRD-002";
+
+    getActiveProduct().site = "BL";
+
+    getActiveProduct().artworkVersion = "04";
+
+    renderWorkspaceState();
+
+    assertEqual(
+      document.getElementById("ctx-product").textContent,
+      "Beta",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-code").textContent,
+      "PRD-002",
+    );
+
+    assertEqual(document.getElementById("ctx-site").textContent, "BL");
+
+    assertEqual(
+      document.getElementById("ctx-artwork-rev").textContent,
+      "04",
+    );
+
+    switchProduct(firstId);
+
+    assertEqual(
+      document.getElementById("ctx-product").textContent,
+      "Alpha",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-code").textContent,
+      "—",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-site").textContent,
+      "—",
+    );
+
+    assertEqual(
+      document.getElementById("ctx-artwork-rev").textContent,
+      "—",
+    );
+
+    assertEqual(appState.activeProductId, firstId);
+  });
 })();

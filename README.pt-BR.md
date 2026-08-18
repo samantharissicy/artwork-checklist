@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-89%2F89%20passing-success" alt="89/89 testes passando">
+  <img src="https://img.shields.io/badge/tests-116%2F116%20passing-success" alt="116/116 testes passando">
   <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -141,7 +141,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 89 testes de regressão no navegador            |
+| ✅ Testes automatizados              | 116 testes de regressão no navegador            |
 
 ---
 
@@ -1104,7 +1104,7 @@ runArtworkTests();
 Checkpoint atual:
 
 ```text
-89 / 89 testes passando
+116 / 116 testes passando
 ```
 
 A suíte cobre:

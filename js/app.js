@@ -74,6 +74,9 @@
  * @property {string} productName
  * @property {string} weight
  * @property {string} sku
+ * @property {string} productionCode - Production identifier, never derived from SKU.
+ * @property {string} site - Allowed production site, or an empty string.
+ * @property {string} artworkVersion - Revision of the artwork under review.
  * @property {ArtworkMetadata|null} artwork
  * @property {Object.<string, ReviewItem>} items
  * @property {Object} reviewer
@@ -114,6 +117,23 @@ function getReviewStatusLabel(status) {
 }
 
 const VALID_REVIEW_STATUSES = new Set(Object.values(REVIEW_STATUSES));
+
+const ALLOWED_SITES = Object.freeze(["OH1", "OH2", "BL"]);
+
+/**
+ * Determines whether a value is an allowed production site.
+ *
+ * An empty string is accepted because new products start without a site.
+ * Any other value must belong to ALLOWED_SITES.
+ *
+ * @param {*} value - Candidate site value.
+ * @returns {boolean} True when the value is an allowed site or empty.
+ */
+function isAllowedSite(value) {
+  return (
+    typeof value === "string" && (value === "" || ALLOWED_SITES.includes(value))
+  );
+}
 
 // ============================================================
 // STATIC CHECKLIST DEFINITIONS
@@ -499,6 +519,12 @@ function createProduct(id) {
     weight: "",
 
     sku: "",
+
+    productionCode: "",
+
+    site: "",
+
+    artworkVersion: "",
 
     artwork: null,
 
@@ -2628,6 +2654,50 @@ async function deleteActiveProduct() {
  *
  * @returns {void}
  */
+function renderProductContext() {
+  const product = getActiveProduct();
+
+  const productElement = document.getElementById("ctx-product");
+
+  const codeElement = document.getElementById("ctx-code");
+
+  const siteElement = document.getElementById("ctx-site");
+
+  const artworkRevisionElement = document.getElementById(
+    "ctx-artwork-rev",
+  );
+
+  if (productElement) {
+    productElement.textContent = product
+      ? getProductDisplayName(
+          product,
+          getProductIds().indexOf(product.id),
+        )
+      : "—";
+  }
+
+  if (codeElement) {
+    codeElement.textContent = product?.productionCode || "—";
+  }
+
+  if (siteElement) {
+    siteElement.textContent = product?.site || "—";
+  }
+
+  if (artworkRevisionElement) {
+    artworkRevisionElement.textContent =
+      product?.artworkVersion || "—";
+  }
+}
+
+/**
+ * Synchronizes the product-information form with the currently active product.
+ *
+ * The function copies the active product's persisted domain values into the
+ * Brand, Product Name, Weight and SKU inputs.
+ *
+ * @returns {void}
+ */
 function renderProductInputs() {
   const product = getActiveProduct();
 
@@ -2642,6 +2712,16 @@ function renderProductInputs() {
   const weightInput = document.getElementById("inp-weight");
 
   const skuInput = document.getElementById("inp-sku");
+
+  const productionCodeInput = document.getElementById(
+    "inp-production-code",
+  );
+
+  const siteInput = document.getElementById("inp-site");
+
+  const artworkVersionInput = document.getElementById(
+    "inp-artwork-version",
+  );
 
   if (brandInput) {
     brandInput.value = product.brand;
@@ -2658,6 +2738,18 @@ function renderProductInputs() {
   if (skuInput) {
     skuInput.value = product.sku;
   }
+
+  if (productionCodeInput) {
+    productionCodeInput.value = product.productionCode;
+  }
+
+  if (siteInput) {
+    siteInput.value = product.site;
+  }
+
+  if (artworkVersionInput) {
+    artworkVersionInput.value = product.artworkVersion;
+  }
 }
 
 /**
@@ -2667,10 +2759,14 @@ function renderProductInputs() {
  * - Brand;
  * - Product Name;
  * - Weight;
- * - SKU.
+ * - SKU;
+ * - Production Code;
+ * - Site;
+ * - Artwork Version.
  *
  * Each change updates the currently active product, refreshes its updatedAt
- * timestamp and immediately persists the workspace.
+ * timestamp, immediately persists the workspace and re-renders the header
+ * review context.
  *
  * Product Name changes also re-render the product tabs because tab labels are
  * derived from product.productName.
@@ -2688,6 +2784,16 @@ function bindProductInputs() {
   const weightInput = document.getElementById("inp-weight");
 
   const skuInput = document.getElementById("inp-sku");
+
+  const productionCodeInput = document.getElementById(
+    "inp-production-code",
+  );
+
+  const siteInput = document.getElementById("inp-site");
+
+  const artworkVersionInput = document.getElementById(
+    "inp-artwork-version",
+  );
 
   if (brandInput) {
     brandInput.addEventListener("input", (event) => {
@@ -2752,6 +2858,60 @@ function bindProductInputs() {
       touchActiveProduct();
 
       saveStateToStorage();
+    });
+  }
+
+  if (productionCodeInput) {
+    productionCodeInput.addEventListener("input", (event) => {
+      const product = getActiveProduct();
+
+      if (!product) {
+        return;
+      }
+
+      product.productionCode = event.target.value;
+
+      touchActiveProduct();
+
+      saveStateToStorage();
+
+      renderProductContext();
+    });
+  }
+
+  if (siteInput) {
+    siteInput.addEventListener("change", (event) => {
+      const product = getActiveProduct();
+
+      if (!product) {
+        return;
+      }
+
+      product.site = event.target.value;
+
+      touchActiveProduct();
+
+      saveStateToStorage();
+
+      renderProductContext();
+    });
+  }
+
+  if (artworkVersionInput) {
+    artworkVersionInput.addEventListener("input", (event) => {
+      const product = getActiveProduct();
+
+      if (!product) {
+        return;
+      }
+
+      product.artworkVersion = event.target.value;
+
+      touchActiveProduct();
+
+      saveStateToStorage();
+
+      renderProductContext();
     });
   }
 }
@@ -4051,6 +4211,16 @@ function validateSerializedProduct(product) {
     return false;
   }
 
+  if (
+    (product.productionCode !== undefined &&
+      typeof product.productionCode !== "string") ||
+    (product.artworkVersion !== undefined &&
+      typeof product.artworkVersion !== "string") ||
+    (product.site !== undefined && !isAllowedSite(product.site))
+  ) {
+    return false;
+  }
+
   if (!isPlainObject(product.items)) {
     return false;
   }
@@ -4230,6 +4400,12 @@ function rehydrateProduct(savedProduct) {
   product.weight = savedProduct.weight;
 
   product.sku = savedProduct.sku;
+
+  product.productionCode = savedProduct.productionCode ?? "";
+
+  product.site = savedProduct.site ?? "";
+
+  product.artworkVersion = savedProduct.artworkVersion ?? "";
 
   product.artwork = savedProduct.artwork
     ? cloneArtworkMetadata(savedProduct.artwork)
@@ -4621,6 +4797,9 @@ function buildExportData() {
       productName: product.productName,
       weight: product.weight,
       sku: product.sku,
+      productionCode: product.productionCode,
+      site: product.site,
+      artworkVersion: product.artworkVersion,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     },
@@ -4897,6 +5076,8 @@ function renderAppState() {
   }
 
   renderProductInputs();
+
+  renderProductContext();
 
   renderArtworkState();
 
@@ -5662,6 +5843,12 @@ function validateImportData(data) {
 
     sku: data.product.sku ?? "",
 
+    productionCode: data.product.productionCode ?? "",
+
+    site: data.product.site ?? "",
+
+    artworkVersion: data.product.artworkVersion ?? "",
+
     items: data.items,
 
     artwork: data.artwork ?? null,
@@ -5731,6 +5918,12 @@ function buildImportedProduct(importedData) {
   product.weight = importedData.product.weight ?? "";
 
   product.sku = importedData.product.sku ?? "";
+
+  product.productionCode = importedData.product.productionCode ?? "";
+
+  product.site = importedData.product.site ?? "";
+
+  product.artworkVersion = importedData.product.artworkVersion ?? "";
 
   product.items = rehydrateItems(importedData.items);
 

@@ -54,6 +54,53 @@
   align-items: center;
   gap: 10px;
 }
+
+/* Active product review context */
+
+.header-context {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+
+  flex: 1;
+
+  min-width: 0;
+  padding: 0 24px;
+
+  overflow: hidden;
+}
+
+.context-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+
+  min-width: 0;
+
+  white-space: nowrap;
+}
+
+.context-key {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+
+  color: #64748b;
+}
+
+.context-item strong {
+  font-size: 11px;
+  font-weight: 600;
+
+  color: #e2e8f0;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  max-width: 220px;
+}
 .badge {
   display: inline-flex;
   align-items: center;

@@ -20,14 +20,17 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
-.product-grid input {
+.product-grid input,
+.product-grid select {
   border: 1px solid #fcd34d;
   border-radius: 4px;
   padding: 5px 8px;
   font-size: 12px;
   background: white;
   outline: none;
+  color: #1f2937;
 }
-.product-grid input:focus {
+.product-grid input:focus,
+.product-grid select:focus {
   border-color: #f59e0b;
 }

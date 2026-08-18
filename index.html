@@ -37,6 +37,30 @@
           </div>
         </div>
       </div>
+
+      <div class="header-context" id="header-context"
+        aria-label="Active product review context">
+        <span class="context-item">
+          <span class="context-key">Product</span>
+          <strong id="ctx-product">—</strong>
+        </span>
+
+        <span class="context-item">
+          <span class="context-key">Code</span>
+          <strong id="ctx-code">—</strong>
+        </span>
+
+        <span class="context-item">
+          <span class="context-key">Site</span>
+          <strong id="ctx-site">—</strong>
+        </span>
+
+        <span class="context-item">
+          <span class="context-key">Artwork Rev</span>
+          <strong id="ctx-artwork-rev">—</strong>
+        </span>
+      </div>
+
       <div class="header-right">
         <span class="badge">Site: All Sites</span>
         <span class="badge">Version: v2.1</span>
@@ -106,6 +130,14 @@
             <input type="text" placeholder="Product Name / Legal Name" id="inp-name" aria-label="Product Name" />
             <input type="text" placeholder="Weight (g/ml)" id="inp-weight" aria-label="Weight" />
             <input type="text" placeholder="SKU / Code" id="inp-sku" aria-label="SKU" />
+            <input type="text" placeholder="Production Code" id="inp-production-code" aria-label="Production Code" />
+            <select id="inp-site" aria-label="Site">
+              <option value="">Site</option>
+              <option value="OH1">OH1</option>
+              <option value="OH2">OH2</option>
+              <option value="BL">BL</option>
+            </select>
+            <input type="text" placeholder="Artwork Revision" id="inp-artwork-version" aria-label="Artwork Revision" />
           </div>
         </div>
 

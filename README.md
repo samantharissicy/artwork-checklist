@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
   <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-89%2F89%20passing-success" alt="89/89 tests passing">
+  <img src="https://img.shields.io/badge/tests-116%2F116%20passing-success" alt="116/116 tests passing">
   <img src="https://img.shields.io/badge/schema-v2-blue" alt="Schema v2">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -141,7 +141,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 89 browser-based tests                      |
+| ✅ Automated regression suite     | 116 browser-based tests                     |
 
 ---
 
@@ -1110,7 +1110,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-89 / 89 tests passing
+116 / 116 tests passing
 ```
 
 The suite covers:
