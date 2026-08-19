@@ -72,7 +72,7 @@ Antes de uma embalagem de alimento ir para produção, diversos elementos precis
 - reciclagem;
 - textos multilíngues.
 
-A aplicação organiza essa revisão em **49 itens distribuídos em 6 seções**.
+A aplicação organiza essa revisão em **50 itens distribuídos em 6 seções**.
 
 Cada item possui exatamente um status:
 
@@ -218,9 +218,9 @@ Exemplo:
 ```text
 10 Approved
 5 Rejected
-34 Pending
+35 Pending
 
-= 15 / 49 reviewed
+= 15 / 50 reviewed
 ```
 
 Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação fazem parte do trabalho pendente da Camada F1 (métricas da revisão).
@@ -369,10 +369,10 @@ O viewer aceita tanto a artwork demonstrativa quanto imagens reais.
 
 ### Modo demo
 
-Caso o produto ativo não possua metadata de artwork:
+Caso o produto ativo não possua metadata de artwork na camada ativa:
 
 ```js
-product.artwork === null;
+getActiveArtworkMetadata(product) === null;
 ```
 
 a aplicação mostra a artwork demonstrativa Front & Back.
@@ -651,7 +651,7 @@ Arquivos incompatíveis ou malformados são rejeitados sem derrubar a aplicaçã
 | 3   | **Nutrition & Serving**          |  10   | Nutrição e porções          |
 | 4   | **Storage & Cooking**            |   4   | Conservação e preparo       |
 | 5   | **Claims & Certifications**      |  12   | Claims e certificações      |
-| 6   | **Packaging, Marks & Languages** |   8   | Marcas, idiomas e embalagem |
+| 6   | **Packaging, Marks & Languages** |   9   | Marcas, idiomas e embalagem |
 
 Total:
 
@@ -858,19 +858,29 @@ Revisões salvas por versões anteriores podem conter o registro legado `pantone
 
 ```text
 artwork-checklist/
-├── index.html
+├── assets/
+│   └── favicon.svg
 │
 ├── css/
+│   ├── base/
+│   ├── layout/
+│   ├── components/
+│   ├── utilities/
 │   └── style.css
 │
 ├── js/
 │   ├── app.js
-│   └── tests.js
+│   ├── tests.js
+│   └── tests/
+│       ├── core/
+│       └── layers/
 │
+├── docs/
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
 │
+├── index.html
 ├── README.md
 └── README.pt-BR.md
 ```
@@ -961,7 +971,7 @@ const appState = {
 Schema atual:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
 O fluxo principal é:
@@ -999,7 +1009,6 @@ O DOM não é a fonte oficial de estado.
   artworkLayers: [...],
   activeArtworkLayerId,
   pantoneColors: [...],
-  artwork,
   items,
   reviewer,
   signature,
@@ -1014,16 +1023,22 @@ Os produtos são armazenados em uma coleção e gerenciados por meio de tabs de 
 
 ### Metadata da artwork
 
+Metadata de artwork pertence a cada camada (`layer.artwork`):
+
 ```js
-artwork: {
-  (name, type, size, width, height);
+layer.artwork: {
+  name,
+  type,
+  size,
+  width,
+  height
 }
 ```
 
 ou:
 
 ```js
-artwork: null;
+layer.artwork: null;
 ```
 
 O arquivo binário da imagem não pertence ao estado persistido.
@@ -1075,7 +1090,7 @@ dados do produto
 status
 comentários
 currentTitle
-pins
+pins (por camada)
 metadata da artwork
 reviewer
 timestamps
@@ -1150,7 +1165,7 @@ js/tests.js
 Abra a aplicação e execute no Console do navegador:
 
 ```js
-runArtworkTests();
+await runArtworkTests();
 ```
 
 Checkpoint atual:

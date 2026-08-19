@@ -72,7 +72,7 @@ Before food packaging goes into production, relevant copy and regulatory informa
 - recycling information;
 - multilingual wording.
 
-The application organizes this work into **49 review items across 6 sections**.
+The application organizes this work into **50 review items across 6 sections**.
 
 Each item has one review status:
 
@@ -116,7 +116,7 @@ no database
 
 | Feature                           | Description                                 |
 | --------------------------------- | ------------------------------------------- |
-| ✅ Interactive checklist          | 49 regulatory review items                  |
+| ✅ Interactive checklist          | 50 regulatory review items                  |
 | ✅ Collapsible sections           | 6 expandable checklist categories           |
 | ✅ Product data                   | Brand, Product Name, Weight and SKU         |
 | ✅ Central application state      | Domain data stored in `appState`            |
@@ -219,9 +219,9 @@ Example:
 ```text
 10 Approved
 5 Rejected
-34 Pending
+35 Pending
 
-= 15 / 49 reviewed
+= 15 / 50 reviewed
 ```
 
 Per-status counters (Approved / Rejected / Pending) and a separate approval percentage are part of the pending Layer F1 review-metrics work.
@@ -370,10 +370,10 @@ The viewer supports both the original demonstration artwork and real image files
 
 ### Demo mode
 
-If the active product has no artwork metadata:
+If the active product has no artwork metadata on its active layer:
 
 ```js
-product.artwork === null;
+getActiveArtworkMetadata(product) === null;
 ```
 
 the original Front & Back demonstration artwork is displayed.
@@ -652,12 +652,12 @@ Incompatible or malformed files are rejected without crashing the application.
 | 3   | **Nutrition & Serving**          |  10   | Nutrition and serving information |
 | 4   | **Storage & Cooking**            |   4   | Storage and preparation           |
 | 5   | **Claims & Certifications**      |  12   | Claims and certifications         |
-| 6   | **Packaging, Marks & Languages** |   8   | Marks, languages and packaging    |
+| 6   | **Packaging, Marks & Languages** |   9   | Marks, languages and packaging    |
 
 Total:
 
 ```text
-49 review items
+50 review items
 ```
 
 ---
@@ -861,19 +861,29 @@ Reviews saved by earlier versions may still contain the legacy `pantoneColors` c
 
 ```text
 artwork-checklist/
-├── index.html
+├── assets/
+│   └── favicon.svg
 │
 ├── css/
+│   ├── base/
+│   ├── layout/
+│   ├── components/
+│   ├── utilities/
 │   └── style.css
 │
 ├── js/
 │   ├── app.js
-│   └── tests.js
+│   ├── tests.js
+│   └── tests/
+│       ├── core/
+│       └── layers/
 │
+├── docs/
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
 │
+├── index.html
 ├── README.md
 └── README.pt-BR.md
 ```
@@ -964,7 +974,7 @@ const appState = {
 Current schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
 The architecture follows:
@@ -1004,7 +1014,6 @@ Each product follows the structure:
   artworkLayers: [...],
   activeArtworkLayerId,
   pantoneColors: [...],
-  artwork,
   items,
   reviewer,
   signature,
@@ -1019,18 +1028,22 @@ Products are stored in a collection and managed through product tabs (Layer G).
 
 ### Artwork metadata
 
-Artwork metadata belongs to the product:
+Artwork metadata belongs to each artwork layer:
 
 ```js
-artwork: {
-  (name, type, size, width, height);
+layer.artwork: {
+  name,
+  type,
+  size,
+  width,
+  height
 }
 ```
 
 or:
 
 ```js
-artwork: null;
+layer.artwork: null;
 ```
 
 The image binary does not belong to persisted domain state.
@@ -1082,7 +1095,7 @@ product fields
 status
 comment
 currentTitle
-pin
+pins (per layer)
 artwork metadata
 reviewer
 timestamps
@@ -1157,7 +1170,7 @@ js/tests.js
 Open the application and run in DevTools Console:
 
 ```js
-runArtworkTests();
+await runArtworkTests();
 ```
 
 Current checkpoint:
