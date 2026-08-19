@@ -126,7 +126,7 @@
  * @property {string} updatedAt - ISO last-modification timestamp.
  */
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 const ARTWORK_REPLACEMENT_MESSAGE =
   "Replacing this artwork will invalidate existing pins.\nContinue?";
@@ -472,6 +472,13 @@ const sectionDefinitions = [
         id: "6h",
         title: "Tamper Evidence",
         note: "Type, Text, Size",
+      },
+      {
+        // Wording may be refined by the artwork/compliance team.
+        // Keep item ID "6i" stable.
+        id: "6i",
+        title: "Pantone Colours Match Approved Pack Copy?",
+        note: "Verify the artwork uses the Pantone colours specified in the approved pack copy",
       },
     ],
   },
@@ -1060,6 +1067,18 @@ function deleteArtworkLayer(productId, layerId) {
 
   return true;
 }
+
+// ============================================================
+// LEGACY PANTONE SPECIFICATION METADATA — DOMAIN
+// Backward compatibility only
+// ============================================================
+//
+// The Colour Specification component was removed from the active UI when G5
+// was realigned into the checklist-based Pantone pack-copy compliance
+// workflow (item 6i). The domain functions below are retained unchanged
+// because legacy pantoneColors metadata must keep serializing, validating,
+// rehydrating and exporting correctly (schema v3 → v4 migration and Open
+// Check compatibility).
 
 // ============================================================
 // ARTWORK COLOUR SPECIFICATIONS — DOMAIN
@@ -5371,7 +5390,11 @@ function clearPins() {
 
 const STORAGE_KEY = `artworkChecklist:v${CURRENT_SCHEMA_VERSION}`;
 
-const LEGACY_STORAGE_KEYS = ["artworkChecklist:v2", "artworkChecklist:v1"];
+const LEGACY_STORAGE_KEYS = [
+  "artworkChecklist:v3",
+  "artworkChecklist:v2",
+  "artworkChecklist:v1",
+];
 // ============================================================
 // STATE SERIALIZATION
 // ============================================================
@@ -6189,14 +6212,78 @@ function migrateStateV2ToV3(state) {
 }
 
 /**
+ * Adds the canonical 6i checklist item to an items collection when missing.
+ *
+ * The item is built from the canonical checklist template so its
+ * originalTitle, currentTitle, note, status, comment and pins always match a
+ * freshly created product. Legacy pantoneColors metadata is never modified and
+ * never influences the status of the new 6i item.
+ *
+ * This helper is shared by the persisted-state migration (per product) and the
+ * review-import migration (single top-level items collection).
+ *
+ * @param {Object} items - Items collection keyed by item ID.
+ * @returns {Object} The same items collection, possibly with 6i added.
+ */
+function addPantoneComplianceItem(items) {
+  if (isPlainObject(items) && !items["6i"]) {
+    const canonicalItem = createInitialItems()["6i"];
+
+    items["6i"] = JSON.parse(JSON.stringify(canonicalItem));
+  }
+
+  return items;
+}
+
+/**
+ * Converts a compatible schema-v3 persisted workspace into schema v4.
+ *
+ * Schema-v3 state is deep-cloned and every product gains the canonical
+ * checklist item "6i" (Pantone Colours Match Approved Pack Copy?) as Pending.
+ *
+ * The item is built from the canonical checklist template so its originalTitle,
+ * currentTitle, note, status, comment and pins always match a freshly created
+ * product. Legacy pantoneColors metadata is preserved unchanged and never
+ * influences the status of the new 6i item.
+ *
+ * The original supplied state is not modified: a deep JSON clone is created
+ * before transformation.
+ *
+ * @param {*} state - Parsed schema-v3 persisted state.
+ * @returns {Object|null} Schema-v4 state, or null when migration is impossible.
+ */
+function migrateStateV3ToV4(state) {
+  if (!isPlainObject(state) || state.schemaVersion !== 3) {
+    return null;
+  }
+
+  try {
+    const migratedState = JSON.parse(JSON.stringify(state));
+
+    Object.values(migratedState.products).forEach((product) => {
+      addPantoneComplianceItem(product.items);
+    });
+
+    migratedState.schemaVersion = 4;
+
+    return migratedState;
+  } catch (error) {
+    console.error("Failed to migrate state:", error);
+
+    return null;
+  }
+}
+
+/**
  * Converts compatible persisted workspace versions into the current schema.
  *
  * Migration is performed before validateState().
  *
  * Behavior:
  * - current-schema state is returned unchanged;
- * - schema-v2 state is migrated to schema v3;
- * - schema-v1 state is migrated through the full v1 → v2 → v3 chain;
+ * - schema-v3 state is migrated to schema v4;
+ * - schema-v2 state is migrated through the v2 → v3 → v4 chain;
+ * - schema-v1 state is migrated through the full v1 → v2 → v3 → v4 chain;
  * - unsupported schema versions are rejected.
  *
  * The original supplied state is never modified, since every migration step
@@ -6214,8 +6301,12 @@ function migrateState(state) {
     return state;
   }
 
+  if (state.schemaVersion === 3) {
+    return migrateStateV3ToV4(state);
+  }
+
   if (state.schemaVersion === 2) {
-    return migrateStateV2ToV3(state);
+    return migrateStateV3ToV4(migrateStateV2ToV3(state));
   }
 
   if (state.schemaVersion === 1) {
@@ -6225,7 +6316,7 @@ function migrateState(state) {
       return null;
     }
 
-    return migrateStateV2ToV3(v2State);
+    return migrateStateV3ToV4(migrateStateV2ToV3(v2State));
   }
 
   console.warn(`Unsupported schema version: ${state.schemaVersion}`);
@@ -6963,15 +7054,6 @@ async function deleteArtworkLayerWithDialog(productId, layerId) {
 
   renderAppState();
 
-  /*
-   * When the colour editor is open, its layer checkboxes are rebuilt so the
-   * deleted layer disappears from the draft selection. Remaining draft
-   * fields and selected layers are preserved and nothing is saved.
-   */
-  if (pantoneColourEditorState.isOpen) {
-    renderPantoneColourEditorLayers(getSelectedPantoneLayerIds());
-  }
-
   scrollActiveArtworkLayerTabIntoView();
 
   showToast("Artwork layer deleted.");
@@ -7107,6 +7189,17 @@ function scrollActiveArtworkLayerTabIntoView() {
     inline: "nearest",
   });
 }
+
+// ============================================================
+// LEGACY PANTONE SPECIFICATION METADATA — UI
+// Backward compatibility only
+// ============================================================
+//
+// The Colour Specification component and its inline editor were removed from
+// the active UI when G5 was realigned into the checklist-based Pantone
+// pack-copy compliance workflow (item 6i). These functions are retained
+// unchanged so legacy serialization, rehydration and validation keep working.
+// Nothing in the current interface calls them.
 
 // ============================================================
 // ARTWORK COLOUR SPECIFICATIONS — UI
@@ -7653,8 +7746,6 @@ function renderAppState() {
   renderProductContext();
 
   renderArtworkLayerTabs();
-
-  renderPantoneColours();
 
   renderArtworkState();
 
@@ -9147,10 +9238,12 @@ function showPromptDialog(options) {
  *
  * Behavior:
  * - current-schema imports are returned unchanged;
+ * - schema-v3 imports gain the canonical 6i checklist item as Pending;
  * - schema-v2 imports have their single artwork moved into the default
- *   layer and their single item pins moved into per-layer pin arrays;
+ *   layer and their single item pins moved into per-layer pin arrays, then
+ *   receive the canonical 6i checklist item;
  * - schema-v1 imports first run the legacy pixel-pin conversion and then the
- *   schema-v2 conversion;
+ *   schema-v2 and schema-v3 conversions;
  * - unsupported or malformed versions are rejected.
  *
  * Every migration step deep-clones the imported structure before modifying it
@@ -9173,6 +9266,22 @@ function migrateImportData(data) {
 
   if (data.schemaVersion === CURRENT_SCHEMA_VERSION) {
     return data;
+  }
+
+  if (data.schemaVersion === 3) {
+    try {
+      const migratedData = JSON.parse(JSON.stringify(data));
+
+      addPantoneComplianceItem(migratedData.items);
+
+      migratedData.schemaVersion = 4;
+
+      return migratedData;
+    } catch (error) {
+      console.error("Failed to migrate imported review:", error);
+
+      return null;
+    }
   }
 
   if (data.schemaVersion === 2) {
@@ -9213,6 +9322,10 @@ function migrateImportData(data) {
       });
 
       migratedData.schemaVersion = 3;
+
+      addPantoneComplianceItem(migratedData.items);
+
+      migratedData.schemaVersion = 4;
 
       return migratedData;
     } catch (error) {

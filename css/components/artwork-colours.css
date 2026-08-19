@@ -1,4 +1,16 @@
 /* ==========================================================
+   LEGACY PANTONE SPECIFICATION METADATA — CSS
+   Backward compatibility only
+   ==========================================================
+   Styles for the removed Colour Specification component and its
+   inline editor. The component was taken out of the active UI
+   when G5 was realigned into the checklist-based Pantone
+   pack-copy compliance workflow (item 6i). The stylesheet is
+   retained untouched for historical reference; it is no longer
+   imported by style.css.
+   ========================================================== */
+
+/* ==========================================================
    ARTWORK COLOUR SPECIFICATIONS
    ==========================================================
    Compact right-panel component listing the Pantone colour

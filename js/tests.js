@@ -47,7 +47,7 @@
 
     "layers/g4-multi-layer-artwork.test.js",
 
-    "layers/g5-artwork-colours.test.js",
+    "layers/g5-pantone-compliance.test.js",
 
     "layers/baseline-smoke.test.js",
 

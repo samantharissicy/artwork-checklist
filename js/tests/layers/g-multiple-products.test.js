@@ -43,14 +43,14 @@
     assertEqual(appState.activeProductId, newId);
   });
 
-  test("G1 new products start with 49 pending items", () => {
+  test("G1 new products start with 50 pending items", () => {
     resetWorkspaceForMultiProductTest();
 
     createNewProduct();
 
     const items = Object.values(getActiveProduct().items);
 
-    assertEqual(items.length, 49);
+    assertEqual(items.length, 50);
 
     assertEqual(
       items.every((item) => item.status === REVIEW_STATUSES.PENDING),

@@ -68,13 +68,13 @@
     });
   });
 
-  test("there are exactly 49 checklist items", () => {
+  test("there are exactly 50 checklist items", () => {
     const product = getActiveProduct();
 
     assertEqual(
       Object.keys(product.items).length,
-      49,
-      "Expected exactly 49 checklist items.",
+      50,
+      "Expected exactly 50 checklist items.",
     );
   });
 
@@ -138,7 +138,7 @@
   test("createInitialItems initializes every item as pending", () => {
     const freshItems = createInitialItems();
 
-    assertEqual(Object.keys(freshItems).length, 49);
+    assertEqual(Object.keys(freshItems).length, 50);
 
     const allPending = Object.values(freshItems).every(
       (item) => item.status === REVIEW_STATUSES.PENDING,

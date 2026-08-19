@@ -33,7 +33,7 @@
   test("every rendered item has Approve and Reject controls", () => {
     const items = document.querySelectorAll(".check-item");
 
-    assertEqual(items.length, 49);
+    assertEqual(items.length, 50);
 
     items.forEach((item) => {
       assertExists(item.querySelector('[data-action="approve"]'));
@@ -159,6 +159,6 @@
 
     const progressText = document.getElementById("progress-text");
 
-    assertEqual(progressText.textContent.trim(), "3 / 49 reviewed");
+    assertEqual(progressText.textContent.trim(), "3 / 50 reviewed");
   });
 })();

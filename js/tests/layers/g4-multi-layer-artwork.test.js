@@ -541,7 +541,7 @@
 
     const parsed = deserializeState(serializeState());
 
-    assertEqual(parsed.schemaVersion, 3);
+    assertEqual(parsed.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     const parsedProduct = parsed.products[parsed.activeProductId];
 
@@ -1199,9 +1199,9 @@
 
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-      assertEqual(stored.schemaVersion, 3);
+      assertEqual(stored.schemaVersion, CURRENT_SCHEMA_VERSION);
 
-      assertEqual(appState.schemaVersion, 3);
+      assertEqual(appState.schemaVersion, CURRENT_SCHEMA_VERSION);
 
       assertEqual(
         appState.products[appState.activeProductId].artworkLayers.length,
@@ -2813,35 +2813,6 @@
     assertDeepEqual(colour.layerIds, [back.id, sleeve.id]);
   });
 
-  test("G4UX-018 Pantone UI displays renamed layer name", async () => {
-    const { product, back } = setupThreeLayerWorkspace();
-
-    const result = addPantoneColour(product.id, {
-      name: "Brand Red",
-      pantoneCode: "PANTONE 186 C",
-      notes: "",
-      layerIds: [back.id],
-    });
-
-    assertEqual(result.ok, true);
-
-    const originalPrompt = window.showPromptDialog;
-
-    window.showPromptDialog = async () => "Back Panel";
-
-    try {
-      await renameArtworkLayerWithDialog(product.id, back.id);
-    } finally {
-      window.showPromptDialog = originalPrompt;
-    }
-
-    renderPantoneColours();
-
-    const label = document.querySelector(".pantone-colour-layers");
-
-    assertEqual(label.textContent, "Back Panel");
-  });
-
   test("G4UX-019 Add Layer context action creates layer", async () => {
     setupThreeLayerWorkspace();
 
@@ -3392,189 +3363,6 @@
     assertEqual(left + menu.offsetWidth <= window.innerWidth, true);
 
     assertEqual(top + menu.offsetHeight <= window.innerHeight, true);
-  });
+});
 
-  test("G4UX-042 opening layer context menu does not close Pantone editor", () => {
-    const { product, back } = setupThreeLayerWorkspace();
-
-    openAddPantoneColourEditor();
-
-    const editor = document.getElementById("pantone-colour-editor");
-
-    assertEqual(editor.hidden, false);
-
-    document.getElementById("pantone-code-input").value = "PANTONE 186 C";
-
-    document.getElementById("pantone-name-input").value = "Brand Red";
-
-    rightClickLayerTab(back.id, 420, 110);
-
-    assertEqual(document.getElementById("pantone-colour-editor").hidden, false);
-
-    assertEqual(
-      document.getElementById("pantone-code-input").value,
-      "PANTONE 186 C",
-    );
-
-    assertEqual(
-      document.getElementById("pantone-name-input").value,
-      "Brand Red",
-    );
-
-    closePantoneColourEditor();
-  });
-
-  test("G4UX-043 renaming non-active layer does not discard Pantone draft", async () => {
-    const { product, back } = setupThreeLayerWorkspace();
-
-    openAddPantoneColourEditor();
-
-    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
-
-    document.getElementById("pantone-name-input").value = "Accent Yellow";
-
-    document.getElementById("pantone-notes-input").value = "Callouts";
-
-    document
-      .querySelector(
-        `#pantone-layer-options input[data-layer-id="${back.id}"]`,
-      )
-      .click();
-
-    const originalPrompt = window.showPromptDialog;
-
-    window.showPromptDialog = async () => "Back Panel";
-
-    try {
-      await renameArtworkLayerWithDialog(product.id, back.id);
-    } finally {
-      window.showPromptDialog = originalPrompt;
-    }
-
-    const editor = document.getElementById("pantone-colour-editor");
-
-    assertEqual(editor.hidden, false);
-
-    assertEqual(
-      document.getElementById("pantone-code-input").value,
-      "PANTONE 123 C",
-    );
-
-    assertEqual(
-      document.getElementById("pantone-name-input").value,
-      "Accent Yellow",
-    );
-
-    assertEqual(
-      document.getElementById("pantone-notes-input").value,
-      "Callouts",
-    );
-
-    assertEqual(
-      document.querySelector(
-        `#pantone-layer-options input[data-layer-id="${back.id}"]`,
-      ).checked,
-      true,
-    );
-
-    closePantoneColourEditor();
-  });
-
-  test("G4UX-044 deleting selected layer removes only invalid draft association", async () => {
-    const { product, back, sleeve } = setupThreeLayerWorkspace();
-
-    openAddPantoneColourEditor();
-
-    document.getElementById("pantone-code-input").value = "PANTONE 109 C";
-
-    document.getElementById("pantone-name-input").value = "Yellow";
-
-    document
-      .querySelector(
-        `#pantone-layer-options input[data-layer-id="${back.id}"]`,
-      )
-      .click();
-
-    document
-      .querySelector(
-        `#pantone-layer-options input[data-layer-id="${sleeve.id}"]`,
-      )
-      .click();
-
-    await deleteArtworkLayerWithDialog(product.id, back.id);
-
-    const editor = document.getElementById("pantone-colour-editor");
-
-    assertEqual(editor.hidden, false);
-
-    assertEqual(
-      document.querySelector(
-        `#pantone-layer-options input[data-layer-id="${back.id}"]`,
-      ),
-      null,
-    );
-
-    assertEqual(
-      document.querySelector(
-        `#pantone-layer-options input[data-layer-id="${sleeve.id}"]`,
-      ).checked,
-      true,
-    );
-
-    assertEqual(
-      document.getElementById("pantone-code-input").value,
-      "PANTONE 109 C",
-    );
-
-    assertEqual(
-      document.getElementById("pantone-name-input").value,
-      "Yellow",
-    );
-
-    closePantoneColourEditor();
-  });
-
-  test("G4UX-045 Pantone draft text fields survive layer context-menu interactions", async () => {
-    const { product, back } = setupThreeLayerWorkspace();
-
-    openAddPantoneColourEditor();
-
-    document.getElementById("pantone-code-input").value = "PANTONE 123 C";
-
-    document.getElementById("pantone-name-input").value = "Accent Yellow";
-
-    rightClickLayerTab(back.id, 420, 110);
-
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-
-    rightClickLayerTab(back.id, 430, 120);
-
-    document.body.click();
-
-    const originalPrompt = window.showPromptDialog;
-
-    window.showPromptDialog = async () => "Back Panel";
-
-    try {
-      await renameArtworkLayerWithDialog(product.id, back.id);
-    } finally {
-      window.showPromptDialog = originalPrompt;
-    }
-
-    const editor = document.getElementById("pantone-colour-editor");
-
-    assertEqual(editor.hidden, false);
-
-    assertEqual(
-      document.getElementById("pantone-code-input").value,
-      "PANTONE 123 C",
-    );
-
-    assertEqual(
-      document.getElementById("pantone-name-input").value,
-      "Accent Yellow",
-    );
-
-    closePantoneColourEditor();
-  });
 })();

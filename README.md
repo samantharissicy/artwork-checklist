@@ -2,10 +2,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
-  <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
+  <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-357%2F357%20passing-success" alt="357/357 tests passing">
-  <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
+  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="373/373 tests passing">
+  <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
@@ -16,7 +16,7 @@ The application combines a structured regulatory checklist with a visual artwork
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
 > Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
-> **Layer G5 — Artwork Colour Specifications is complete.**
+> **Layer G5 — Pantone Pack-Copy Compliance is complete.**
 
 ---
 
@@ -124,13 +124,13 @@ no database
 | ✅ Autosave                       | Review state is persisted in `localStorage` |
 | ✅ Reload restoration             | Saved state is restored on page load        |
 | ✅ Corrupted-state protection     | Invalid storage does not crash the app      |
-| ✅ Versioned serialization        | Canonical state uses schema version 3       |
-| ✅ State migration                | Legacy schema v1/v2 data migrates to v3     |
-| ✅ Multi-layer artwork domain     | Schema v3 layers, active layer and per-layer pins |
+| ✅ Versioned serialization        | Canonical state uses schema version 4       |
+| ✅ State migration                | Legacy schema v1/v2/v3 data migrates to v4  |
+| ✅ Multi-layer artwork domain     | Schema v4 layers, active layer and per-layer pins |
 | ✅ Multi-layer workspace          | Layer tabs with Add / Rename / Delete layer flows |
-| ✅ Pantone colour registry        | Add / Edit / Delete Pantone references per product |
-| ✅ Colour ↔ layer association     | Colours associate with one or more artwork layers  |
-| ✅ Textual Pantone authority      | `pantoneCode` stored as text, no RGB/HEX claims    |
+| ✅ Pantone pack-copy compliance   | Checklist item 6I "Pantone Colours Match Approved Pack Copy?" |
+| ✅ Standard review workflow       | 6I uses Pending / Approved / Rejected + comment + pins |
+| ✅ Legacy Pantone registry        | `pantoneColors` metadata preserved on v3 → v4 migration |
 | ✅ Colour preservation            | Survives reload, export/import and duplication     |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
@@ -147,7 +147,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 357 browser-based tests                     |
+| ✅ Automated regression suite     | 373 browser-based tests                     |
 | ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 | ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
@@ -559,12 +559,12 @@ Invalid stored JSON must never prevent the application from opening.
 Current canonical schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
-The application supports migration from compatible schema v1 state where pins were stored as pixels, and from schema v2 single-layer state.
+The application supports migration from compatible schema v1 state where pins were stored as pixels, from schema v2 single-layer state and from schema v3 state without the Pantone compliance item.
 
-Schema v3 state exported before colour specifications (without `pantoneColors`) remains valid and rehydrates with an empty colour registry.
+Schema v3 state migrates to v4 by adding the canonical checklist item 6I ("Pantone Colours Match Approved Pack Copy?") as Pending to every product. Legacy `pantoneColors` metadata is preserved unchanged and never influences the status of the migrated 6I item.
 
 ### Save Check
 
@@ -589,7 +589,7 @@ pantoneColors
 reviewer
 ```
 
-The export structure mirrors the appState product review: `artworkLayers`, `activeArtworkLayerId` and `pantoneColors` are top-level siblings of the `product` object.
+The export structure mirrors the appState product review: `artworkLayers`, `activeArtworkLayerId` and `pantoneColors` are top-level siblings of the `product` object. The `pantoneColors` registry is preserved for backward compatibility with earlier schema-v3 exports; reviews created by this version review Pantone compliance through checklist item 6I.
 
 It preserves:
 
@@ -833,24 +833,17 @@ The domain state is restored.
 
 If the review has artwork metadata, select the same image file again to restore the image itself.
 
-### 12. Register colour specifications
+### 12. Review Pantone pack-copy compliance
 
-Below the artwork layer tabs, the Colour Specification component lists the active product's Pantone references.
+Section 6 of the checklist contains the canonical item:
 
 ```text
-+ Add Colour
+6I — Pantone Colours Match Approved Pack Copy?
 ```
 
-Fill:
+The reviewer verifies that the artwork uses the Pantone colours specified in the approved pack copy. Item 6I follows the standard review workflow: Pending / Approved / Rejected, a required comment when rejected, and per-layer artwork pins exactly like every other checklist item.
 
-- Pantone Reference (required, textual);
-- Name / Usage (required);
-- Artwork Layers (one or more, optional);
-- Notes (optional).
-
-Save Colour persists the specification; Edit preserves the permanent colour ID; Delete requires confirmation. Two or more layers render as `Front · Back`; a colour without layers renders `Unassigned`.
-
-Specifications belong to the product and are preserved by reload, Save/Open Check and product duplication.
+Reviews saved by earlier versions may still contain the legacy `pantoneColors` colour registry. That metadata remains fully preserved and round-trips through reload, Save/Open Check and product duplication, but it never influences the status of item 6I. The Colour Specification editor UI of the previous MVP is retired.
 
 ---
 
@@ -1160,7 +1153,7 @@ runArtworkTests();
 Current checkpoint:
 
 ```text
-312 / 312 → 357 / 357 tests passing
+312 / 312 → 357 / 357 → 373 / 373 tests passing
 ```
 
 The suite covers:
@@ -1186,7 +1179,7 @@ Coverage includes:
 ```text
 appState structure
 active product
-49 checklist items
+50 checklist items
 6 sections
 
 valid review statuses
@@ -1246,19 +1239,20 @@ per-layer pins (item.pins[])
 layer-scoped sessions
 layer-scoped artwork identity
 schema v2 → v3 migration
-schema v1 → v2 → v3 chain
+schema v1 → v2 → v3 → v4 chain
 legacy storage key migration
 layer-aware rendering
 
-colour specifications
-colour factory and permanent IDs
-add / edit / delete validation
-layer associations and Unassigned
-referential integrity with layers
-product duplication independence
-serialization / localStorage roundtrip
-JSON export / import roundtrip
-Colour Specification UI and editor
+pantone pack-copy compliance
+canonical 6I item definition
+6I review workflow (Pending / Approved / Rejected)
+rejected-comment requirement on 6I
+6I per-layer pins
+schema v3 → v4 migration
+v1/v2/v3 review-file import to v4
+legacy pantoneColors preservation
+legacy colour registry serialization / localStorage roundtrip
+legacy colour JSON export / import roundtrip
 
 baseline DOM regression
 zoom regression
@@ -1342,13 +1336,13 @@ These belong to Layer M if real usage justifies a backend.
 
 ### 7. Pantone references are textual
 
-Colour specifications store the Pantone reference as free text. No official RGB or HEX equivalence is derived, and the neutral indicator rendered in the interface is not a colour swatch reproduction.
+Legacy colour specifications stored the Pantone reference as free text. No official RGB or HEX equivalence is derived. The current Pantone compliance review is performed through checklist item 6I; the legacy `pantoneColors` registry is preserved only for data compatibility with earlier exports.
 
 ---
 
 ## Roadmap
 
-Development is guided by a separate development roadmap maintained outside this repository.
+Development is guided by a separate development roadmap maintained outside this repository. The historical in-repo roadmap documents (`roadmap.md`, `prompt-mestre.md`) were removed in an earlier commit; the roadmap content relevant to this repository is reflected in this README and in the per-layer completion reports.
 
 | Status | Layer     | Deliverable                                       |
 | :----: | --------- | ------------------------------------------------- |
@@ -1367,7 +1361,7 @@ Development is guided by a separate development roadmap maintained outside this 
 |   ✅   | **G1**    | Multiple-product domain operations                |
 |   ✅   | **G2**    | Product tabs                                      |
 |   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
-|   ✅   | **G5**    | Artwork colour specifications (Pantone)           |
+|   ✅   | **G5**    | Pantone pack-copy compliance (checklist 6I) |
 |   📋   | **H1–H2** | Reviewer + signature                              |
 |   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
 |   📋   | **J1–J3** | Printable report + PDF                            |
@@ -1375,7 +1369,7 @@ Development is guided by a separate development roadmap maintained outside this 
 |   📋   | **L1**    | Module separation                                 |
 |   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and colour specifications are now implemented through Layer G5.
+The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and Pantone pack-copy compliance are now implemented through Layer G5.
 
 Layers F1 and G were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
 
