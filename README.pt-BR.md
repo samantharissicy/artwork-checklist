@@ -18,6 +18,16 @@ A aplicação combina um checklist regulatório estruturado com um fluxo visual 
 > As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** estão concluídas.  
 > A **Camada G5 — Conformidade Pantone com a Pack Copy está completa.**
 
+## Documentação de engenharia
+
+A documentação técnica detalhada (arquitetura, modelo de domínio, persistência e migrações, ADRs, estratégia de testes, arquitetura futura) é mantida em inglês em:
+
+```text
+docs/
+```
+
+Comece em **[docs/README.md](docs/README.md)** — o hub de documentação, com caminhos de leitura recomendados para desenvolvedores, agentes de IA e revisores. Este README permanece como apresentação do projeto; `docs/` concentra a base de conhecimento técnico.
+
 ---
 
 ## Índice

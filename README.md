@@ -18,6 +18,16 @@ The application combines a structured regulatory checklist with a visual artwork
 > Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
 > **Layer G5 — Pantone Pack-Copy Compliance is complete.**
 
+## Engineering Documentation
+
+Detailed engineering documentation (architecture, domain model, persistence and migrations, ADRs, testing strategy, future architecture) lives in:
+
+```text
+docs/
+```
+
+Start at **[docs/README.md](docs/README.md)** — the documentation hub with recommended reading paths for developers, AI coding agents and reviewers. This README remains the project presentation; `docs/` carries the technical knowledge base.
+
 ---
 
 ## Table of Contents
