@@ -64,7 +64,7 @@ See [README.md](../README.md) (project presentation) and [architecture/architect
 
 ## Development Philosophy
 
-The project follows the **prompt-mestre** methodology (maintained externally): incremental, specification-driven evolution with mandatory principles:
+The project follows a specification-driven methodology: incremental, specification-driven evolution with mandatory principles:
 
 - **P-001 Incrementality** — implement only the requested feature;
 - **P-002 Preservation** — never break existing functionality;

@@ -27,12 +27,12 @@ This `docs/` tree is the technical knowledge base for the **Artwork & Pack Copy 
 When documentation conflicts with the repository, resolve in this order:
 
 ```
-CODE > TESTS > ROADMAP > PROMPT-MESTRE > README > HISTORICAL BASELINE
+CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 ```
 
 `baseline.en.md` / `baseline.pt-BR.md` are **historical snapshots** (layer A0) and are never edited.
 
-> Note: `roadmap.md` and `prompt-mestre.md` are maintained **outside** this repository since commit `48ff58c`. The historical layer plan they defined is reflected in [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md); this repo documents the implemented reality.
+> Note: `roadmap.md` is maintained **outside** this repository since commit `48ff58c`. The historical layer plan it defined is reflected in [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md); this repo documents the implemented reality.
 
 ## Current Architecture Summary
 

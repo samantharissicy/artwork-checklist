@@ -4,7 +4,7 @@
 
 ## Context
 
-The original prototype stored state in the DOM: checkboxes represented approval, CSS classes represented visual state, inputs held product data, and objects like `pins`/`itemTitles` duplicated data that also lived in HTML. This made state inconsistent, hard to persist, and risky to evolve (the original prompt-mestre explicitly identified this as the main architectural problem).
+The original prototype stored state in the DOM: checkboxes represented approval, CSS classes represented visual state, inputs held product data, and objects like `pins`/`itemTitles` duplicated data that also lived in HTML. This made state inconsistent, hard to persist, and risky to evolve (the original specification explicitly identified this as the main architectural problem).
 
 ## Decision
 

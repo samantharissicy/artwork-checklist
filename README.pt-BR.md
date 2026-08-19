@@ -1345,7 +1345,7 @@ As especificações de cor legadas armazenavam a referência Pantone como texto 
 
 ## Roadmap
 
-O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório. Os documentos históricos de roadmap mantidos no repositório (`roadmap.md`, `prompt-mestre.md`) foram removidos em um commit anterior; o conteúdo relevante está refletido neste README e nos relatórios de conclusão por camada.
+O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório. O documento histórico de roadmap mantido no repositório (`roadmap.md`) foi removido em um commit anterior; o conteúdo relevante está refletido neste README e nos relatórios de conclusão por camada.
 
 | Status | Camada    | Entrega                                          |
 | :----: | --------- | ------------------------------------------------ |

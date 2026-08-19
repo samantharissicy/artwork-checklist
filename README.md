@@ -1352,7 +1352,7 @@ Legacy colour specifications stored the Pantone reference as free text. No offic
 
 ## Roadmap
 
-Development is guided by a separate development roadmap maintained outside this repository. The historical in-repo roadmap documents (`roadmap.md`, `prompt-mestre.md`) were removed in an earlier commit; the roadmap content relevant to this repository is reflected in this README and in the per-layer completion reports.
+Development is guided by a separate development roadmap maintained outside this repository. The historical in-repo roadmap document (`roadmap.md`) was removed in an earlier commit; the roadmap content relevant to this repository is reflected in this README and in the per-layer completion reports.
 
 | Status | Layer     | Deliverable                                       |
 | :----: | --------- | ------------------------------------------------- |

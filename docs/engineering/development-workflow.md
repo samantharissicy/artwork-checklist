@@ -8,7 +8,7 @@ Document the official development workflow and Git conventions used in this repo
 
 ## Feature Workflow
 
-Every feature follows the specification-driven workflow defined by the project methodology (prompt-mestre, maintained externally):
+Every feature follows the specification-driven workflow defined by the project methodology:
 
 ```
 AUDIT → SPEC → PLAN → TASKS → IMPLEMENT → VERIFY → REPORT
