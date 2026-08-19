@@ -3337,29 +3337,88 @@ function handleReviewAction(itemId, requestedStatus) {
   saveStateToStorage();
 }
 
-// ============================================================
+/// ============================================================
 // PROGRESS
 // ============================================================
 //
 // Progress reads appState.
 // It does not count checked DOM elements.
 //
+// Two metrics, never confused:
+//
+//   reviewProgress = (approved + rejected) / total
+//   approvalRate   = approved / total
+//
+// Rejected items count as REVIEWED, but not as APPROVED.
+//
 
 /**
- * Recalculates and renders review progress for the active product.
+ * Computes review metrics for a product from appState.
  *
- * Progress is derived exclusively from appState rather than from DOM classes
- * or selected controls.
+ * This function is "pure": it only reads state and returns numbers.
+ * It never touches the DOM, which makes it easy to test and reuse.
  *
- * An item counts as reviewed whenever its status is not Pending. Therefore
- * both Approved and Rejected items contribute to the reviewed count.
+ * @param {Product} product - Product whose metrics should be computed.
+ * @returns {{total: number, approved: number, rejected: number,
+ *   pending: number, reviewed: number, reviewProgress: number,
+ *   approvalRate: number}} Review metrics.
+ */
+function computeReviewMetrics(product) {
+  const items = Object.values(product.items);
+
+  const total = items.length;
+
+  const approved = items.filter(
+    (item) => item.status === REVIEW_STATUSES.APPROVED,
+  ).length;
+
+  const rejected = items.filter(
+    (item) => item.status === REVIEW_STATUSES.REJECTED,
+  ).length;
+
+  const pending = total - approved - rejected;
+
+  // Rejected counts as reviewed, but not as approved.
+  const reviewed = approved + rejected;
+
+  // Guard against division by zero on an empty checklist.
+  const reviewProgress = total === 0 ? 0 : (reviewed / total) * 100;
+  const approvalRate = total === 0 ? 0 : (approved / total) * 100;
+
+  return {
+    total,
+    approved,
+    rejected,
+    pending,
+    reviewed,
+    reviewProgress,
+    approvalRate,
+  };
+}
+
+/**
+ * Safely writes text into an element when it exists.
  *
- * The function updates:
- * - the "X / Y reviewed" text;
- * - the progress bar width percentage.
+ * @param {string} id - Element ID to update.
+ * @param {string|number} text - Text to write.
+ * @returns {void}
+ */
+function setElementText(id, text) {
+  const el = document.getElementById(id);
+
+  if (el) {
+    el.textContent = text;
+  }
+}
+
+/**
+ * Recalculates and renders review metrics for the active product.
  *
- * Detailed Approved, Rejected and Pending metrics are intentionally handled
- * separately by the review-metrics layer.
+ * Reads metrics from computeReviewMetrics() and writes them into the
+ * progress footer: counters, both percentages and the progress bar.
+ *
+ * The bar width always follows reviewProgress (reviewed / total),
+ * never approvalRate.
  *
  * @returns {void}
  */
@@ -3370,24 +3429,20 @@ function updateProgress() {
     return;
   }
 
-  const items = Object.values(product.items);
+  const m = computeReviewMetrics(product);
 
-  const reviewedCount = items.filter(
-    (item) => item.status !== REVIEW_STATUSES.PENDING,
-  ).length;
+  setElementText("progress-total", m.total);
+  setElementText("progress-approved", m.approved);
+  setElementText("progress-rejected", m.rejected);
+  setElementText("progress-pending", m.pending);
 
-  const progressText = document.getElementById("progress-text");
+  setElementText("progress-review-pct", `${Math.round(m.reviewProgress)}% reviewed`);
+  setElementText("progress-approval-pct", `${Math.round(m.approvalRate)}% approved`);
+
   const progressBar = document.getElementById("progress-bar");
 
-  if (progressText) {
-    progressText.textContent = `${reviewedCount} / ${items.length} reviewed`;
-  }
-
-  const percentage =
-    items.length === 0 ? 0 : (reviewedCount / items.length) * 100;
-
   if (progressBar) {
-    progressBar.style.width = percentage + "%";
+    progressBar.style.width = m.reviewProgress + "%";
   }
 }
 
