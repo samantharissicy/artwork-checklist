@@ -34,3 +34,30 @@
 .progress-fill {
   width: 0;
 }
+/* Review metrics — CAMADA F1 */
+
+.progress-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.progress-stat strong {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.progress-stat-approved strong {
+  color: #047857;
+}
+
+.progress-stat-rejected strong {
+  color: #b91c1c;
+}
+
+.progress-stat-pending strong {
+  color: #64748b;
+}

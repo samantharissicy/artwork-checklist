@@ -150,14 +150,28 @@
         </div>
 
         <div class="progress-footer">
-          <div class="progress-label">
-            <span>Progress</span>
-            <span id="progress-text">0 / 0 reviewed</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-bar"></div>
-          </div>
-        </div>
+  <div class="progress-stats">
+    <span class="progress-stat">
+      <strong id="progress-total">0</strong> items
+    </span>
+    <span class="progress-stat progress-stat-approved">
+      <strong id="progress-approved">0</strong> Approved
+    </span>
+    <span class="progress-stat progress-stat-rejected">
+      <strong id="progress-rejected">0</strong> Rejected
+    </span>
+    <span class="progress-stat progress-stat-pending">
+      <strong id="progress-pending">0</strong> Pending
+    </span>
+  </div>
+  <div class="progress-label">
+    <span id="progress-review-pct">0% reviewed</span>
+    <span id="progress-approval-pct">0% approved</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-bar"></div>
+  </div>
+</div>
       </div>
 
       <!-- Right: Artwork Viewer -->
