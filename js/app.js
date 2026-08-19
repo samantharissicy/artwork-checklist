@@ -6775,25 +6775,36 @@ async function addArtworkLayer() {
 }
 
 /**
- * Opens the rename dialog for the active artwork layer.
+ * Opens the rename dialog for a specific artwork layer.
  *
  * This function belongs to the UI interaction layer. It requests the new
  * layer name through the custom application dialog and delegates the actual
  * domain mutation to renameArtworkLayer().
  *
+ * Renaming never changes the active artwork layer: the target layer is
+ * identified by its permanent ID and the supplied product. Because the
+ * domain rename operates on the active product, the dialog flow re-verifies
+ * after the asynchronous dialog that the target product is still active and
+ * that the target layer still exists before mutating anything.
+ *
  * Cancelling the dialog leaves the layer unchanged. An empty submitted name
- * is rejected and produces user feedback.
+ * is rejected and produces user feedback. The layer's permanent ID, artwork
+ * metadata and Pantone associations are untouched by a rename.
  *
  * @async
- * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product owning the layer.
+ * @param {string} layerId - Permanent ID of the layer to rename.
+ * @returns {Promise<boolean>} True when the layer was successfully renamed,
+ *   false when the target was not found, the dialog was cancelled or the
+ *   name was rejected.
  */
-async function renameActiveArtworkLayer() {
-  const product = getActiveProduct();
+async function renameArtworkLayerWithDialog(productId, layerId) {
+  const product = getProductById(productId);
 
-  const layer = getActiveArtworkLayer(product);
+  const layer = product ? getArtworkLayerById(product, layerId) : null;
 
   if (!product || !layer) {
-    return;
+    return false;
   }
 
   const proposedName = await showPromptDialog({
@@ -6808,13 +6819,29 @@ async function renameActiveArtworkLayer() {
   });
 
   if (proposedName === null) {
-    return;
+    return false;
   }
 
-  if (!renameArtworkLayer(layer.id, proposedName)) {
+  /*
+   * Async dialog safety: the target must still exist, and the domain rename
+   * applies to the active product, so the target product must still be
+   * active. Never resolve the target from whichever layer is active now.
+   */
+
+  const activeProduct = getActiveProduct();
+
+  if (!activeProduct || activeProduct.id !== productId) {
+    return false;
+  }
+
+  if (!getArtworkLayerById(activeProduct, layerId)) {
+    return false;
+  }
+
+  if (!renameArtworkLayer(layerId, proposedName)) {
     showToast("Layer name cannot be empty.");
 
-    return;
+    return false;
   }
 
   saveStateToStorage();
@@ -6822,29 +6849,21 @@ async function renameActiveArtworkLayer() {
   renderAppState();
 
   showToast("Artwork layer renamed.");
+
+  return true;
 }
 
 /**
- * Deletes the active artwork layer after the required confirmation.
+ * Opens the rename dialog for the active artwork layer.
  *
- * This function belongs to the UI interaction layer. Layer deletion always
- * keeps at least one artwork layer in the product, so deleting the last
- * remaining layer is rejected immediately without asking for confirmation.
- *
- * A confirmation dialog is shown whenever the layer contains pinned items
- * and/or persisted artwork data, because both are permanently removed.
- * Empty layers are deleted without confirmation.
- *
- * On success:
- * - the layer and its pins are removed;
- * - the layer's artwork session Object URL is released;
- * - another layer becomes active when the deleted layer was active;
- * - the workspace is persisted and re-rendered.
+ * This is a convenience UI wrapper around renameArtworkLayerWithDialog().
+ * The dialog flow, validation rules and Pantone integration remain
+ * centralized in the reusable product-level function.
  *
  * @async
- * @returns {Promise<void>} Resolves after the delete flow completes or is cancelled.
+ * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
  */
-async function deleteActiveArtworkLayer() {
+async function renameActiveArtworkLayer() {
   const product = getActiveProduct();
 
   const layer = getActiveArtworkLayer(product);
@@ -6853,13 +6872,52 @@ async function deleteActiveArtworkLayer() {
     return;
   }
 
+  await renameArtworkLayerWithDialog(product.id, layer.id);
+}
+
+/**
+ * Runs the interactive deletion flow for a specific artwork layer.
+ *
+ * This function belongs to the UI interaction layer. Layer deletion always
+ * keeps at least one artwork layer in the product, so deleting the last
+ * remaining layer is rejected immediately without asking for confirmation.
+ *
+ * A confirmation dialog is shown whenever the target layer contains pinned
+ * items and/or persisted artwork data, because both are permanently removed.
+ * Empty layers are deleted without confirmation.
+ *
+ * On success:
+ * - the target layer and its pins are removed;
+ * - the target layer's artwork session Object URL is released;
+ * - when the deleted layer was active, another layer becomes active
+ *   following the deterministic domain fallback;
+ * - the workspace is persisted and re-rendered;
+ * - an open Pantone colour editor keeps its draft while its layer
+ *   checkboxes are rebuilt so the deleted layer disappears.
+ *
+ * @async
+ * @param {string} productId - Permanent ID of the product owning the layer.
+ * @param {string} layerId - Permanent ID of the layer to delete.
+ * @returns {Promise<boolean>} True when the layer was deleted, false when
+ *   the target was not found, cancellation occurred or deletion was
+ *   rejected.
+ */
+async function deleteArtworkLayerWithDialog(productId, layerId) {
+  const product = getProductById(productId);
+
+  const layer = product ? getArtworkLayerById(product, layerId) : null;
+
+  if (!product || !layer) {
+    return false;
+  }
+
   if (product.artworkLayers.length <= 1) {
     showToast("At least one artwork layer must remain.");
 
-    return;
+    return false;
   }
 
-  const pinsCount = layerPinCount(product, layer.id);
+  const pinsCount = layerPinCount(product, layerId);
 
   const hasArtwork = layer.artwork !== null;
 
@@ -6879,14 +6937,26 @@ async function deleteActiveArtworkLayer() {
     });
 
     if (!confirmed) {
-      return;
+      return false;
     }
   }
 
-  if (!deleteArtworkLayer(product.id, layer.id)) {
+  /*
+   * Async dialog safety: re-verify that the target product and the target
+   * layer still exist before mutating. Never resolve the target from
+   * whichever layer became active while the dialog was open.
+   */
+
+  const currentProduct = getProductById(productId);
+
+  if (!currentProduct || !getArtworkLayerById(currentProduct, layerId)) {
+    return false;
+  }
+
+  if (!deleteArtworkLayer(productId, layerId)) {
     showToast("At least one artwork layer must remain.");
 
-    return;
+    return false;
   }
 
   saveStateToStorage();
@@ -6894,7 +6964,7 @@ async function deleteActiveArtworkLayer() {
   renderAppState();
 
   /*
-   * When the colour editor is open, its layer checkboxes are rebuilt so a
+   * When the colour editor is open, its layer checkboxes are rebuilt so the
    * deleted layer disappears from the draft selection. Remaining draft
    * fields and selected layers are preserved and nothing is saved.
    */
@@ -6905,6 +6975,30 @@ async function deleteActiveArtworkLayer() {
   scrollActiveArtworkLayerTabIntoView();
 
   showToast("Artwork layer deleted.");
+
+  return true;
+}
+
+/**
+ * Runs the interactive deletion flow for the active artwork layer.
+ *
+ * This is a convenience UI wrapper around deleteArtworkLayerWithDialog().
+ * The dialog flow, last-layer protection and deletion rules remain
+ * centralized in the reusable product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after the delete flow completes or is cancelled.
+ */
+async function deleteActiveArtworkLayer() {
+  const product = getActiveProduct();
+
+  const layer = getActiveArtworkLayer(product);
+
+  if (!product || !layer) {
+    return;
+  }
+
+  await deleteArtworkLayerWithDialog(product.id, layer.id);
 }
 
 /**
@@ -6915,6 +7009,8 @@ async function deleteActiveArtworkLayer() {
  * layer receives the "active" class and aria-selected="true".
  *
  * Clicking a tab switches the active artwork layer of the product.
+ * Right-clicking a tab opens the custom artwork layer context menu for that
+ * specific layer without switching the active layer.
  *
  * This function changes only presentation state. It does not mutate appState
  * or persist any review data.
@@ -6927,6 +7023,14 @@ function renderArtworkLayerTabs() {
   if (!container) {
     return;
   }
+
+  /*
+   * The tab strip is rebuilt below, which discards every current tab element
+   * including a possible context-menu highlight. Close the layer context
+   * menu so no visual target reference is left orphaned after the rebuild.
+   */
+
+  closeArtworkLayerContextMenu();
 
   container.innerHTML = "";
 
@@ -6961,6 +7065,17 @@ function renderArtworkLayerTabs() {
 
     tab.addEventListener("click", () => {
       switchArtworkLayer(layer.id);
+    });
+
+    tab.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+
+      openArtworkLayerContextMenu({
+        productId: product.id,
+        layerId: layer.id,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
     });
 
     container.appendChild(tab);
@@ -8046,7 +8161,7 @@ function openProductContextMenu({ productId, clientX, clientY }) {
     return false;
   }
 
-  closeProductContextMenu();
+  closeAllContextMenus();
 
   productContextMenuState.productId = productId;
 
@@ -8084,6 +8199,22 @@ function openProductContextMenu({ productId, clientX, clientY }) {
   menu.style.top = `${position.top}px`;
 
   return true;
+}
+
+/**
+ * Closes every custom context menu that may be open.
+ *
+ * Both the product context menu and the artwork layer context menu close
+ * their transient state, highlight styling and positional styles. Both
+ * close functions are idempotent, so calling this helper at any time is
+ * harmless.
+ *
+ * @returns {void}
+ */
+function closeAllContextMenus() {
+  closeProductContextMenu();
+
+  closeArtworkLayerContextMenu();
 }
 
 /**
@@ -8203,54 +8334,83 @@ function handleProductContextMenuAction(action) {
 }
 
 /**
- * Wires up the product context menu interactions.
+ * Wires up the custom context menu interactions.
  *
- * Global listeners are registered exactly once. The menu itself uses event
- * delegation so new menu items never need individual listeners.
+ * This initializer is shared by the product context menu and the artwork
+ * layer context menu. Global listeners are registered exactly once; each
+ * menu uses event delegation so menu items never need individual listeners.
  *
- * The menu closes automatically when:
- * - a click happens outside the menu;
- * - Escape is pressed while the dialog is not open;
- * - the window is resized;
- * - any scroll occurs;
- * - renderProductTabs() rebuilds the tab bar (for example after product
- *   switching, creation, duplication, deletion or import).
+ * Only one custom context menu is visible at a time. When both menus are
+ * present in the document, clicking outside, pressing Escape, resizing the
+ * window or scrolling closes whichever menu is open.
+ *
+ * Menus also close automatically when their tab bars are rebuilt:
+ * - renderProductTabs() after product switching, creation, duplication,
+ *   deletion or import;
+ * - renderArtworkLayerTabs() after artwork layer switching, renaming,
+ *   addition, deletion or product context changes.
  *
  * @returns {void}
  */
-function initializeProductContextMenu() {
-  const menu = document.getElementById("product-context-menu");
+function initializeContextMenus() {
+  const productMenu = document.getElementById("product-context-menu");
 
-  if (!menu) {
-    return;
+  const layerMenu = document.getElementById("artwork-layer-context-menu");
+
+  if (productMenu) {
+    productMenu.addEventListener("click", (event) => {
+      const item = event.target.closest(
+        "[data-product-context-action]",
+      );
+
+      if (!item || item.disabled) {
+        return;
+      }
+
+      handleProductContextMenuAction(item.dataset.productContextAction);
+    });
   }
 
-  menu.addEventListener("click", (event) => {
-    const item = event.target.closest(
-      "[data-product-context-action]",
-    );
+  if (layerMenu) {
+    layerMenu.addEventListener("click", (event) => {
+      const item = event.target.closest(
+        "[data-artwork-layer-context-action]",
+      );
 
-    if (!item || item.disabled) {
-      return;
-    }
+      if (!item || item.disabled) {
+        return;
+      }
 
-    handleProductContextMenuAction(item.dataset.productContextAction);
-  });
+      handleArtworkLayerContextMenuAction(
+        item.dataset.artworkLayerContextAction,
+      );
+    });
+  }
 
   document.addEventListener("click", (event) => {
-    if (!productContextMenuState.isOpen) {
+    if (
+      artworkLayerContextMenuState.isOpen &&
+      (!layerMenu || !layerMenu.contains(event.target))
+    ) {
+      closeArtworkLayerContextMenu();
+
       return;
     }
 
-    if (menu.contains(event.target)) {
-      return;
+    if (
+      productContextMenuState.isOpen &&
+      (!productMenu || !productMenu.contains(event.target))
+    ) {
+      closeProductContextMenu();
     }
-
-    closeProductContextMenu();
   });
 
   document.addEventListener("keydown", (event) => {
-    if (!productContextMenuState.isOpen) {
+    const layerMenuOpen = artworkLayerContextMenuState.isOpen;
+
+    const productMenuOpen = productContextMenuState.isOpen;
+
+    if (!layerMenuOpen && !productMenuOpen) {
       return;
     }
 
@@ -8261,7 +8421,11 @@ function initializeProductContextMenu() {
     if (event.key === "Escape") {
       event.preventDefault();
 
-      closeProductContextMenu();
+      if (layerMenuOpen) {
+        closeArtworkLayerContextMenu();
+      } else {
+        closeProductContextMenu();
+      }
 
       return;
     }
@@ -8269,7 +8433,11 @@ function initializeProductContextMenu() {
     if (event.key === "ArrowDown") {
       event.preventDefault();
 
-      moveProductContextMenuFocus(1);
+      if (layerMenuOpen) {
+        moveArtworkLayerContextMenuFocus(1);
+      } else {
+        moveProductContextMenuFocus(1);
+      }
 
       return;
     }
@@ -8277,11 +8445,19 @@ function initializeProductContextMenu() {
     if (event.key === "ArrowUp") {
       event.preventDefault();
 
-      moveProductContextMenuFocus(-1);
+      if (layerMenuOpen) {
+        moveArtworkLayerContextMenuFocus(-1);
+      } else {
+        moveProductContextMenuFocus(-1);
+      }
     }
   });
 
   window.addEventListener("resize", () => {
+    if (artworkLayerContextMenuState.isOpen) {
+      closeArtworkLayerContextMenu();
+    }
+
     if (productContextMenuState.isOpen) {
       closeProductContextMenu();
     }
@@ -8290,12 +8466,317 @@ function initializeProductContextMenu() {
   window.addEventListener(
     "scroll",
     () => {
+      if (artworkLayerContextMenuState.isOpen) {
+        closeArtworkLayerContextMenu();
+      }
+
       if (productContextMenuState.isOpen) {
         closeProductContextMenu();
       }
     },
     true,
   );
+}
+
+// ============================================================
+// ARTWORK LAYER CONTEXT MENU — G4 UX POLISH
+// ============================================================
+
+/**
+ * Transient UI state of the artwork layer tab context menu.
+ *
+ * This state belongs exclusively to the UI interaction layer:
+ *
+ * - it is never written into appState;
+ * - it is never serialized into JSON;
+ * - it is never persisted into localStorage;
+ * - it never alters Product.updatedAt;
+ * - it holds no DOM element references (layer tabs are rebuilt by
+ *   renderArtworkLayerTabs()).
+ *
+ * The menu stores the product ID together with the permanent layer ID so the
+ * target is identified unambiguously. Every action executed from the menu
+ * operates on this pair, never on the currently active layer.
+ *
+ * @type {{ productId: string|null, layerId: string|null, isOpen: boolean }}
+ */
+const artworkLayerContextMenuState = {
+  productId: null,
+  layerId: null,
+  isOpen: false,
+};
+
+/**
+ * Returns the Artwork Layer Tab element for a given layer ID.
+ *
+ * Layer tabs are rebuilt by renderArtworkLayerTabs(), so DOM references are
+ * never stored by the context menu. The current tab is always located at
+ * call time by scanning the live tab list and comparing permanent layer IDs
+ * by value.
+ *
+ * @param {string} layerId - Permanent artwork layer ID.
+ * @returns {HTMLElement|null} The matching tab element, or null when it does
+ *   not exist.
+ */
+function findArtworkLayerTab(layerId) {
+  const tabs = document.querySelectorAll(".artwork-layer-tab");
+
+  for (const tab of tabs) {
+    if (tab.dataset.layerId === layerId) {
+      return tab;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Locates the delete menu item inside the artwork layer context menu.
+ *
+ * @returns {HTMLButtonElement|null} The delete item, or null when the menu is
+ *   not present in the document.
+ */
+function getArtworkLayerContextMenuDeleteItem() {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu) {
+    return null;
+  }
+
+  return (
+    menu.querySelector('[data-artwork-layer-context-action="delete"]') || null
+  );
+}
+
+/**
+ * Synchronizes the enabled/disabled state of the artwork layer context menu.
+ *
+ * A product must always keep at least one artwork layer, so the Delete Layer
+ * item is disabled while the target product owns only one layer. The item
+ * remains visible so the rule stays predictable.
+ *
+ * @returns {void}
+ */
+function refreshArtworkLayerContextMenuDisabledState() {
+  const deleteItem = getArtworkLayerContextMenuDeleteItem();
+
+  if (!deleteItem) {
+    return;
+  }
+
+  const product = getProductById(artworkLayerContextMenuState.productId);
+
+  const singleLayerProduct =
+    !product || !Array.isArray(product.artworkLayers) || product.artworkLayers.length <= 1;
+
+  deleteItem.disabled = singleLayerProduct;
+
+  if (singleLayerProduct) {
+    deleteItem.setAttribute("aria-disabled", "true");
+    deleteItem.title = "At least one artwork layer must remain.";
+  } else {
+    deleteItem.removeAttribute("aria-disabled");
+    deleteItem.title = "Delete the selected artwork layer";
+  }
+}
+
+/**
+ * Opens the custom artwork layer context menu at the requested cursor position.
+ *
+ * The menu targets the supplied (productId, layerId) pair, which may differ
+ * from the active layer of the product. Opening the menu never calls
+ * switchArtworkLayer() and therefore never changes the active layer.
+ *
+ * Responsibilities:
+ * - validates the target product and layer;
+ * - closes any other open custom context menu;
+ * - stores the target pair in transient state;
+ * - highlights the matching layer tab visually;
+ * - refreshes disabled items;
+ * - positions the menu inside the viewport through the shared
+ *   calculateContextMenuPosition() helper.
+ *
+ * The function performs no business mutations.
+ *
+ * @param {Object} options - Menu opening inputs.
+ * @param {string} options.productId - Permanent ID of the target product.
+ * @param {string} options.layerId - Permanent ID of the target layer.
+ * @param {number} options.clientX - Cursor X coordinate from the event.
+ * @param {number} options.clientY - Cursor Y coordinate from the event.
+ * @returns {boolean} True when the menu was opened successfully.
+ */
+function openArtworkLayerContextMenu({
+  productId,
+  layerId,
+  clientX,
+  clientY,
+}) {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu) {
+    return false;
+  }
+
+  const product = getProductById(productId);
+
+  if (!product || !getArtworkLayerById(product, layerId)) {
+    return false;
+  }
+
+  closeAllContextMenus();
+
+  artworkLayerContextMenuState.productId = productId;
+
+  artworkLayerContextMenuState.layerId = layerId;
+
+  artworkLayerContextMenuState.isOpen = true;
+
+  const previousTarget = document.querySelector(
+    ".artwork-layer-tab.context-target",
+  );
+
+  if (previousTarget) {
+    previousTarget.classList.remove("context-target");
+  }
+
+  const targetTab = findArtworkLayerTab(layerId);
+
+  if (targetTab) {
+    targetTab.classList.add("context-target");
+  }
+
+  refreshArtworkLayerContextMenuDisabledState();
+
+  menu.hidden = false;
+
+  const position = calculateContextMenuPosition({
+    clientX,
+    clientY,
+    menuWidth: menu.offsetWidth,
+    menuHeight: menu.offsetHeight,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+
+  menu.style.left = `${position.left}px`;
+
+  menu.style.top = `${position.top}px`;
+
+  return true;
+}
+
+/**
+ * Closes the artwork layer context menu and clears its transient state.
+ *
+ * The function is idempotent: calling it when the menu is already closed or
+ * missing from the document is harmless.
+ *
+ * @returns {void}
+ */
+function closeArtworkLayerContextMenu() {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (menu) {
+    menu.hidden = true;
+
+    menu.style.left = "";
+
+    menu.style.top = "";
+  }
+
+  const targetTab = document.querySelector(
+    ".artwork-layer-tab.context-target",
+  );
+
+  if (targetTab) {
+    targetTab.classList.remove("context-target");
+  }
+
+  artworkLayerContextMenuState.productId = null;
+
+  artworkLayerContextMenuState.layerId = null;
+
+  artworkLayerContextMenuState.isOpen = false;
+}
+
+/**
+ * Moves keyboard focus between the enabled items of the artwork layer
+ * context menu.
+ *
+ * Arrow navigation wraps around, and disabled items such as the Delete Layer
+ * item in a single-layer workspace are skipped.
+ *
+ * @param {number} direction - +1 for ArrowDown, -1 for ArrowUp.
+ * @returns {void}
+ */
+function moveArtworkLayerContextMenuFocus(direction) {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  const items = Array.from(
+    menu.querySelectorAll("[data-artwork-layer-context-action]"),
+  ).filter((item) => !item.disabled);
+
+  if (items.length === 0) {
+    return;
+  }
+
+  const currentIndex = items.indexOf(document.activeElement);
+
+  const nextIndex =
+    currentIndex === -1
+      ? direction === 1
+        ? 0
+        : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
+
+  items[nextIndex].focus();
+}
+
+/**
+ * Dispatches an artwork layer context menu action.
+ *
+ * The action always operates on the target (productId, layerId) pair stored
+ * when the menu was opened, never on the currently active layer. The menu is
+ * closed before the action flow starts so no orphaned menu remains during
+ * dialogs.
+ *
+ * Every action reuses the existing layer lifecycle operations:
+ * - "rename": renameArtworkLayerWithDialog() over the target layer;
+ * - "add": addArtworkLayer() through the existing prompt flow;
+ * - "delete": deleteArtworkLayerWithDialog() over the target layer.
+ *
+ * @param {string} action - One of "rename", "add" or "delete".
+ * @returns {void}
+ */
+function handleArtworkLayerContextMenuAction(action) {
+  const { productId, layerId } = artworkLayerContextMenuState;
+
+  closeArtworkLayerContextMenu();
+
+  switch (action) {
+    case "rename":
+      if (productId !== null && layerId !== null) {
+        renameArtworkLayerWithDialog(productId, layerId);
+      }
+
+      break;
+
+    case "add":
+      addArtworkLayer();
+
+      break;
+
+    case "delete":
+      if (productId !== null && layerId !== null) {
+        deleteArtworkLayerWithDialog(productId, layerId);
+      }
+
+      break;
+  }
 }
 
 // ============================================================
@@ -9199,7 +9680,7 @@ function initializeApp() {
 
   bindAppDialog();
 
-  initializeProductContextMenu();
+  initializeContextMenus();
 
   renderProductTabs();
 

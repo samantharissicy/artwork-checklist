@@ -1,9 +1,13 @@
 /* ==========================================================
-   PRODUCT TAB CONTEXT MENU
+   SHARED CONTEXT MENU
    ========================================================== */
 
 /*
- * Custom right-click menu for Product Tabs (G2 UX polish).
+ * Reusable custom right-click menu visual language.
+ *
+ * Used by:
+ * - the Product Tab context menu (G2 UX polish);
+ * - the Artwork Layer Tab context menu (G4 UX polish).
  *
  * Positioned with position: fixed so cursor clientX/clientY
  * coordinates can be used directly. The z-index sits above the
@@ -11,7 +15,7 @@
  * below the application dialog (2000).
  */
 
-.product-context-menu {
+.context-menu {
   position: fixed;
 
   z-index: 1200;
@@ -30,11 +34,11 @@
     0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
-.product-context-menu[hidden] {
+.context-menu[hidden] {
   display: none;
 }
 
-.product-context-menu-item {
+.context-menu-item {
   width: 100%;
 
   display: flex;
@@ -57,53 +61,53 @@
   cursor: pointer;
 }
 
-.product-context-menu-item svg {
+.context-menu-item svg {
   flex-shrink: 0;
 
   color: #64748b;
 }
 
-.product-context-menu-item:hover:not(:disabled) {
+.context-menu-item:hover:not(:disabled) {
   background: #f1f5f9;
 
   color: #0f172a;
 }
 
-.product-context-menu-item:hover:not(:disabled) svg {
+.context-menu-item:hover:not(:disabled) svg {
   color: #334155;
 }
 
-.product-context-menu-item:focus-visible {
+.context-menu-item:focus-visible {
   outline: 2px solid #3b82f6;
 
   outline-offset: -1px;
 }
 
-.product-context-menu-item:disabled {
+.context-menu-item:disabled {
   opacity: 0.45;
 
   cursor: not-allowed;
 }
 
-.product-context-menu-danger {
+.context-menu-danger {
   color: #dc2626;
 }
 
-.product-context-menu-danger svg {
+.context-menu-danger svg {
   color: #dc2626;
 }
 
-.product-context-menu-danger:hover:not(:disabled) {
+.context-menu-danger:hover:not(:disabled) {
   background: #fef2f2;
 
   color: #b91c1c;
 }
 
-.product-context-menu-danger:hover:not(:disabled) svg {
+.context-menu-danger:hover:not(:disabled) svg {
   color: #b91c1c;
 }
 
-.product-context-menu-separator {
+.context-menu-separator {
   height: 1px;
 
   margin: 0.25rem 0.375rem;

@@ -489,7 +489,7 @@
      PRODUCT TAB CONTEXT MENU
      ======================================================== -->
   <div
-    class="product-context-menu"
+    class="context-menu"
     id="product-context-menu"
     role="menu"
     aria-label="Product actions"
@@ -497,7 +497,7 @@
   >
     <button
       type="button"
-      class="product-context-menu-item"
+      class="context-menu-item"
       data-product-context-action="rename"
       role="menuitem"
     >
@@ -512,7 +512,7 @@
 
     <button
       type="button"
-      class="product-context-menu-item"
+      class="context-menu-item"
       data-product-context-action="duplicate"
       role="menuitem"
     >
@@ -525,11 +525,11 @@
       <span>Duplicate</span>
     </button>
 
-    <div class="product-context-menu-separator" role="separator"></div>
+    <div class="context-menu-separator" role="separator"></div>
 
     <button
       type="button"
-      class="product-context-menu-item"
+      class="context-menu-item"
       data-product-context-action="new"
       role="menuitem"
     >
@@ -542,11 +542,11 @@
       <span>New Product</span>
     </button>
 
-    <div class="product-context-menu-separator" role="separator"></div>
+    <div class="context-menu-separator" role="separator"></div>
 
     <button
       type="button"
-      class="product-context-menu-item product-context-menu-danger"
+      class="context-menu-item context-menu-danger"
       data-product-context-action="delete"
       role="menuitem"
     >
@@ -558,6 +558,67 @@
       </svg>
 
       <span>Delete</span>
+    </button>
+  </div>
+
+  <!-- ========================================================
+       ARTWORK LAYER TAB CONTEXT MENU
+       ======================================================== -->
+  <div
+    class="context-menu"
+    id="artwork-layer-context-menu"
+    role="menu"
+    aria-label="Artwork layer actions"
+    hidden
+  >
+    <button
+      type="button"
+      class="context-menu-item"
+      data-artwork-layer-context-action="rename"
+      role="menuitem"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        <path d="m15 5 4 4" />
+      </svg>
+
+      <span>Rename Layer</span>
+    </button>
+
+    <div class="context-menu-separator" role="separator"></div>
+
+    <button
+      type="button"
+      class="context-menu-item"
+      data-artwork-layer-context-action="add"
+      role="menuitem"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+      </svg>
+
+      <span>Add Layer</span>
+    </button>
+
+    <div class="context-menu-separator" role="separator"></div>
+
+    <button
+      type="button"
+      class="context-menu-item context-menu-danger"
+      data-artwork-layer-context-action="delete"
+      role="menuitem"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 6h18" />
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </svg>
+
+      <span>Delete Layer</span>
     </button>
   </div>
 
