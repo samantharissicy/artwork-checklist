@@ -1,11 +1,11 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
-  <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 itens">
+  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
+  <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 testes passando">
-  <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
+  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="373/373 testes passando">
+  <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
 </p>
@@ -15,8 +15,18 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G e G4** estão concluídas.  
-> A **Camada G4 — Workspace multi-layer de artwork está completa.**
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** estão concluídas.  
+> A **Camada G5 — Conformidade Pantone com a Pack Copy está completa.**
+
+## Documentação de engenharia
+
+A documentação técnica detalhada (arquitetura, modelo de domínio, persistência e migrações, ADRs, estratégia de testes, arquitetura futura) é mantida em inglês em:
+
+```text
+docs/
+```
+
+Comece em **[docs/README.md](docs/README.md)** — o hub de documentação, com caminhos de leitura recomendados para desenvolvedores, agentes de IA e revisores. Este README permanece como apresentação do projeto; `docs/` concentra a base de conhecimento técnico.
 
 ---
 
@@ -62,7 +72,7 @@ Antes de uma embalagem de alimento ir para produção, diversos elementos precis
 - reciclagem;
 - textos multilíngues.
 
-A aplicação organiza essa revisão em **49 itens distribuídos em 6 seções**.
+A aplicação organiza essa revisão em **50 itens distribuídos em 6 seções**.
 
 Cada item possui exatamente um status:
 
@@ -106,7 +116,7 @@ sem banco de dados
 
 | Funcionalidade                       | Descrição                                      |
 | ------------------------------------ | ---------------------------------------------- |
-| ✅ Checklist interativo              | 49 itens regulatórios                          |
+| ✅ Checklist interativo              | 50 itens regulatórios                          |
 | ✅ Seções recolhíveis                | 6 categorias                                   |
 | ✅ Dados do produto                  | Brand, Product Name, Weight e SKU              |
 | ✅ Estado centralizado               | Dados de domínio em `appState`                 |
@@ -124,10 +134,13 @@ sem banco de dados
 | ✅ Autosave                          | Estado salvo automaticamente no `localStorage` |
 | ✅ Restauração após reload           | Estado salvo é restaurado ao abrir a página    |
 | ✅ Proteção contra estado corrompido | Storage inválido não derruba a aplicação       |
-| ✅ Serialização versionada           | Estado canônico usa schema versão 3            |
-| ✅ Migração de estado                | Dados legados de schema v1/v2 migram para v3   |
-| ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v3) |
+| ✅ Serialização versionada           | Estado canônico usa schema versão 4            |
+| ✅ Migração de estado                | Dados legados de schema v1/v2/v3 migram para v4 |
+| ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v4) |
 | ✅ Workspace multi-layer             | Tabs de layer com fluxos Add / Rename / Delete    |
+| ✅ Conformidade Pantone              | Item 6I "Pantone Colours Match Approved Pack Copy?" |
+| ✅ Workflow padrão para 6I           | Pending / Approved / Rejected + comentário + pins  |
+| ✅ Registro Pantone legado           | `pantoneColors` preservado na migração v3 → v4     |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -143,7 +156,9 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 196 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 373 testes de regressão no navegador           |
+| ✅ Menu de contexto da tab           | Clique direito na tab: Renomear/Duplicar/Novo/Excluir |
+| ✅ Menu de contexto da camada        | Clique direito na tab da camada: Renomear/Adicionar/Excluir |
 
 ---
 
@@ -203,12 +218,12 @@ Exemplo:
 ```text
 10 Approved
 5 Rejected
-34 Pending
+35 Pending
 
-= 15 / 49 reviewed
+= 15 / 50 reviewed
 ```
 
-Métricas mais detalhadas pertencem à Camada F.
+Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação fazem parte do trabalho pendente da Camada F1 (métricas da revisão).
 
 ---
 
@@ -354,10 +369,10 @@ O viewer aceita tanto a artwork demonstrativa quanto imagens reais.
 
 ### Modo demo
 
-Caso o produto ativo não possua metadata de artwork:
+Caso o produto ativo não possua metadata de artwork na camada ativa:
 
 ```js
-product.artwork === null;
+getActiveArtworkMetadata(product) === null;
 ```
 
 a aplicação mostra a artwork demonstrativa Front & Back.
@@ -465,19 +480,23 @@ pins anteriores são removidos
 
 ## Pins e coordenadas proporcionais
 
-Cada item pode possuir:
+Cada item pode possuir um pin normalizado por artwork layer:
 
 ```js
-item.pin = {
-  xRatio,
-  yRatio,
-};
+item.pins = [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+];
 ```
 
-Exemplo:
+Exemplo (primeira entrada da layer):
 
 ```js
 {
+  layerId: "layer-front",
   xRatio: 0.438,
   yRatio: 0.286
 }
@@ -549,10 +568,12 @@ Um JSON inválido no navegador nunca deve impedir a aplicação de abrir.
 ### Schema atual
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
-Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels.
+Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels, do schema v2 de layer única e do schema v3 sem o item de conformidade Pantone.
+
+Estado do schema v3 migra para v4 adicionando o item canônico 6I ("Pantone Colours Match Approved Pack Copy?") como Pending em cada produto. O registro legado `pantoneColors` é preservado inalterado e nunca influencia o status do item 6I migrado.
 
 ### Save Check
 
@@ -571,9 +592,13 @@ schemaVersion
 exportedAt
 product
 items
-artwork
+artworkLayers
+activeArtworkLayerId
+pantoneColors
 reviewer
 ```
+
+A estrutura exportada espelha a revisão em `appState`: `artworkLayers`, `activeArtworkLayerId` e `pantoneColors` são irmãos de nível superior do objeto `product`. O registro `pantoneColors` é preservado por compatibilidade com exports do schema v3; revisões criadas nesta versão revisam a conformidade Pantone por meio do item 6I do checklist.
 
 e preserva:
 
@@ -626,12 +651,12 @@ Arquivos incompatíveis ou malformados são rejeitados sem derrubar a aplicaçã
 | 3   | **Nutrition & Serving**          |  10   | Nutrição e porções          |
 | 4   | **Storage & Cooking**            |   4   | Conservação e preparo       |
 | 5   | **Claims & Certifications**      |  12   | Claims e certificações      |
-| 6   | **Packaging, Marks & Languages** |   8   | Marcas, idiomas e embalagem |
+| 6   | **Packaging, Marks & Languages** |   9   | Marcas, idiomas e embalagem |
 
 Total:
 
 ```text
-49 itens de revisão
+50 itens de revisão
 ```
 
 ---
@@ -686,6 +711,9 @@ Brand
 Product Name / Legal Name
 Weight
 SKU / Code
+Production Code
+Site
+Artwork Revision
 ```
 
 Os valores atualizam o produto ativo em `appState` e são persistidos automaticamente.
@@ -699,6 +727,8 @@ Set Artwork
 ```
 
 e escolha uma imagem.
+
+Cada artwork layer do produto possui identidade de artwork independente: alterne as camadas pelas tabs acima do canvas, adicione camadas com `+ Add Layer`, renomeie-as e exclua-as com seus pins por layer.
 
 Ela será exibida durante a sessão atual e sua metadata ficará associada à revisão.
 
@@ -746,7 +776,7 @@ Arraste um item do checklist para a artwork.
 A posição proporcional fica em:
 
 ```js
-item.pin;
+item.pins; // uma entrada por layer, na layer ativa
 ```
 
 ### 7. Navegue
@@ -810,25 +840,47 @@ O domínio da revisão é restaurado.
 
 Caso exista metadata de artwork, selecione novamente a mesma imagem para restaurar a visualização do arquivo.
 
+### 12. Revise a conformidade Pantone com a pack copy
+
+A seção 6 do checklist contém o item canônico:
+
+```text
+6I — Pantone Colours Match Approved Pack Copy?
+```
+
+O revisor verifica que a artwork utiliza as cores Pantone especificadas na pack copy aprovada. O item 6I segue o fluxo padrão: Pending / Approved / Rejected, comentário obrigatório na rejeição e pins por artwork layer, exatamente como qualquer outro item.
+
+Revisões salvas por versões anteriores podem conter o registro legado `pantoneColors`. Essa metadata permanece integralmente preservada e sobrevive a reload, Save/Open Check e duplicação, mas nunca influencia o status do item 6I. O editor Colour Specification do MVP anterior foi descontinuado.
+
 ---
 
 ## Estrutura do projeto
 
 ```text
 artwork-checklist/
-├── index.html
+├── assets/
+│   └── favicon.svg
 │
 ├── css/
+│   ├── base/
+│   ├── layout/
+│   ├── components/
+│   ├── utilities/
 │   └── style.css
 │
 ├── js/
 │   ├── app.js
-│   └── tests.js
+│   ├── tests.js
+│   └── tests/
+│       ├── core/
+│       └── layers/
 │
+├── docs/
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
 │
+├── index.html
 ├── README.md
 └── README.pt-BR.md
 ```
@@ -919,7 +971,7 @@ const appState = {
 Schema atual:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
 O fluxo principal é:
@@ -946,38 +998,47 @@ O DOM não é a fonte oficial de estado.
 
 ```js
 {
-  (id,
-    brand,
-    productName,
-    weight,
-    sku,
-    artwork,
-    items,
-    reviewer,
-    signature,
-    createdAt,
-    updatedAt);
+  id,
+  brand,
+  productName,
+  weight,
+  sku,
+  productionCode,
+  site,
+  artworkVersion,
+  artworkLayers: [...],
+  activeArtworkLayerId,
+  pantoneColors: [...],
+  items,
+  reviewer,
+  signature,
+  createdAt,
+  updatedAt
 }
 ```
 
-A arquitetura já armazena produtos dentro de uma coleção, embora a interface atual ainda exponha um fluxo de produto único.
-
-Operações de múltiplos produtos pertencem à Camada G.
+Os produtos são armazenados em uma coleção e gerenciados por meio de tabs de produto (Camada G).
 
 ---
 
 ### Metadata da artwork
 
+Metadata de artwork pertence a cada camada (`layer.artwork`):
+
 ```js
-artwork: {
-  (name, type, size, width, height);
+layer.artwork: {
+  name,
+  type,
+  size,
+  width,
+  height
 }
 ```
 
 ou:
 
 ```js
-artwork: null;
+layer.artwork: null;
 ```
 
 O arquivo binário da imagem não pertence ao estado persistido.
@@ -1000,16 +1061,20 @@ O arquivo binário da imagem não pertence ao estado persistido.
 
   comment: "",
 
-  pin: null
+  pins: []
 }
 ```
 
-Quando existe um pin:
+Quando existe um pin, `item.pins` guarda uma entrada normalizada por artwork layer:
 
 ```js
-pin: {
-  (xRatio, yRatio);
-}
+pins: [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+]
 ```
 
 ---
@@ -1025,7 +1090,7 @@ dados do produto
 status
 comentários
 currentTitle
-pins
+pins (por camada)
 metadata da artwork
 reviewer
 timestamps
@@ -1100,13 +1165,13 @@ js/tests.js
 Abra a aplicação e execute no Console do navegador:
 
 ```js
-runArtworkTests();
+await runArtworkTests();
 ```
 
 Checkpoint atual:
 
 ```text
-196 / 196 testes passando
+312 / 312 → 357 / 357 → 373 / 373 testes passando
 ```
 
 A suíte cobre:
@@ -1124,6 +1189,7 @@ Camada E1
 Camada E2
 Camada G4A
 Camada G4B
+Camada G5
 ```
 
 Entre os comportamentos testados:
@@ -1131,7 +1197,7 @@ Entre os comportamentos testados:
 ```text
 estrutura do appState
 produto ativo
-49 itens
+50 itens
 6 seções
 
 status válidos
@@ -1191,9 +1257,20 @@ pins por layer (item.pins[])
 sessions por layer
 identidade da artwork por layer
 migração schema v2 → v3
-cadeia schema v1 → v2 → v3
+cadeia schema v1 → v2 → v3 → v4
 migração da chave legada de storage
 renderização por active layer
+
+conformidade Pantone
+definição canônica do item 6I
+workflow do 6I (Pending / Approved / Rejected)
+comentário obrigatório na rejeição do 6I
+pins por layer no 6I
+migração schema v3 → v4
+import de arquivos de revisão v1/v2/v3 → v4
+preservação do pantoneColors legado
+roundtrip serialização / localStorage do registro legado
+roundtrip export / import JSON do registro legado
 
 regressão do DOM
 regressão do zoom
@@ -1207,30 +1284,17 @@ Os testes automatizados complementam testes manuais, especialmente para seleçã
 
 ## Limitações conhecidas
 
-### 1. Interface de produto único
+### 1. Métricas ainda básicas
 
-O domínio já possui:
-
-```js
-products;
-activeProductId;
-```
-
-mas a interface ainda trabalha com uma revisão de produto por vez.
-
-Criação, alternância, duplicação, exclusão e tabs de produtos pertencem à Camada G.
-
-### 2. Métricas ainda básicas
-
-A interface atual exibe principalmente:
+A interface exibe:
 
 ```text
-X / 49 reviewed
+X / Y reviewed
 ```
 
-Contadores detalhados de Approved, Rejected e Pending e os percentuais separados de revisão e aprovação pertencem à Camada F.
+Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação ainda não foram implementados; pertencem ao trabalho pendente da Camada F1 (métricas da revisão).
 
-### 3. Arquivo da artwork somente em sessão
+### 2. Arquivo da artwork somente em sessão
 
 A metadata da artwork é persistida, mas o arquivo local da imagem não.
 
@@ -1246,11 +1310,11 @@ importar uma revisão
 
 Metadata e posições dos pins permanecem preservadas.
 
-### 4. Sem reviewer e assinatura final
+### 3. Sem reviewer e assinatura final
 
 Identificação do revisor e assinatura pertencem à Camada H.
 
-### 5. Sem relatório e PDF
+### 4. Sem relatório e PDF
 
 O domínio já preserva:
 
@@ -1266,13 +1330,13 @@ metadata da artwork
 
 mas relatório imprimível e PDF pertencem à Camada J.
 
-### 6. Interface orientada a desktop
+### 5. Interface orientada a desktop
 
 A interface ainda é desenvolvida principalmente para desktop.
 
 Responsividade e hardening para touchscreen pertencem às próximas fases do roadmap.
 
-### 7. Sem backend compartilhado
+### 6. Sem backend compartilhado
 
 O MVP é local ao navegador.
 
@@ -1288,11 +1352,15 @@ histórico de revisões
 
 Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdução de backend.
 
+### 7. Referências Pantone são textuais
+
+As especificações de cor legadas armazenavam a referência Pantone como texto livre. Nenhuma equivalência oficial de RGB ou HEX é derivada. A revisão de conformidade Pantone atual é feita pelo item 6I do checklist; o registro legado `pantoneColors` é preservado apenas para compatibilidade de dados com exports anteriores.
+
 ---
 
 ## Roadmap
 
-O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório.
+O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório. O documento histórico de roadmap mantido no repositório (`roadmap.md`) foi removido em um commit anterior; o conteúdo relevante está refletido neste README e nos relatórios de conclusão por camada.
 
 | Status | Camada    | Entrega                                          |
 | :----: | --------- | ------------------------------------------------ |
@@ -1307,9 +1375,11 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   ✅   | **D4**    | Import JSON / Open Check                         |
 |   ✅   | **E1**    | Pins proporcionais normalizados                  |
 |   ✅   | **E2**    | Identidade da artwork e proteção na substituição |
-|   📋   | **F1**    | Métricas da revisão                              |
-|   📋   | **G1**    | Modelo de múltiplos produtos                     |
-|   📋   | **G2**    | Interface de tabs                                |
+|   📋   | **F1**    | Métricas da revisão (contadores e % de aprovação) |
+|   ✅   | **G1**    | Modelo de múltiplos produtos                     |
+|   ✅   | **G2**    | Interface de tabs                                |
+|   ✅   | **G3–G4** | Workspace multi-layer de artwork                 |
+|   ✅   | **G5**    | Conformidade Pantone com a pack copy (item 6I) |
 |   📋   | **H1–H2** | Reviewer + assinatura                            |
 |   📋   | **I1–I2** | Alta resolução + responsividade                  |
 |   📋   | **J1–J3** | Relatório imprimível + PDF                       |
@@ -1317,9 +1387,34 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   📋   | **L1**    | Separação em módulos                             |
 |   ⏳   | **M1–M4** | Backend, autenticação, revisões e auditoria      |
 
-O fluxo de produto único está considerado estável até a Camada E.
+O fluxo de produto único está estável desde a Camada E; tabs de múltiplos produtos, artwork layers e a conformidade Pantone com a pack copy já estão implementados até a Camada G5.
 
-Caso F e G sejam desenvolvidas em paralelo, cada uma deve permanecer isolada em sua própria branch.
+As camadas F1 e G foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
+
+### UX Polish — Menu de Contexto da Tab de Camada de Artwork
+
+* [x] Menu customizado de clique direito nas tabs de camada de artwork.
+* [x] Renomear camada alvo.
+* [x] Atalho de Adicionar Camada.
+* [x] Excluir camada alvo.
+* [x] Exclusão da última camada desabilitada.
+* [x] Posicionamento seguro dentro da viewport.
+* [x] Fechamento por clique fora / Escape.
+* [x] Exclusividade mútua entre menus de produto e camada.
+* [x] Menu nativo do navegador preservado fora das tabs.
+* [x] Refinamento visual das tabs de camada de artwork.
+
+### UX Polish — Menu de Contexto da Tab de Produto
+
+* [x] Menu customizado de clique direito.
+* [x] Renomear produto alvo.
+* [x] Duplicar produto alvo.
+* [x] Atalho de Novo Produto.
+* [x] Excluir produto alvo.
+* [x] Exclusão do último produto desabilitada.
+* [x] Posicionamento seguro dentro da viewport.
+* [x] Fechamento por clique fora / Escape.
+* [x] Refinamento visual das tabs de produto.
 
 ---
 

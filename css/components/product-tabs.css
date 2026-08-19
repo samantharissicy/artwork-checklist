@@ -42,21 +42,27 @@
 }
 
 .product-tab {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+
   flex: 0 0 auto;
 
-  max-width: 220px;
+  min-width: 0;
+  max-width: 192px;
 
-  padding: 6px 12px;
+  padding: 0.45rem 0.8rem;
 
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
+  border: 1px solid #dbe3ee;
+  border-radius: 0.4rem;
 
   background: #f8fafc;
-  color: #64748b;
+  color: #475569;
 
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 500;
 
   cursor: pointer;
 
@@ -65,20 +71,54 @@
   white-space: nowrap;
 
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .product-tab:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+  color: #334155;
 }
 
 .product-tab.active {
-  background: #eff6ff;
+  background: #ffffff;
   border-color: #3b82f6;
   color: #1d4ed8;
+
+  font-weight: 600;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.product-tab.active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0.65rem;
+  right: 0.65rem;
+  bottom: -1px;
+
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: #2563eb;
+}
+
+/*
+ * Visual highlight for the tab that currently owns the open
+ * context menu. It never changes which product is active.
+ */
+.product-tab.context-target {
+  border-color: #94a3b8;
+
+  box-shadow:
+    0 0 0 2px rgba(148, 163, 184, 0.15);
 }
 
 .product-tabs-actions {

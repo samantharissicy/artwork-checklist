@@ -1,0 +1,98 @@
+# State Management
+
+**Status: Current**
+
+## Purpose
+
+Explain what lives in `appState`, what lives outside it, and why the split matters. See [architecture-overview.md](architecture-overview.md) for the flow and [data-model.md](data-model.md) for shapes.
+
+## appState — The Single Source of Truth
+
+```js
+const appState = {
+  schemaVersion: 4,
+  activeProductId: "product-1",
+  products: {},
+};
+```
+
+(js/app.js:636)
+
+Rules:
+
+- **Product ownership**: every product is stored by permanent ID in `appState.products`; the product owns its fields, layers, items, pins, legacy registry and timestamps. No product data lives anywhere else.
+- **Active selection**: `activeProductId` selects which product the workspace renders. `switchProduct` (js/app.js:3468) changes only this field, resets transient UI, persists and re-renders.
+- **Active layer**: each product owns `activeArtworkLayerId`. `switchArtworkLayer` (js/app.js:946) changes it without touching product timestamps.
+- **Immutable vs mutable**: `originalTitle` is immutable by construction (`Object.defineProperty` with `writable:false`, js/app.js:535). `currentTitle`, `status`, `comment`, `pins` are mutable through named domain functions only.
+- **Timestamps**: every domain mutation calls `touchProduct`/`touchActiveProduct` (js/app.js:1996/2016) which sets `updatedAt` to now.
+
+## Domain Getters
+
+Reads go through small helpers instead of ad-hoc traversal:
+
+| Getter | Purpose |
+| --- | --- |
+| `getActiveProduct()` | Active product object |
+| `getActiveArtworkLayer()` | Active layer of the active product (falls back to `artworkLayers[0]`, js/app.js:777) |
+| `getItemById(itemId)` | Item by canonical ID in the active product |
+| `getArtworkSession(metadata, productId, layerId)` | Session record for a (product, layer) |
+| `isArtworkLoadedInSession(metadata, productId, layerId)` | Whether the session still holds the matching binary |
+| `getChecklistDefinition(itemId)` | Canonical `{section, definition}` for an ID |
+| `layerPinCount(productId, layerId)` | Number of pins on a layer |
+
+## Domain Mutations (authorized writers)
+
+| Function | Mutates |
+| --- | --- |
+| `setItemStatus(itemId, status)` | item.status + updatedAt |
+| `setItemComment(itemId, comment)` | item.comment + updatedAt |
+| `setItemCurrentTitle(itemId, title)` | item.currentTitle + updatedAt |
+| `setItemPinForLayer(itemId, layerId, pin)` | item.pins (one per item+layer) + updatedAt |
+| `removeItemPinFromLayer(itemId, layerId)` | item.pins |
+| `createNewProduct` / `switchProduct` / `renameProduct` / `duplicateProduct` / `deleteProduct` | products / activeProductId |
+| `createArtworkLayerForProduct` / `switchArtworkLayer` / `renameArtworkLayer` / `deleteArtworkLayer` | artworkLayers / activeArtworkLayerId / pins / legacy layer references |
+| `applyArtworkIdentity(metadata, confirmReplacement, productId, layerId)` | layer.artwork (and clears layer pins when identity changes) |
+| `adoptSessionArtwork(metadata, objectUrl, productId, layerId)` | artworkSessions only (never appState) |
+
+All of them validate input before mutating (status whitelist, non-empty names, pin bounds, artwork identity rules).
+
+## Render Synchronization
+
+- Domain functions mutate state first, then call renderers (`renderItemState`, `renderPins`, `renderAppState`, …) and `saveStateToStorage`.
+- The DOM is rebuilt from state; event handlers read state, never the other way around.
+- `renderAppState()` (js/app.js:7737) is the coordinator for the active product: product inputs, context header, layer tabs, artwork state, per-item render, pins, progress.
+- See [rendering-model.md](rendering-model.md).
+
+## Transient State Outside appState
+
+These are module-level variables, intentionally **not** part of `appState`:
+
+| Variable | Type | Meaning | Why not persisted |
+| --- | --- | --- | --- |
+| `openCommentItemIds` (2727) | `Set` | Open comment panels | Pure UI expansion state |
+| `editingTitleItemId` (2729) | `string\|null` | Item in inline title edit | Editor focus state |
+| `currentZoom` (2761) | `number` | Viewer zoom 0.5–2.0 | View preference, not review data |
+| `artworkSessions` (652) | `Map` | Session artworks `{metadata, objectUrl}` per (product, layer) | Binary + URL are runtime-only |
+| `toastTimeoutId` (6769) | `number` | Toast auto-hide timer | Timing |
+| `productContextMenuState` (8089) | `{productId, isOpen}` | Open product menu target | Menu lifecycle |
+| `artworkLayerContextMenuState` (8594) | `{productId, layerId, isOpen}` | Open layer menu target | Menu lifecycle |
+| `appDialogState` (8877) | `{isOpen, resolve, type}` | Custom dialog promise bridge | Dialog lifecycle |
+| `pantoneColourEditorState` (7208) | `{isOpen, colourId, productId}` | Legacy Pantone editor (unused) | Legacy UI |
+
+`resetTransientReviewUiState()` (js/app.js:2753) clears comments, title-edit and legacy editor state on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
+
+## Why Transient State Is Not Persisted
+
+1. **Serialization must stay a pure projection of review data.** `serializeState()` is `JSON.stringify(appState)`; UI noise would leak into review files and break round-trip stability (tests assert `serializeState → deserializeState → serializeState` stability).
+2. **Rehydration restores review content, not window furniture.** Open editors and menus are meaningless after reload.
+3. **Zoom is a display preference.** Persisting it would couple review files to display settings.
+4. **Session resources die with the page** (`beforeunload` → `releaseAllSessionArtworks`). Persisting Object URLs would be a dangling-reference bug.
+
+See [decisions/ADR-008-transient-ui-state.md](../decisions/ADR-008-transient-ui-state.md).
+
+## Related Documents
+
+- [data-model.md](data-model.md)
+- [rendering-model.md](rendering-model.md)
+- [persistence/serialization.md](../persistence/serialization.md)
+- [decisions/ADR-002-appstate-single-source-of-truth.md](../decisions/ADR-002-appstate-single-source-of-truth.md)

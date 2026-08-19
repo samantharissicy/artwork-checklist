@@ -26,7 +26,7 @@
   test("every rendered item has a comment control", () => {
     const items = document.querySelectorAll(".check-item");
 
-    assertEqual(items.length, 49);
+    assertEqual(items.length, 50);
 
     items.forEach((item) => {
       assertExists(item.querySelector('[data-action="comment"]'));

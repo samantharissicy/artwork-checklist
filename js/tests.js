@@ -47,6 +47,8 @@
 
     "layers/g4-multi-layer-artwork.test.js",
 
+    "layers/g5-pantone-compliance.test.js",
+
     "layers/baseline-smoke.test.js",
 
     "core/runner.js",

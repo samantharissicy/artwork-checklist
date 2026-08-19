@@ -40,22 +40,33 @@
   scrollbar-width: thin;
 }
 
+/*
+ * Layer tabs are the secondary navigation inside the active product:
+ * related to the Product Tabs (G2 UX polish) but slightly smaller,
+ * lighter and more compact so the visual hierarchy stays obvious.
+ */
 .artwork-layer-tab {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+
   flex: 0 0 auto;
 
-  max-width: 180px;
+  min-width: 0;
+  max-width: 11rem;
 
-  padding: 5px 11px;
+  padding: 0.4rem 0.7rem;
 
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
+  border: 1px solid #dbe3ee;
+  border-radius: 0.4rem;
 
-  background: #ffffff;
+  background: #f8fafc;
   color: #64748b;
 
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 500;
 
   cursor: pointer;
 
@@ -64,20 +75,55 @@
   white-space: nowrap;
 
   transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .artwork-layer-tab:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+  color: #334155;
 }
 
 .artwork-layer-tab.active {
   background: #eff6ff;
-  border-color: #3b82f6;
+  border-color: #60a5fa;
   color: #1d4ed8;
+
+  font-weight: 600;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.artwork-layer-tab.active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0.55rem;
+  right: 0.55rem;
+  bottom: -1px;
+
+  height: 2px;
+
+  border-radius: 999px;
+
+  background: #3b82f6;
+}
+
+/*
+ * Visual highlight for the layer tab that currently owns the open
+ * context menu. It deliberately differs from the active state (grey
+ * ring instead of blue) and never changes the active layer.
+ */
+.artwork-layer-tab.context-target {
+  border-color: #94a3b8;
+
+  box-shadow:
+    0 0 0 2px rgba(148, 163, 184, 0.14);
 }
 
 .artwork-layer-actions {

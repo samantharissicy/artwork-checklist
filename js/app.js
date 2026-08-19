@@ -65,6 +65,20 @@
  */
 
 /**
+ * Pantone colour specification registered for a product.
+ *
+ * Colours belong to the product and can be associated with one or more
+ * artwork layers through their permanent layer identifiers.
+ *
+ * @typedef {Object} PantoneColour
+ * @property {string} id - Permanent unique colour identifier within the product.
+ * @property {string} name - Name or usage intention of the colour.
+ * @property {string} pantoneCode - Textual Pantone reference (authoritative text).
+ * @property {string} notes - Optional notes about the colour usage.
+ * @property {string[]} layerIds - Permanent IDs of associated artwork layers.
+ */
+
+/**
  * Persisted artwork pin bound to one checklist item and one layer.
  *
  * The xRatio/yRatio values are normalized between 0 and 1 relative to the
@@ -104,6 +118,7 @@
  * @property {string} artworkVersion - Revision of the artwork under review.
  * @property {ArtworkLayer[]} artworkLayers - Independent artwork layers.
  * @property {string} activeArtworkLayerId - Identifier of the layer currently under review.
+ * @property {PantoneColour[]} pantoneColors - Colour specifications registered for the product.
  * @property {Object.<string, ReviewItem>} items
  * @property {Object} reviewer
  * @property {Object|null} signature
@@ -111,7 +126,7 @@
  * @property {string} updatedAt - ISO last-modification timestamp.
  */
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 const ARTWORK_REPLACEMENT_MESSAGE =
   "Replacing this artwork will invalidate existing pins.\nContinue?";
@@ -458,6 +473,13 @@ const sectionDefinitions = [
         title: "Tamper Evidence",
         note: "Type, Text, Size",
       },
+      {
+        // Wording may be refined by the artwork/compliance team.
+        // Keep item ID "6i" stable.
+        id: "6i",
+        title: "Pantone Colours Match Approved Pack Copy?",
+        note: "Verify the artwork uses the Pantone colours specified in the approved pack copy",
+      },
     ],
   },
 ];
@@ -552,7 +574,8 @@ function createArtworkLayer(id, name, artwork = null) {
  * Artwork, signature and review decisions start empty.
  *
  * Every new product starts with a single default artwork layer named
- * "Main Artwork" (identifier "layer-main"), which is also the active layer.
+ * "Main Artwork" (identifier "layer-main"), which is also the active layer,
+ * and an empty pantoneColors registry.
  *
  * @param {string} id - Permanent unique identifier assigned to the product.
  * @returns {Product} Newly initialized product review.
@@ -580,6 +603,8 @@ function createProduct(id) {
     artworkLayers: [createArtworkLayer("layer-main", "Main Artwork")],
 
     activeArtworkLayerId: "layer-main",
+
+    pantoneColors: [],
 
     items: createInitialItems(),
 
@@ -1024,6 +1049,8 @@ function deleteArtworkLayer(productId, layerId) {
 
   clearLayerPins(product, layerId);
 
+  clearPantoneLayerReferences(product, layerId);
+
   releaseLayerSessionArtwork(productId, layerId);
 
   product.artworkLayers.splice(layerIndex, 1);
@@ -1039,6 +1066,578 @@ function deleteArtworkLayer(productId, layerId) {
   touchProduct(productId);
 
   return true;
+}
+
+// ============================================================
+// LEGACY PANTONE SPECIFICATION METADATA — DOMAIN
+// Backward compatibility only
+// ============================================================
+//
+// The Colour Specification component was removed from the active UI when G5
+// was realigned into the checklist-based Pantone pack-copy compliance
+// workflow (item 6i). The domain functions below are retained unchanged
+// because legacy pantoneColors metadata must keep serializing, validating,
+// rehydrating and exporting correctly (schema v3 → v4 migration and Open
+// Check compatibility).
+
+// ============================================================
+// ARTWORK COLOUR SPECIFICATIONS — DOMAIN
+// ============================================================
+//
+// Pantone colour specifications belong to the Product, not to a
+// single artwork layer. A colour can be associated with several
+// layers through their permanent layer IDs.
+//
+// The Pantone reference is stored as authoritative text. No RGB or
+// HEX equivalence is derived or implied.
+//
+// The Pantone reference, name and notes lengths enforced by the
+// inline editor (maxlength 120 / 120 / 500 in index.html) are
+// mirrored here so domain and import validation never accept
+// strings the HTML editor cannot produce. index.html and this
+// constant must stay aligned; the domain validator is the
+// source of truth.
+//
+const PANTONE_LIMITS = Object.freeze({
+  CODE: 120,
+  NAME: 120,
+  NOTES: 500,
+});
+
+/**
+ * Generates a collision-resistant permanent colour identifier for a product.
+ *
+ * New identifiers use the cryptographically strong random format
+ * "colour-<uuid>" when window.crypto.randomUUID() is available, falling
+ * back to "colour-<timestamp>-<random hex>". Each generated ID is checked
+ * against the product's existing colour IDs before it is returned.
+ *
+ * IDs are never derived from a reused counter: once an ID has been issued,
+ * deleting that colour never makes the same ID eligible for future
+ * creations. Legacy numeric IDs such as "colour-1" remain valid and are
+ * preserved by rehydration; they simply are not reproduced by this
+ * generator.
+ *
+ * @param {Product|null} product - Product that will receive the colour.
+ * @returns {string} Unique permanent colour identifier.
+ */
+function generatePantoneColourId(product) {
+  const existingIds = new Set(getPantoneColourIds(product));
+
+  let colourId;
+
+  do {
+    if (
+      window.crypto &&
+      typeof window.crypto.randomUUID === "function"
+    ) {
+      colourId = `colour-${window.crypto.randomUUID()}`;
+    } else {
+      colourId = `colour-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
+    }
+  } while (existingIds.has(colourId));
+
+  return colourId;
+}
+
+/**
+ * Creates a detached PantoneColour object.
+ *
+ * The factory never renders, saves or touches the DOM. Arrays received
+ * by reference are cloned so the caller's data stays independent.
+ *
+ * @param {Object} data - Colour field values.
+ * @param {string} data.id - Permanent colour identifier.
+ * @param {string} data.name - Name or usage intention of the colour.
+ * @param {string} data.pantoneCode - Textual Pantone reference.
+ * @param {string} [data.notes=""] - Optional usage notes.
+ * @param {string[]} [data.layerIds=[]] - Associated artwork layer IDs.
+ * @returns {PantoneColour} Newly created colour object.
+ */
+function createPantoneColour({
+  id,
+  name,
+  pantoneCode,
+  notes = "",
+  layerIds = [],
+}) {
+  return {
+    id,
+    name,
+    pantoneCode,
+    notes,
+    layerIds: layerIds.slice(),
+  };
+}
+
+/**
+ * Returns the permanent IDs of every colour registered on a product.
+ *
+ * @param {Product|null} product - Product to inspect.
+ * @returns {string[]} Colour identifier list.
+ */
+function getPantoneColourIds(product) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return [];
+  }
+
+  return product.pantoneColors.map((colour) => colour.id);
+}
+
+/**
+ * Looks up a Pantone colour by its permanent identifier.
+ *
+ * @param {Product|null} product - Product whose colours should be searched.
+ * @param {string} colourId - Permanent colour identifier.
+ * @returns {PantoneColour|null} Matching colour, or null when it does not exist.
+ */
+function getPantoneColourById(product, colourId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return null;
+  }
+
+  return (
+    product.pantoneColors.find((colour) => colour.id === colourId) || null
+  );
+}
+
+/**
+ * Returns every colour associated with a specific artwork layer.
+ *
+ * @param {Product|null} product - Product whose colours should be searched.
+ * @param {string} layerId - Permanent artwork layer identifier.
+ * @returns {PantoneColour[]} Colours associated with the layer.
+ */
+function getPantoneColoursForLayer(product, layerId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return [];
+  }
+
+  return product.pantoneColors.filter((colour) =>
+    colour.layerIds.includes(layerId),
+  );
+}
+
+/**
+ * Clones a list of PantoneColour objects without sharing references.
+ *
+ * @param {PantoneColour[]|*} colours - Colour list to clone.
+ * @returns {PantoneColour[]} Independent deep clone of the supplied list.
+ */
+function clonePantoneColours(colours) {
+  if (!Array.isArray(colours)) {
+    return [];
+  }
+
+  return colours.map((colour) =>
+    createPantoneColour({
+      id: colour.id,
+      name: colour.name,
+      pantoneCode: colour.pantoneCode,
+      notes: colour.notes,
+      layerIds: colour.layerIds,
+    }),
+  );
+}
+
+/**
+ * Normalizes a layer ID selection against the product's artwork layers.
+ *
+ * Duplicate IDs are removed and the result follows the product's artwork
+ * layer order. IDs that do not reference an existing layer are dropped
+ * because the UI only offers valid checkboxes.
+ *
+ * @param {Product|null} product - Product whose layers are authoritative.
+ * @param {string[]|*} layerIds - Raw layer ID selection.
+ * @returns {string[]} Normalized layer ID list.
+ */
+function normalizePantoneLayerIds(product, layerIds) {
+  if (!Array.isArray(layerIds)) {
+    return [];
+  }
+
+  const requested = new Set(
+    layerIds.filter((layerId) => typeof layerId === "string"),
+  );
+
+  const normalized = [];
+
+  (product?.artworkLayers || []).forEach((layer) => {
+    if (requested.has(layer.id)) {
+      normalized.push(layer.id);
+
+      requested.delete(layer.id);
+    }
+  });
+
+  return normalized;
+}
+
+/**
+ * Validates a persistent or imported PantoneColour against the G5 rules.
+ *
+ * The colour must carry a unique non-empty id, a non-empty name, a
+ * non-empty textual pantoneCode, string notes and a layerIds array
+ * without duplicates where every entry references an existing artwork
+ * layer of the same product. An empty layerIds array is valid.
+ *
+ * String lengths mirror the HTML editor limits defined by
+ * PANTONE_LIMITS: code and name up to 120 trimmed characters, notes up
+ * to 500 characters. Oversized strings are rejected by persisted-state
+ * and import validation alike.
+ *
+ * This function never mutates the inspected colour or product.
+ *
+ * @param {*} colour - Candidate PantoneColour to validate.
+ * @param {Product|null} product - Product providing the authoritative layer set.
+ * @returns {boolean} True when the colour conforms to the G5 rules.
+ */
+function validatePantoneColour(colour, product) {
+  if (!isPlainObject(colour)) {
+    return false;
+  }
+
+  if (typeof colour.id !== "string" || colour.id.trim() === "") {
+    return false;
+  }
+
+  if (
+    typeof colour.name !== "string" ||
+    colour.name.trim() === "" ||
+    colour.name.trim().length > PANTONE_LIMITS.NAME
+  ) {
+    return false;
+  }
+
+  if (
+    typeof colour.pantoneCode !== "string" ||
+    colour.pantoneCode.trim() === "" ||
+    colour.pantoneCode.trim().length > PANTONE_LIMITS.CODE
+  ) {
+    return false;
+  }
+
+  if (
+    typeof colour.notes !== "string" ||
+    colour.notes.length > PANTONE_LIMITS.NOTES
+  ) {
+    return false;
+  }
+
+  if (!Array.isArray(colour.layerIds)) {
+    return false;
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product?.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const seen = new Set();
+
+  for (const layerId of colour.layerIds) {
+    if (typeof layerId !== "string" || seen.has(layerId)) {
+      return false;
+    }
+
+    seen.add(layerId);
+
+    if (!validLayerIds.has(layerId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validates a persisted pantoneColors array of a serialized product.
+ *
+ * Identifiers must be unique within the product and every colour must
+ * conform to validatePantoneColour().
+ *
+ * @param {*} colours - Persisted pantoneColors value.
+ * @param {Product|null} product - Product providing the authoritative layer set.
+ * @returns {boolean} True when the colour list is structurally valid.
+ */
+function validateSerializedPantoneColours(colours, product) {
+  if (!Array.isArray(colours)) {
+    return false;
+  }
+
+  const seenIds = new Set();
+
+  for (const colour of colours) {
+    if (!validatePantoneColour(colour, product)) {
+      return false;
+    }
+
+    if (seenIds.has(colour.id)) {
+      return false;
+    }
+
+    seenIds.add(colour.id);
+  }
+
+  return true;
+}
+
+/**
+ * Removes an artwork layer ID from every colour of a product.
+ *
+ * This preserves referential integrity when a layer is deleted without
+ * removing the colour specifications themselves: a colour that loses its
+ * last layer simply becomes Unassigned.
+ *
+ * @param {Product|null} product - Product whose colours should be updated.
+ * @param {string} layerId - Permanent ID of the removed artwork layer.
+ * @returns {void}
+ */
+function clearPantoneLayerReferences(product, layerId) {
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return;
+  }
+
+  product.pantoneColors.forEach((colour) => {
+    colour.layerIds = colour.layerIds.filter((id) => id !== layerId);
+  });
+}
+
+/**
+ * Adds a Pantone colour specification to a product.
+ *
+ * This is a domain-level mutation only: it does not render, save or show
+ * feedback. Name and Pantone reference are trimmed, layer associations are
+ * normalized and the product's updatedAt timestamp is refreshed.
+ *
+ * String lengths are bounded by PANTONE_LIMITS (mirroring the HTML editor
+ * maxlength attributes) and oversized values are rejected, never silently
+ * truncated.
+ *
+ * @param {string} productId - Permanent ID of the receiving product.
+ * @param {Object} data - Colour field values.
+ * @param {string} data.name - Name or usage intention of the colour.
+ * @param {string} data.pantoneCode - Textual Pantone reference.
+ * @param {string} [data.notes=""] - Optional usage notes.
+ * @param {string[]} [data.layerIds=[]] - Associated artwork layer IDs.
+ * @returns {{ok: boolean, colour?: PantoneColour, error?: string}} Result
+ *   with the created colour, or a validation error message.
+ */
+function addPantoneColour(productId, data) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return { ok: false, error: "Product not found." };
+  }
+
+  if (!isPlainObject(data)) {
+    return { ok: false, error: "Invalid colour data." };
+  }
+
+  const name = String(data.name ?? "").trim();
+
+  if (name === "") {
+    return { ok: false, error: "Colour name is required." };
+  }
+
+  if (name.length > PANTONE_LIMITS.NAME) {
+    return {
+      ok: false,
+      error: "Colour name must be 120 characters or fewer.",
+    };
+  }
+
+  const pantoneCode = String(data.pantoneCode ?? "").trim();
+
+  if (pantoneCode === "") {
+    return { ok: false, error: "Pantone reference is required." };
+  }
+
+  if (pantoneCode.length > PANTONE_LIMITS.CODE) {
+    return {
+      ok: false,
+      error: "Pantone reference must be 120 characters or fewer.",
+    };
+  }
+
+  const notes = String(data.notes ?? "").trim();
+
+  if (notes.length > PANTONE_LIMITS.NOTES) {
+    return { ok: false, error: "Notes must be 500 characters or fewer." };
+  }
+
+  const rawLayerIds =
+    data.layerIds === undefined || data.layerIds === null
+      ? []
+      : data.layerIds;
+
+  if (!Array.isArray(rawLayerIds)) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const hasInvalidLayerId = rawLayerIds.some(
+    (layerId) =>
+      typeof layerId !== "string" || !validLayerIds.has(layerId),
+  );
+
+  if (hasInvalidLayerId) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const colour = createPantoneColour({
+    id: generatePantoneColourId(product),
+    name,
+    pantoneCode,
+    notes,
+    layerIds: normalizePantoneLayerIds(product, rawLayerIds),
+  });
+
+  product.pantoneColors.push(colour);
+
+  touchProduct(productId);
+
+  return { ok: true, colour };
+}
+
+/**
+ * Updates an existing Pantone colour specification in place.
+ *
+ * The permanent colour ID is preserved. Name, pantoneCode and notes are
+ * trimmed; layer associations are normalized. Validation rules match
+ * addPantoneColour(), including the PANTONE_LIMITS string bounds.
+ *
+ * @param {string} productId - Permanent ID of the product.
+ * @param {string} colourId - Permanent ID of the colour to update.
+ * @param {Object} data - New colour field values.
+ * @returns {{ok: boolean, colour?: PantoneColour, error?: string}} Result
+ *   with the updated colour, or a validation error message.
+ */
+function updatePantoneColour(productId, colourId, data) {
+  const product = getProductById(productId);
+
+  if (!product) {
+    return { ok: false, error: "Product not found." };
+  }
+
+  const colour = getPantoneColourById(product, colourId);
+
+  if (!colour) {
+    return { ok: false, error: "Colour specification not found." };
+  }
+
+  if (!isPlainObject(data)) {
+    return { ok: false, error: "Invalid colour data." };
+  }
+
+  const name = String(data.name ?? "").trim();
+
+  if (name === "") {
+    return { ok: false, error: "Colour name is required." };
+  }
+
+  if (name.length > PANTONE_LIMITS.NAME) {
+    return {
+      ok: false,
+      error: "Colour name must be 120 characters or fewer.",
+    };
+  }
+
+  const pantoneCode = String(data.pantoneCode ?? "").trim();
+
+  if (pantoneCode === "") {
+    return { ok: false, error: "Pantone reference is required." };
+  }
+
+  if (pantoneCode.length > PANTONE_LIMITS.CODE) {
+    return {
+      ok: false,
+      error: "Pantone reference must be 120 characters or fewer.",
+    };
+  }
+
+  const notes = String(data.notes ?? "").trim();
+
+  if (notes.length > PANTONE_LIMITS.NOTES) {
+    return { ok: false, error: "Notes must be 500 characters or fewer." };
+  }
+
+  const rawLayerIds =
+    data.layerIds === undefined || data.layerIds === null
+      ? []
+      : data.layerIds;
+
+  if (!Array.isArray(rawLayerIds)) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  const validLayerIds = new Set(
+    Array.isArray(product.artworkLayers)
+      ? product.artworkLayers.map((layer) => layer.id)
+      : [],
+  );
+
+  const hasInvalidLayerId = rawLayerIds.some(
+    (layerId) =>
+      typeof layerId !== "string" || !validLayerIds.has(layerId),
+  );
+
+  if (hasInvalidLayerId) {
+    return { ok: false, error: "Invalid artwork layer selection." };
+  }
+
+  colour.name = name;
+
+  colour.pantoneCode = pantoneCode;
+
+  colour.notes = notes;
+
+  colour.layerIds = normalizePantoneLayerIds(product, rawLayerIds);
+
+  touchProduct(productId);
+
+  return { ok: true, colour };
+}
+
+/**
+ * Removes a single Pantone colour specification from a product.
+ *
+ * Artwork layers, artwork metadata, pins and the checklist are never
+ * modified. Deleting a colour removes the specification only. Existing
+ * IDs are never reassigned by the current ID generator.
+ *
+ * @param {string} productId - Permanent ID of the product.
+ * @param {string} colourId - Permanent ID of the colour to remove.
+ * @returns {{ok: boolean}} True when the colour was removed.
+ */
+function deletePantoneColour(productId, colourId) {
+  const product = getProductById(productId);
+
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return { ok: false };
+  }
+
+  const colourIndex = product.pantoneColors.findIndex(
+    (colour) => colour.id === colourId,
+  );
+
+  if (colourIndex === -1) {
+    return { ok: false };
+  }
+
+  product.pantoneColors.splice(colourIndex, 1);
+
+  touchProduct(productId);
+
+  return { ok: true };
 }
 
 /**
@@ -2134,7 +2733,14 @@ let editingTitleItemId = null;
  *
  * This resets:
  * - open comment panels;
- * - the item currently being edited inline.
+ * - the item currently being edited inline;
+ * - the open Pantone colour editor draft.
+ *
+ * The colour editor is closed here because every caller of this function
+ * (new product, product switch, duplication, product deletion and review
+ * import) changes the product context. Harmless navigation such as artwork
+ * layer switching never calls this function, so unsaved colour drafts
+ * survive layer switches.
  *
  * The function intentionally does not modify appState because these values
  * describe interface state rather than persisted review data.
@@ -2148,6 +2754,8 @@ function resetTransientReviewUiState() {
   openCommentItemIds.clear();
 
   editingTitleItemId = null;
+
+  closePantoneColourEditor();
 }
 
 let currentZoom = 1;
@@ -2987,7 +3595,7 @@ function renameProduct(productId, newName) {
 }
 
 /**
- * Opens the rename dialog for the currently active product.
+ * Runs the interactive rename flow for any product.
  *
  * This function belongs to the UI interaction layer. It requests the new
  * product name through the custom application dialog and delegates the actual
@@ -2997,13 +3605,16 @@ function renameProduct(productId, newName) {
  * is rejected and produces user feedback.
  *
  * @async
- * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product to rename.
+ * @returns {Promise<boolean>} True when the product was successfully renamed,
+ *   false when it was not found, the dialog was cancelled or the name was
+ *   rejected.
  */
-async function renameActiveProduct() {
-  const product = getActiveProduct();
+async function renameProductWithDialog(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   const proposedName = await showPromptDialog({
@@ -3018,15 +3629,38 @@ async function renameActiveProduct() {
   });
 
   if (proposedName === null) {
-    return;
+    return false;
   }
 
-  if (!renameProduct(product.id, proposedName)) {
+  if (!renameProduct(productId, proposedName)) {
     showToast("Product name cannot be empty.");
-    return;
+
+    return false;
   }
 
   showToast("Product renamed.");
+
+  return true;
+}
+
+/**
+ * Opens the rename dialog for the currently active product.
+ *
+ * This is a convenience UI wrapper around renameProductWithDialog(). The
+ * dialog flow and validation rules remain centralized in the reusable
+ * product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ */
+async function renameActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  await renameProductWithDialog(product.id);
 }
 
 /**
@@ -3040,6 +3674,7 @@ async function renameActiveProduct() {
  * - independent artwork layers with artwork metadata;
  * - per-layer normalized pins;
  * - the active layer identifier;
+ * - pantoneColors colour specifications with preserved permanent IDs;
  * - reviewer information.
  *
  * The duplicate receives:
@@ -3203,7 +3838,7 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
 }
 
 /**
- * Runs the interactive deletion flow for the currently active product.
+ * Runs the interactive deletion flow for a specific product.
  *
  * The function performs preliminary UI checks and displays the custom danger
  * confirmation dialog. If the reviewer confirms the operation, deletion is
@@ -3216,23 +3851,27 @@ function deleteProduct(productId, confirmDelete = window.confirm) {
  * The last remaining product cannot enter the destructive deletion flow.
  *
  * @async
- * @returns {Promise<void>} Resolves after deletion is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product to delete.
+ * @returns {Promise<boolean>} True when the product was deleted, false when
+ *   cancellation occurred or deletion was rejected.
  */
-async function deleteActiveProduct() {
-  const product = getActiveProduct();
+async function deleteProductWithDialog(productId) {
+  const product = getProductById(productId);
 
   if (!product) {
-    return;
+    return false;
   }
 
   const productIds = getProductIds();
 
   if (productIds.length <= 1) {
     showToast("At least one product must remain.");
-    return;
+
+    return false;
   }
 
-  const productIndex = productIds.indexOf(product.id);
+  const productIndex = productIds.indexOf(productId);
+
   const displayName = getProductDisplayName(product, productIndex);
 
   const confirmed = await showConfirmDialog({
@@ -3244,10 +3883,32 @@ async function deleteActiveProduct() {
   });
 
   if (!confirmed) {
+    return false;
+  }
+
+  deleteProduct(productId, () => true);
+
+  return true;
+}
+
+/**
+ * Runs the interactive deletion flow for the currently active product.
+ *
+ * This is a convenience UI wrapper around deleteProductWithDialog(). The
+ * dialog flow, last-product protection and deletion rules remain centralized
+ * in the reusable product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after deletion is completed or cancelled.
+ */
+async function deleteActiveProduct() {
+  const product = getActiveProduct();
+
+  if (!product) {
     return;
   }
 
-  deleteProduct(product.id, () => true);
+  await deleteProductWithDialog(product.id);
 }
 
 // ============================================================
@@ -4784,7 +5445,11 @@ function clearPins() {
 
 const STORAGE_KEY = `artworkChecklist:v${CURRENT_SCHEMA_VERSION}`;
 
-const LEGACY_STORAGE_KEYS = ["artworkChecklist:v2", "artworkChecklist:v1"];
+const LEGACY_STORAGE_KEYS = [
+  "artworkChecklist:v3",
+  "artworkChecklist:v2",
+  "artworkChecklist:v1",
+];
 // ============================================================
 // STATE SERIALIZATION
 // ============================================================
@@ -5143,6 +5808,13 @@ function validateSerializedProduct(product) {
   }
 
   if (
+    product.pantoneColors !== undefined &&
+    !validateSerializedPantoneColours(product.pantoneColors, product)
+  ) {
+    return false;
+  }
+
+  if (
     product.artwork !== undefined &&
     product.artwork !== null &&
     !isValidArtworkMetadata(product.artwork)
@@ -5325,13 +5997,16 @@ function rehydrateItems(savedItems) {
  * - product identification fields;
  * - cloned artwork layers with independent artwork metadata;
  * - the active artwork layer identifier;
+ * - deeply cloned pantoneColors (products saved before G5 serialized
+ *   without a pantoneColors key are rehydrated with an empty registry);
  * - canonical checklist-item reconstruction;
  * - reviewer data merged over reviewer defaults;
  * - signature data;
  * - preserved creation and update timestamps when valid.
  *
- * The function intentionally creates new nested objects instead of reusing the
- * parsed JSON object directly.
+ * The function intentionally creates new nested objects instead of reusing
+ * the parsed JSON object directly, so no references into the parsed JSON
+ * graph survive rehydration.
  *
  * @param {Object} savedProduct - Validated persisted product data.
  * @returns {Product} Reconstructed product suitable for appState.
@@ -5358,6 +6033,10 @@ function rehydrateProduct(savedProduct) {
   );
 
   product.activeArtworkLayerId = savedProduct.activeArtworkLayerId;
+
+  product.pantoneColors = Array.isArray(savedProduct.pantoneColors)
+    ? clonePantoneColours(savedProduct.pantoneColors)
+    : [];
 
   product.items = rehydrateItems(savedProduct.items);
 
@@ -5588,14 +6267,78 @@ function migrateStateV2ToV3(state) {
 }
 
 /**
+ * Adds the canonical 6i checklist item to an items collection when missing.
+ *
+ * The item is built from the canonical checklist template so its
+ * originalTitle, currentTitle, note, status, comment and pins always match a
+ * freshly created product. Legacy pantoneColors metadata is never modified and
+ * never influences the status of the new 6i item.
+ *
+ * This helper is shared by the persisted-state migration (per product) and the
+ * review-import migration (single top-level items collection).
+ *
+ * @param {Object} items - Items collection keyed by item ID.
+ * @returns {Object} The same items collection, possibly with 6i added.
+ */
+function addPantoneComplianceItem(items) {
+  if (isPlainObject(items) && !items["6i"]) {
+    const canonicalItem = createInitialItems()["6i"];
+
+    items["6i"] = JSON.parse(JSON.stringify(canonicalItem));
+  }
+
+  return items;
+}
+
+/**
+ * Converts a compatible schema-v3 persisted workspace into schema v4.
+ *
+ * Schema-v3 state is deep-cloned and every product gains the canonical
+ * checklist item "6i" (Pantone Colours Match Approved Pack Copy?) as Pending.
+ *
+ * The item is built from the canonical checklist template so its originalTitle,
+ * currentTitle, note, status, comment and pins always match a freshly created
+ * product. Legacy pantoneColors metadata is preserved unchanged and never
+ * influences the status of the new 6i item.
+ *
+ * The original supplied state is not modified: a deep JSON clone is created
+ * before transformation.
+ *
+ * @param {*} state - Parsed schema-v3 persisted state.
+ * @returns {Object|null} Schema-v4 state, or null when migration is impossible.
+ */
+function migrateStateV3ToV4(state) {
+  if (!isPlainObject(state) || state.schemaVersion !== 3) {
+    return null;
+  }
+
+  try {
+    const migratedState = JSON.parse(JSON.stringify(state));
+
+    Object.values(migratedState.products).forEach((product) => {
+      addPantoneComplianceItem(product.items);
+    });
+
+    migratedState.schemaVersion = 4;
+
+    return migratedState;
+  } catch (error) {
+    console.error("Failed to migrate state:", error);
+
+    return null;
+  }
+}
+
+/**
  * Converts compatible persisted workspace versions into the current schema.
  *
  * Migration is performed before validateState().
  *
  * Behavior:
  * - current-schema state is returned unchanged;
- * - schema-v2 state is migrated to schema v3;
- * - schema-v1 state is migrated through the full v1 → v2 → v3 chain;
+ * - schema-v3 state is migrated to schema v4;
+ * - schema-v2 state is migrated through the v2 → v3 → v4 chain;
+ * - schema-v1 state is migrated through the full v1 → v2 → v3 → v4 chain;
  * - unsupported schema versions are rejected.
  *
  * The original supplied state is never modified, since every migration step
@@ -5613,8 +6356,12 @@ function migrateState(state) {
     return state;
   }
 
+  if (state.schemaVersion === 3) {
+    return migrateStateV3ToV4(state);
+  }
+
   if (state.schemaVersion === 2) {
-    return migrateStateV2ToV3(state);
+    return migrateStateV3ToV4(migrateStateV2ToV3(state));
   }
 
   if (state.schemaVersion === 1) {
@@ -5624,7 +6371,7 @@ function migrateState(state) {
       return null;
     }
 
-    return migrateStateV2ToV3(v2State);
+    return migrateStateV3ToV4(migrateStateV2ToV3(v2State));
   }
 
   console.warn(`Unsupported schema version: ${state.schemaVersion}`);
@@ -5817,11 +6564,15 @@ function saveStateToStorage() {
  * The export contains:
  * - current schema version;
  * - export timestamp;
- * - product identification fields;
+ * - product identification fields (nested under product);
  * - product creation and modification timestamps;
+ * - the complete checklist review items with per-layer pins;
  * - independent artwork layers and the active layer identifier;
- * - complete checklist review items with per-layer pins;
+ * - the product's pantoneColors colour specifications;
  * - reviewer information.
+ *
+ * artworkLayers, activeArtworkLayerId and pantoneColors are top-level
+ * siblings of the product object in the exported structure.
  *
  * Runtime-only artwork resources, UI state and other workspace products are
  * intentionally excluded.
@@ -5866,6 +6617,8 @@ function buildExportData() {
     })),
 
     activeArtworkLayerId: product.activeArtworkLayerId,
+
+    pantoneColors: clonePantoneColours(product.pantoneColors),
 
     reviewer: product.reviewer,
   };
@@ -6168,25 +6921,36 @@ async function addArtworkLayer() {
 }
 
 /**
- * Opens the rename dialog for the active artwork layer.
+ * Opens the rename dialog for a specific artwork layer.
  *
  * This function belongs to the UI interaction layer. It requests the new
  * layer name through the custom application dialog and delegates the actual
  * domain mutation to renameArtworkLayer().
  *
+ * Renaming never changes the active artwork layer: the target layer is
+ * identified by its permanent ID and the supplied product. Because the
+ * domain rename operates on the active product, the dialog flow re-verifies
+ * after the asynchronous dialog that the target product is still active and
+ * that the target layer still exists before mutating anything.
+ *
  * Cancelling the dialog leaves the layer unchanged. An empty submitted name
- * is rejected and produces user feedback.
+ * is rejected and produces user feedback. The layer's permanent ID, artwork
+ * metadata and Pantone associations are untouched by a rename.
  *
  * @async
- * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
+ * @param {string} productId - Permanent ID of the product owning the layer.
+ * @param {string} layerId - Permanent ID of the layer to rename.
+ * @returns {Promise<boolean>} True when the layer was successfully renamed,
+ *   false when the target was not found, the dialog was cancelled or the
+ *   name was rejected.
  */
-async function renameActiveArtworkLayer() {
-  const product = getActiveProduct();
+async function renameArtworkLayerWithDialog(productId, layerId) {
+  const product = getProductById(productId);
 
-  const layer = getActiveArtworkLayer(product);
+  const layer = product ? getArtworkLayerById(product, layerId) : null;
 
   if (!product || !layer) {
-    return;
+    return false;
   }
 
   const proposedName = await showPromptDialog({
@@ -6201,13 +6965,29 @@ async function renameActiveArtworkLayer() {
   });
 
   if (proposedName === null) {
-    return;
+    return false;
   }
 
-  if (!renameArtworkLayer(layer.id, proposedName)) {
+  /*
+   * Async dialog safety: the target must still exist, and the domain rename
+   * applies to the active product, so the target product must still be
+   * active. Never resolve the target from whichever layer is active now.
+   */
+
+  const activeProduct = getActiveProduct();
+
+  if (!activeProduct || activeProduct.id !== productId) {
+    return false;
+  }
+
+  if (!getArtworkLayerById(activeProduct, layerId)) {
+    return false;
+  }
+
+  if (!renameArtworkLayer(layerId, proposedName)) {
     showToast("Layer name cannot be empty.");
 
-    return;
+    return false;
   }
 
   saveStateToStorage();
@@ -6215,29 +6995,21 @@ async function renameActiveArtworkLayer() {
   renderAppState();
 
   showToast("Artwork layer renamed.");
+
+  return true;
 }
 
 /**
- * Deletes the active artwork layer after the required confirmation.
+ * Opens the rename dialog for the active artwork layer.
  *
- * This function belongs to the UI interaction layer. Layer deletion always
- * keeps at least one artwork layer in the product, so deleting the last
- * remaining layer is rejected immediately without asking for confirmation.
- *
- * A confirmation dialog is shown whenever the layer contains pinned items
- * and/or persisted artwork data, because both are permanently removed.
- * Empty layers are deleted without confirmation.
- *
- * On success:
- * - the layer and its pins are removed;
- * - the layer's artwork session Object URL is released;
- * - another layer becomes active when the deleted layer was active;
- * - the workspace is persisted and re-rendered.
+ * This is a convenience UI wrapper around renameArtworkLayerWithDialog().
+ * The dialog flow, validation rules and Pantone integration remain
+ * centralized in the reusable product-level function.
  *
  * @async
- * @returns {Promise<void>} Resolves after the delete flow completes or is cancelled.
+ * @returns {Promise<void>} Resolves after the rename flow is completed or cancelled.
  */
-async function deleteActiveArtworkLayer() {
+async function renameActiveArtworkLayer() {
   const product = getActiveProduct();
 
   const layer = getActiveArtworkLayer(product);
@@ -6246,13 +7018,52 @@ async function deleteActiveArtworkLayer() {
     return;
   }
 
+  await renameArtworkLayerWithDialog(product.id, layer.id);
+}
+
+/**
+ * Runs the interactive deletion flow for a specific artwork layer.
+ *
+ * This function belongs to the UI interaction layer. Layer deletion always
+ * keeps at least one artwork layer in the product, so deleting the last
+ * remaining layer is rejected immediately without asking for confirmation.
+ *
+ * A confirmation dialog is shown whenever the target layer contains pinned
+ * items and/or persisted artwork data, because both are permanently removed.
+ * Empty layers are deleted without confirmation.
+ *
+ * On success:
+ * - the target layer and its pins are removed;
+ * - the target layer's artwork session Object URL is released;
+ * - when the deleted layer was active, another layer becomes active
+ *   following the deterministic domain fallback;
+ * - the workspace is persisted and re-rendered;
+ * - an open Pantone colour editor keeps its draft while its layer
+ *   checkboxes are rebuilt so the deleted layer disappears.
+ *
+ * @async
+ * @param {string} productId - Permanent ID of the product owning the layer.
+ * @param {string} layerId - Permanent ID of the layer to delete.
+ * @returns {Promise<boolean>} True when the layer was deleted, false when
+ *   the target was not found, cancellation occurred or deletion was
+ *   rejected.
+ */
+async function deleteArtworkLayerWithDialog(productId, layerId) {
+  const product = getProductById(productId);
+
+  const layer = product ? getArtworkLayerById(product, layerId) : null;
+
+  if (!product || !layer) {
+    return false;
+  }
+
   if (product.artworkLayers.length <= 1) {
     showToast("At least one artwork layer must remain.");
 
-    return;
+    return false;
   }
 
-  const pinsCount = layerPinCount(product, layer.id);
+  const pinsCount = layerPinCount(product, layerId);
 
   const hasArtwork = layer.artwork !== null;
 
@@ -6272,14 +7083,26 @@ async function deleteActiveArtworkLayer() {
     });
 
     if (!confirmed) {
-      return;
+      return false;
     }
   }
 
-  if (!deleteArtworkLayer(product.id, layer.id)) {
+  /*
+   * Async dialog safety: re-verify that the target product and the target
+   * layer still exist before mutating. Never resolve the target from
+   * whichever layer became active while the dialog was open.
+   */
+
+  const currentProduct = getProductById(productId);
+
+  if (!currentProduct || !getArtworkLayerById(currentProduct, layerId)) {
+    return false;
+  }
+
+  if (!deleteArtworkLayer(productId, layerId)) {
     showToast("At least one artwork layer must remain.");
 
-    return;
+    return false;
   }
 
   saveStateToStorage();
@@ -6289,6 +7112,30 @@ async function deleteActiveArtworkLayer() {
   scrollActiveArtworkLayerTabIntoView();
 
   showToast("Artwork layer deleted.");
+
+  return true;
+}
+
+/**
+ * Runs the interactive deletion flow for the active artwork layer.
+ *
+ * This is a convenience UI wrapper around deleteArtworkLayerWithDialog().
+ * The dialog flow, last-layer protection and deletion rules remain
+ * centralized in the reusable product-level function.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves after the delete flow completes or is cancelled.
+ */
+async function deleteActiveArtworkLayer() {
+  const product = getActiveProduct();
+
+  const layer = getActiveArtworkLayer(product);
+
+  if (!product || !layer) {
+    return;
+  }
+
+  await deleteArtworkLayerWithDialog(product.id, layer.id);
 }
 
 /**
@@ -6299,6 +7146,8 @@ async function deleteActiveArtworkLayer() {
  * layer receives the "active" class and aria-selected="true".
  *
  * Clicking a tab switches the active artwork layer of the product.
+ * Right-clicking a tab opens the custom artwork layer context menu for that
+ * specific layer without switching the active layer.
  *
  * This function changes only presentation state. It does not mutate appState
  * or persist any review data.
@@ -6311,6 +7160,14 @@ function renderArtworkLayerTabs() {
   if (!container) {
     return;
   }
+
+  /*
+   * The tab strip is rebuilt below, which discards every current tab element
+   * including a possible context-menu highlight. Close the layer context
+   * menu so no visual target reference is left orphaned after the rebuild.
+   */
+
+  closeArtworkLayerContextMenu();
 
   container.innerHTML = "";
 
@@ -6347,6 +7204,17 @@ function renderArtworkLayerTabs() {
       switchArtworkLayer(layer.id);
     });
 
+    tab.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+
+      openArtworkLayerContextMenu({
+        productId: product.id,
+        layerId: layer.id,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    });
+
     container.appendChild(tab);
   });
 }
@@ -6378,6 +7246,515 @@ function scrollActiveArtworkLayerTabIntoView() {
 }
 
 // ============================================================
+// LEGACY PANTONE SPECIFICATION METADATA — UI
+// Backward compatibility only
+// ============================================================
+//
+// The Colour Specification component and its inline editor were removed from
+// the active UI when G5 was realigned into the checklist-based Pantone
+// pack-copy compliance workflow (item 6i). These functions are retained
+// unchanged so legacy serialization, rehydration and validation keep working.
+// Nothing in the current interface calls them.
+
+// ============================================================
+// ARTWORK COLOUR SPECIFICATIONS — UI
+// ============================================================
+
+const pantoneColourEditorState = {
+  isOpen: false,
+  colourId: null,
+  productId: null,
+};
+
+/**
+ * Returns the display label for the layers associated with a colour.
+ *
+ * Current layer names are resolved from the permanent layer IDs stored in
+ * the colour. When no association exists the label reads "Unassigned".
+ *
+ * @param {Product|null} product - Product providing the current layer names.
+ * @param {PantoneColour} colour - Colour whose associations should be labelled.
+ * @returns {string} Human-readable association label.
+ */
+function getPantoneColourLayerLabel(product, colour) {
+  const names = colour.layerIds
+    .map((layerId) => getArtworkLayerById(product, layerId)?.name)
+    .filter((name) => typeof name === "string");
+
+  return names.length > 0 ? names.join(" · ") : "Unassigned";
+}
+
+/**
+ * Builds the DOM row for one Pantone colour specification.
+ *
+ * The Pantone reference is rendered as authoritative text next to a
+ * neutral indicator. No RGB or HEX equivalence is ever shown. When the
+ * colour carries trimmed non-empty notes, they are rendered below the
+ * name through textContent (never as HTML); empty notes produce no
+ * placeholder element.
+ *
+ * @param {PantoneColour} colour - Colour to render.
+ * @param {Product} product - Product owning the colour.
+ * @returns {HTMLElement} Row element representing the colour.
+ */
+function createPantoneColourRow(colour, product) {
+  const row = document.createElement("div");
+
+  row.className = "pantone-colour-row";
+
+  row.dataset.colourId = colour.id;
+
+  const codeLine = document.createElement("div");
+
+  codeLine.className = "pantone-colour-code";
+
+  const swatch = document.createElement("span");
+
+  swatch.className = "pantone-colour-swatch";
+
+  swatch.setAttribute("aria-hidden", "true");
+
+  codeLine.appendChild(swatch);
+
+  const code = document.createElement("strong");
+
+  code.textContent = colour.pantoneCode;
+
+  codeLine.appendChild(code);
+
+  row.appendChild(codeLine);
+
+  const name = document.createElement("div");
+
+  name.className = "pantone-colour-name";
+
+  name.textContent = colour.name;
+
+  row.appendChild(name);
+
+  if (colour.notes.trim() !== "") {
+    const notes = document.createElement("div");
+
+    notes.className = "pantone-colour-notes";
+
+    notes.textContent = colour.notes;
+
+    row.appendChild(notes);
+  }
+
+  const footer = document.createElement("div");
+
+  footer.className = "pantone-colour-footer";
+
+  const layers = document.createElement("span");
+
+  layers.className = "pantone-colour-layers";
+
+  layers.textContent = getPantoneColourLayerLabel(product, colour);
+
+  footer.appendChild(layers);
+
+  const actions = document.createElement("span");
+
+  actions.className = "pantone-colour-actions";
+
+  const editButton = document.createElement("button");
+
+  editButton.type = "button";
+
+  editButton.className = "pantone-colour-action";
+
+  editButton.textContent = "Edit";
+
+  editButton.addEventListener("click", () => {
+    openEditPantoneColourEditor(colour.id);
+  });
+
+  actions.appendChild(editButton);
+
+  const deleteButton = document.createElement("button");
+
+  deleteButton.type = "button";
+
+  deleteButton.className = "pantone-colour-action pantone-colour-action-danger";
+
+  deleteButton.textContent = "Delete";
+
+  deleteButton.addEventListener("click", () => {
+    confirmDeletePantoneColour(colour.id);
+  });
+
+  actions.appendChild(deleteButton);
+
+  footer.appendChild(actions);
+
+  row.appendChild(footer);
+
+  return row;
+}
+
+/**
+ * Renders the Colour Specification list for the active product.
+ *
+ * The DOM is rebuilt from getActiveProduct().pantoneColors so switching
+ * products automatically refreshes the list.
+ *
+ * @returns {void}
+ */
+function renderPantoneColours() {
+  const container = document.getElementById("pantone-colours-list");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const product = getActiveProduct();
+
+  if (!product || !Array.isArray(product.pantoneColors)) {
+    return;
+  }
+
+  if (product.pantoneColors.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.className = "pantone-colours-empty";
+
+    empty.textContent = "No colour specifications added yet.";
+
+    container.appendChild(empty);
+
+    return;
+  }
+
+  product.pantoneColors.forEach((colour) => {
+    container.appendChild(createPantoneColourRow(colour, product));
+  });
+}
+
+/**
+ * Rebuilds the artwork layer checkboxes of the colour editor.
+ *
+ * Checkboxes are generated from the product's artworkLayers so they are
+ * never hardcoded. Each checkbox uses layer.id as its logical value.
+ *
+ * @param {string[]} selectedIds - Layer IDs that should start checked.
+ * @returns {void}
+ */
+function renderPantoneColourEditorLayers(selectedIds) {
+  const container = document.getElementById("pantone-layer-options");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const product = getProductById(pantoneColourEditorState.productId);
+
+  if (!product || !Array.isArray(product.artworkLayers)) {
+    return;
+  }
+
+  const selected = new Set(selectedIds);
+
+  product.artworkLayers.forEach((layer, index) => {
+    const option = document.createElement("label");
+
+    option.className = "pantone-layer-option";
+
+    const input = document.createElement("input");
+
+    input.type = "checkbox";
+
+    input.dataset.layerId = layer.id;
+
+    input.id = `pantone-layer-check-${index}`;
+
+    input.checked = selected.has(layer.id);
+
+    option.appendChild(input);
+
+    const name = document.createElement("span");
+
+    name.textContent = layer.name;
+
+    option.appendChild(name);
+
+    container.appendChild(option);
+  });
+}
+
+/**
+ * Collects the currently checked layer IDs from the colour editor.
+ *
+ * @returns {string[]} Selected artwork layer IDs.
+ */
+function getSelectedPantoneLayerIds() {
+  const container = document.getElementById("pantone-layer-options");
+
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll('input[type="checkbox"]:checked'),
+  ).map((input) => input.dataset.layerId);
+}
+
+/**
+ * Configures the colour editor save button label.
+ *
+ * @param {boolean} editing - True when the editor is editing a colour.
+ * @returns {void}
+ */
+function setPantoneColourSaveLabel(editing) {
+  const button = document.getElementById("btn-save-colour");
+
+  if (button) {
+    button.textContent = editing ? "Save Changes" : "Save Colour";
+  }
+}
+
+/**
+ * Fills the colour editor inputs with the given values.
+ *
+ * Draft values only live in the DOM until Save Colour is confirmed.
+ *
+ * @param {Object} values - Field values assigned to the editor.
+ * @param {string} values.pantoneCode - Pantone reference text.
+ * @param {string} values.name - Colour name.
+ * @param {string} values.notes - Colour notes.
+ * @returns {void}
+ */
+function setPantoneColourEditorValues({ pantoneCode, name, notes }) {
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.value = pantoneCode;
+  }
+
+  const nameInput = document.getElementById("pantone-name-input");
+
+  if (nameInput) {
+    nameInput.value = name;
+  }
+
+  const notesInput = document.getElementById("pantone-notes-input");
+
+  if (notesInput) {
+    notesInput.value = notes;
+  }
+}
+
+/**
+ * Closes the colour editor and discards its draft values.
+ *
+ * The editor is hidden, the transient session is cleared and no appState
+ * mutation happens.
+ *
+ * @returns {void}
+ */
+function closePantoneColourEditor() {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (editor) {
+    editor.hidden = true;
+  }
+
+  pantoneColourEditorState.isOpen = false;
+
+  pantoneColourEditorState.colourId = null;
+
+  pantoneColourEditorState.productId = null;
+}
+
+/**
+ * Opens the colour editor in add mode with empty fields.
+ *
+ * @returns {void}
+ */
+function openAddPantoneColourEditor() {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (!editor) {
+    return;
+  }
+
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  pantoneColourEditorState.isOpen = true;
+
+  pantoneColourEditorState.colourId = null;
+
+  pantoneColourEditorState.productId = product.id;
+
+  setPantoneColourEditorValues({
+    pantoneCode: "",
+    name: "",
+    notes: "",
+  });
+
+  renderPantoneColourEditorLayers([]);
+
+  setPantoneColourSaveLabel(false);
+
+  editor.hidden = false;
+
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+/**
+ * Opens the colour editor in edit mode populated with the current values.
+ *
+ * @param {string} colourId - Permanent ID of the colour to edit.
+ * @returns {void}
+ */
+function openEditPantoneColourEditor(colourId) {
+  const editor = document.getElementById("pantone-colour-editor");
+
+  if (!editor) {
+    return;
+  }
+
+  const product = getActiveProduct();
+
+  const colour = product ? getPantoneColourById(product, colourId) : null;
+
+  if (!product || !colour) {
+    return;
+  }
+
+  pantoneColourEditorState.isOpen = true;
+
+  pantoneColourEditorState.colourId = colourId;
+
+  pantoneColourEditorState.productId = product.id;
+
+  setPantoneColourEditorValues({
+    pantoneCode: colour.pantoneCode,
+    name: colour.name,
+    notes: colour.notes,
+  });
+
+  renderPantoneColourEditorLayers(colour.layerIds);
+
+  setPantoneColourSaveLabel(true);
+
+  editor.hidden = false;
+
+  const codeInput = document.getElementById("pantone-code-input");
+
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+/**
+ * Validates and persists the draft values of the colour editor.
+ *
+ * Add mode creates a new specification; edit mode updates the existing
+ * colour while preserving its permanent ID.
+ *
+ * @returns {void}
+ */
+function savePantoneColourEditor() {
+  const productId = pantoneColourEditorState.productId;
+
+  const product = getProductById(productId);
+
+  if (!product || !pantoneColourEditorState.isOpen) {
+    return;
+  }
+
+  const data = {
+    name: document.getElementById("pantone-name-input")?.value ?? "",
+    pantoneCode: document.getElementById("pantone-code-input")?.value ?? "",
+    notes: document.getElementById("pantone-notes-input")?.value ?? "",
+    layerIds: getSelectedPantoneLayerIds(),
+  };
+
+  const isEditing = pantoneColourEditorState.colourId !== null;
+
+  const result = isEditing
+    ? updatePantoneColour(productId, pantoneColourEditorState.colourId, data)
+    : addPantoneColour(productId, data);
+
+  if (!result.ok) {
+    showToast(result.error || "Unable to save colour specification.");
+
+    return;
+  }
+
+  closePantoneColourEditor();
+
+  saveStateToStorage();
+
+  renderPantoneColours();
+
+  showToast(
+    isEditing
+      ? "Colour specification updated."
+      : "Colour specification added.",
+  );
+}
+
+/**
+ * Confirms and removes a Pantone colour specification.
+ *
+ * Delete always requires explicit confirmation through the application
+ * dialog. Cancelling produces zero mutations.
+ *
+ * @async
+ * @param {string} colourId - Permanent ID of the colour to remove.
+ * @returns {Promise<void>} Resolves after the delete flow finishes.
+ */
+async function confirmDeletePantoneColour(colourId) {
+  const product = getActiveProduct();
+
+  const colour = product ? getPantoneColourById(product, colourId) : null;
+
+  if (!product || !colour) {
+    return;
+  }
+
+  const confirmed = await showConfirmDialog({
+    tone: "danger",
+    title: "Delete colour specification?",
+    message: `${colour.pantoneCode} — ${colour.name}\n\nThis colour specification will be removed from the current product.`,
+    confirmText: "Delete",
+    cancelText: "Cancel",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  const result = deletePantoneColour(product.id, colourId);
+
+  if (!result.ok) {
+    showToast("Unable to remove the colour specification.");
+
+    return;
+  }
+
+  saveStateToStorage();
+
+  renderPantoneColours();
+
+  showToast("Colour specification removed.");
+}
+
+// ============================================================
 // COMPLETE STATE RENDER
 // ============================================================
 
@@ -6391,7 +7768,9 @@ function scrollActiveArtworkLayerTabIntoView() {
  * Rendering is delegated to specialized functions:
  *
  * - renderProductInputs() updates product fields;
+ * - renderProductContext() updates product context metadata;
  * - renderArtworkLayerTabs() rebuilds the artwork layer tabs;
+ * - renderPantoneColours() rebuilds the Colour Specification list;
  * - renderArtworkState() updates the artwork viewer;
  * - renderItemState() updates each checklist item;
  * - renderPins() rebuilds artwork pins;
@@ -6399,6 +7778,11 @@ function scrollActiveArtworkLayerTabIntoView() {
  *
  * The function reads existing domain state and does not perform business
  * mutations itself.
+ *
+ * The colour editor draft is transient UI state and is intentionally left
+ * open by this function: harmless navigation such as switching artwork
+ * layers must not discard an unsaved draft. Product-context changes close
+ * the editor explicitly through resetTransientReviewUiState().
  *
  * Product tabs are intentionally rendered separately by renderProductTabs()
  * because they represent the workspace rather than only the active product.
@@ -6636,7 +8020,8 @@ function bindArtworkInput() {
  * - receives the tab accessibility role;
  * - exposes aria-selected according to activeProductId;
  * - displays Product Name or the configured fallback label;
- * - switches the active product when clicked.
+ * - switches the active product when clicked;
+ * - opens the custom context menu when right-clicked.
  *
  * The active tab receives the "active" CSS class for visual identification.
  *
@@ -6654,6 +8039,14 @@ function renderProductTabs() {
   if (!container) {
     return;
   }
+
+  /*
+   * The tab bar is rebuilt below, which discards every current tab element
+   * including a possible context-menu highlight. Close the menu so no visual
+   * target reference is left orphaned after the rebuild.
+   */
+
+  closeProductContextMenu();
 
   container.innerHTML = "";
 
@@ -6688,6 +8081,16 @@ function renderProductTabs() {
       switchProduct(product.id);
     });
 
+    tab.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+
+      openProductContextMenu({
+        productId: product.id,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    });
+
     container.appendChild(tab);
   });
 }
@@ -6716,6 +8119,810 @@ function scrollActiveProductTabIntoView() {
     block: "nearest",
     inline: "nearest",
   });
+}
+
+// ============================================================
+// PRODUCT CONTEXT MENU — G2 UX POLISH
+// ============================================================
+
+/**
+ * Transient UI state of the product tab context menu.
+ *
+ * This state belongs exclusively to the UI interaction layer:
+ *
+ * - it is never written into appState;
+ * - it is never serialized into JSON;
+ * - it is never persisted into localStorage;
+ * - it holds no DOM element references (tabs are rebuilt by
+ *   renderProductTabs(), so only the permanent product ID is stored).
+ *
+ * Every action executed from the menu operates on this productId, never on
+ * appState.activeProductId.
+ *
+ * @type {{ productId: string|null, isOpen: boolean }}
+ */
+const productContextMenuState = {
+  productId: null,
+  isOpen: false,
+};
+
+/** Distance in pixels kept between the menu and the viewport edges. */
+const CONTEXT_MENU_MARGIN = 8;
+
+/**
+ * Calculates a viewport-safe fixed position for the product context menu.
+ *
+ * The requested cursor coordinates are preferred, but when the menu would
+ * overflow the right or bottom viewport edge it is flipped to the other side
+ * of the cursor. A final clamp keeps the menu fully inside the viewport with
+ * the configured margin.
+ *
+ * This function is pure: it reads no document, no window and no state, and it
+ * only receives and returns numbers. Keeping the math here makes positioning
+ * deterministic and unit-testable without a layout engine.
+ *
+ * @param {Object} options - Positioning inputs.
+ * @param {number} options.clientX - Cursor X coordinate.
+ * @param {number} options.clientY - Cursor Y coordinate.
+ * @param {number} options.menuWidth - Measured menu width.
+ * @param {number} options.menuHeight - Measured menu height.
+ * @param {number} options.viewportWidth - Window inner width.
+ * @param {number} options.viewportHeight - Window inner height.
+ * @param {number} [options.margin=CONTEXT_MENU_MARGIN] - Edge safety margin.
+ * @returns {{ left: number, top: number }} Final fixed position for the menu.
+ */
+function calculateContextMenuPosition({
+  clientX,
+  clientY,
+  menuWidth,
+  menuHeight,
+  viewportWidth,
+  viewportHeight,
+  margin = CONTEXT_MENU_MARGIN,
+}) {
+  let left =
+    clientX + menuWidth > viewportWidth - margin
+      ? clientX - menuWidth
+      : clientX;
+
+  let top =
+    clientY + menuHeight > viewportHeight - margin
+      ? clientY - menuHeight
+      : clientY;
+
+  left = Math.max(
+    margin,
+    Math.min(left, viewportWidth - menuWidth - margin),
+  );
+
+  top = Math.max(
+    margin,
+    Math.min(top, viewportHeight - menuHeight - margin),
+  );
+
+  return { left, top };
+}
+
+/**
+ * Returns the Product Tab element for a given product ID.
+ *
+ * Tabs are rebuilt by renderProductTabs(), so DOM references are never stored
+ * by the context menu. The current tab is always located at call time by
+ * scanning the live tab list; product IDs are looked up by value, which is
+ * safe for any valid ID value.
+ *
+ * @param {string} productId - Permanent product ID.
+ * @returns {HTMLElement|null} The matching tab element, or null when it does
+ *   not exist.
+ */
+function findProductTab(productId) {
+  const tabs = document.querySelectorAll(".product-tab");
+
+  for (const tab of tabs) {
+    if (tab.dataset.productId === productId) {
+      return tab;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Locates the delete menu item inside the product context menu.
+ *
+ * @returns {HTMLButtonElement|null} The delete item, or null when the menu is
+ *   not present in the document.
+ */
+function getProductContextMenuDeleteItem() {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu) {
+    return null;
+  }
+
+  return (
+    menu.querySelector('[data-product-context-action="delete"]') || null
+  );
+}
+
+/**
+ * Synchronizes the enabled/disabled state of the product context menu.
+ *
+ * The workspace must always contain at least one product, so the Delete item
+ * is disabled while only one product exists. The item remains visible so the
+ * rule stays predictable.
+ *
+ * @returns {void}
+ */
+function refreshProductContextMenuDisabledState() {
+  const deleteItem = getProductContextMenuDeleteItem();
+
+  if (!deleteItem) {
+    return;
+  }
+
+  const singleProductWorkspace = getProductIds().length <= 1;
+
+  deleteItem.disabled = singleProductWorkspace;
+
+  if (singleProductWorkspace) {
+    deleteItem.setAttribute("aria-disabled", "true");
+    deleteItem.title = "At least one product must remain.";
+  } else {
+    deleteItem.removeAttribute("aria-disabled");
+    deleteItem.title = "Delete the selected product";
+  }
+}
+
+/**
+ * Opens the custom product context menu at the requested cursor position.
+ *
+ * The menu targets the supplied product ID, which may differ from the active
+ * product. Opening the menu never changes the active product.
+ *
+ * Responsibilities:
+ * - validates the target product;
+ * - closes any previously open menu;
+ * - stores the target product ID in transient state;
+ * - highlights the matching tab visually;
+ * - refreshes disabled items;
+ * - positions the menu inside the viewport.
+ *
+ * The function performs no business mutations.
+ *
+ * @param {Object} options - Menu opening inputs.
+ * @param {string} options.productId - Product ID that the menu will act on.
+ * @param {number} options.clientX - Cursor X coordinate from the event.
+ * @param {number} options.clientY - Cursor Y coordinate from the event.
+ * @returns {boolean} True when the menu was opened successfully.
+ */
+function openProductContextMenu({ productId, clientX, clientY }) {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu) {
+    return false;
+  }
+
+  if (!getProductById(productId)) {
+    return false;
+  }
+
+  closeAllContextMenus();
+
+  productContextMenuState.productId = productId;
+
+  productContextMenuState.isOpen = true;
+
+  const previousTarget = document.querySelector(
+    ".product-tab.context-target",
+  );
+
+  if (previousTarget) {
+    previousTarget.classList.remove("context-target");
+  }
+
+  const targetTab = findProductTab(productId);
+
+  if (targetTab) {
+    targetTab.classList.add("context-target");
+  }
+
+  refreshProductContextMenuDisabledState();
+
+  menu.hidden = false;
+
+  const position = calculateContextMenuPosition({
+    clientX,
+    clientY,
+    menuWidth: menu.offsetWidth,
+    menuHeight: menu.offsetHeight,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+
+  menu.style.left = `${position.left}px`;
+
+  menu.style.top = `${position.top}px`;
+
+  return true;
+}
+
+/**
+ * Closes every custom context menu that may be open.
+ *
+ * Both the product context menu and the artwork layer context menu close
+ * their transient state, highlight styling and positional styles. Both
+ * close functions are idempotent, so calling this helper at any time is
+ * harmless.
+ *
+ * @returns {void}
+ */
+function closeAllContextMenus() {
+  closeProductContextMenu();
+
+  closeArtworkLayerContextMenu();
+}
+
+/**
+ * Closes the product context menu and clears its transient state.
+ *
+ * The function is idempotent: calling it when the menu is already closed or
+ * missing from the document is harmless.
+ *
+ * @returns {void}
+ */
+function closeProductContextMenu() {
+  const menu = document.getElementById("product-context-menu");
+
+  if (menu) {
+    menu.hidden = true;
+
+    menu.style.left = "";
+
+    menu.style.top = "";
+  }
+
+  const targetTab = document.querySelector(".product-tab.context-target");
+
+  if (targetTab) {
+    targetTab.classList.remove("context-target");
+  }
+
+  productContextMenuState.productId = null;
+
+  productContextMenuState.isOpen = false;
+}
+
+/**
+ * Moves keyboard focus between the enabled items of the product context menu.
+ *
+ * Arrow navigation wraps around, and disabled items such as the Delete item
+ * in a single-product workspace are skipped.
+ *
+ * @param {number} direction - +1 for ArrowDown, -1 for ArrowUp.
+ * @returns {void}
+ */
+function moveProductContextMenuFocus(direction) {
+  const menu = document.getElementById("product-context-menu");
+
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  const items = Array.from(
+    menu.querySelectorAll("[data-product-context-action]"),
+  ).filter((item) => !item.disabled);
+
+  if (items.length === 0) {
+    return;
+  }
+
+  const currentIndex = items.indexOf(document.activeElement);
+
+  const nextIndex =
+    currentIndex === -1
+      ? direction === 1
+        ? 0
+        : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
+
+  items[nextIndex].focus();
+}
+
+/**
+ * Dispatches a product context menu action.
+ *
+ * The action always operates on the target product stored when the menu was
+ * opened, never on the active product. The menu is closed before the action
+ * flow starts so no orphaned menu remains during dialogs.
+ *
+ * Every action reuses the existing product-level domain operations:
+ * - "rename": renameProductWithDialog() over the target product;
+ * - "duplicate": duplicateProduct() over the target product;
+ * - "new": createNewProduct();
+ * - "delete": deleteProductWithDialog() over the target product.
+ *
+ * @param {string} action - One of "rename", "duplicate", "new" or "delete".
+ * @returns {void}
+ */
+function handleProductContextMenuAction(action) {
+  const targetProductId = productContextMenuState.productId;
+
+  closeProductContextMenu();
+
+  switch (action) {
+    case "rename":
+      if (targetProductId !== null) {
+        renameProductWithDialog(targetProductId);
+      }
+
+      break;
+
+    case "duplicate":
+      if (targetProductId !== null) {
+        duplicateProduct(targetProductId);
+      }
+
+      break;
+
+    case "new":
+      createNewProduct();
+
+      break;
+
+    case "delete":
+      if (targetProductId !== null) {
+        deleteProductWithDialog(targetProductId);
+      }
+
+      break;
+  }
+}
+
+/**
+ * Wires up the custom context menu interactions.
+ *
+ * This initializer is shared by the product context menu and the artwork
+ * layer context menu. Global listeners are registered exactly once; each
+ * menu uses event delegation so menu items never need individual listeners.
+ *
+ * Only one custom context menu is visible at a time. When both menus are
+ * present in the document, clicking outside, pressing Escape, resizing the
+ * window or scrolling closes whichever menu is open.
+ *
+ * Menus also close automatically when their tab bars are rebuilt:
+ * - renderProductTabs() after product switching, creation, duplication,
+ *   deletion or import;
+ * - renderArtworkLayerTabs() after artwork layer switching, renaming,
+ *   addition, deletion or product context changes.
+ *
+ * @returns {void}
+ */
+function initializeContextMenus() {
+  const productMenu = document.getElementById("product-context-menu");
+
+  const layerMenu = document.getElementById("artwork-layer-context-menu");
+
+  if (productMenu) {
+    productMenu.addEventListener("click", (event) => {
+      const item = event.target.closest(
+        "[data-product-context-action]",
+      );
+
+      if (!item || item.disabled) {
+        return;
+      }
+
+      handleProductContextMenuAction(item.dataset.productContextAction);
+    });
+  }
+
+  if (layerMenu) {
+    layerMenu.addEventListener("click", (event) => {
+      const item = event.target.closest(
+        "[data-artwork-layer-context-action]",
+      );
+
+      if (!item || item.disabled) {
+        return;
+      }
+
+      handleArtworkLayerContextMenuAction(
+        item.dataset.artworkLayerContextAction,
+      );
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (
+      artworkLayerContextMenuState.isOpen &&
+      (!layerMenu || !layerMenu.contains(event.target))
+    ) {
+      closeArtworkLayerContextMenu();
+
+      return;
+    }
+
+    if (
+      productContextMenuState.isOpen &&
+      (!productMenu || !productMenu.contains(event.target))
+    ) {
+      closeProductContextMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const layerMenuOpen = artworkLayerContextMenuState.isOpen;
+
+    const productMenuOpen = productContextMenuState.isOpen;
+
+    if (!layerMenuOpen && !productMenuOpen) {
+      return;
+    }
+
+    if (appDialogState.isOpen) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+
+      if (layerMenuOpen) {
+        closeArtworkLayerContextMenu();
+      } else {
+        closeProductContextMenu();
+      }
+
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+
+      if (layerMenuOpen) {
+        moveArtworkLayerContextMenuFocus(1);
+      } else {
+        moveProductContextMenuFocus(1);
+      }
+
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+
+      if (layerMenuOpen) {
+        moveArtworkLayerContextMenuFocus(-1);
+      } else {
+        moveProductContextMenuFocus(-1);
+      }
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (artworkLayerContextMenuState.isOpen) {
+      closeArtworkLayerContextMenu();
+    }
+
+    if (productContextMenuState.isOpen) {
+      closeProductContextMenu();
+    }
+  });
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (artworkLayerContextMenuState.isOpen) {
+        closeArtworkLayerContextMenu();
+      }
+
+      if (productContextMenuState.isOpen) {
+        closeProductContextMenu();
+      }
+    },
+    true,
+  );
+}
+
+// ============================================================
+// ARTWORK LAYER CONTEXT MENU — G4 UX POLISH
+// ============================================================
+
+/**
+ * Transient UI state of the artwork layer tab context menu.
+ *
+ * This state belongs exclusively to the UI interaction layer:
+ *
+ * - it is never written into appState;
+ * - it is never serialized into JSON;
+ * - it is never persisted into localStorage;
+ * - it never alters Product.updatedAt;
+ * - it holds no DOM element references (layer tabs are rebuilt by
+ *   renderArtworkLayerTabs()).
+ *
+ * The menu stores the product ID together with the permanent layer ID so the
+ * target is identified unambiguously. Every action executed from the menu
+ * operates on this pair, never on the currently active layer.
+ *
+ * @type {{ productId: string|null, layerId: string|null, isOpen: boolean }}
+ */
+const artworkLayerContextMenuState = {
+  productId: null,
+  layerId: null,
+  isOpen: false,
+};
+
+/**
+ * Returns the Artwork Layer Tab element for a given layer ID.
+ *
+ * Layer tabs are rebuilt by renderArtworkLayerTabs(), so DOM references are
+ * never stored by the context menu. The current tab is always located at
+ * call time by scanning the live tab list and comparing permanent layer IDs
+ * by value.
+ *
+ * @param {string} layerId - Permanent artwork layer ID.
+ * @returns {HTMLElement|null} The matching tab element, or null when it does
+ *   not exist.
+ */
+function findArtworkLayerTab(layerId) {
+  const tabs = document.querySelectorAll(".artwork-layer-tab");
+
+  for (const tab of tabs) {
+    if (tab.dataset.layerId === layerId) {
+      return tab;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Locates the delete menu item inside the artwork layer context menu.
+ *
+ * @returns {HTMLButtonElement|null} The delete item, or null when the menu is
+ *   not present in the document.
+ */
+function getArtworkLayerContextMenuDeleteItem() {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu) {
+    return null;
+  }
+
+  return (
+    menu.querySelector('[data-artwork-layer-context-action="delete"]') || null
+  );
+}
+
+/**
+ * Synchronizes the enabled/disabled state of the artwork layer context menu.
+ *
+ * A product must always keep at least one artwork layer, so the Delete Layer
+ * item is disabled while the target product owns only one layer. The item
+ * remains visible so the rule stays predictable.
+ *
+ * @returns {void}
+ */
+function refreshArtworkLayerContextMenuDisabledState() {
+  const deleteItem = getArtworkLayerContextMenuDeleteItem();
+
+  if (!deleteItem) {
+    return;
+  }
+
+  const product = getProductById(artworkLayerContextMenuState.productId);
+
+  const singleLayerProduct =
+    !product || !Array.isArray(product.artworkLayers) || product.artworkLayers.length <= 1;
+
+  deleteItem.disabled = singleLayerProduct;
+
+  if (singleLayerProduct) {
+    deleteItem.setAttribute("aria-disabled", "true");
+    deleteItem.title = "At least one artwork layer must remain.";
+  } else {
+    deleteItem.removeAttribute("aria-disabled");
+    deleteItem.title = "Delete the selected artwork layer";
+  }
+}
+
+/**
+ * Opens the custom artwork layer context menu at the requested cursor position.
+ *
+ * The menu targets the supplied (productId, layerId) pair, which may differ
+ * from the active layer of the product. Opening the menu never calls
+ * switchArtworkLayer() and therefore never changes the active layer.
+ *
+ * Responsibilities:
+ * - validates the target product and layer;
+ * - closes any other open custom context menu;
+ * - stores the target pair in transient state;
+ * - highlights the matching layer tab visually;
+ * - refreshes disabled items;
+ * - positions the menu inside the viewport through the shared
+ *   calculateContextMenuPosition() helper.
+ *
+ * The function performs no business mutations.
+ *
+ * @param {Object} options - Menu opening inputs.
+ * @param {string} options.productId - Permanent ID of the target product.
+ * @param {string} options.layerId - Permanent ID of the target layer.
+ * @param {number} options.clientX - Cursor X coordinate from the event.
+ * @param {number} options.clientY - Cursor Y coordinate from the event.
+ * @returns {boolean} True when the menu was opened successfully.
+ */
+function openArtworkLayerContextMenu({
+  productId,
+  layerId,
+  clientX,
+  clientY,
+}) {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu) {
+    return false;
+  }
+
+  const product = getProductById(productId);
+
+  if (!product || !getArtworkLayerById(product, layerId)) {
+    return false;
+  }
+
+  closeAllContextMenus();
+
+  artworkLayerContextMenuState.productId = productId;
+
+  artworkLayerContextMenuState.layerId = layerId;
+
+  artworkLayerContextMenuState.isOpen = true;
+
+  const previousTarget = document.querySelector(
+    ".artwork-layer-tab.context-target",
+  );
+
+  if (previousTarget) {
+    previousTarget.classList.remove("context-target");
+  }
+
+  const targetTab = findArtworkLayerTab(layerId);
+
+  if (targetTab) {
+    targetTab.classList.add("context-target");
+  }
+
+  refreshArtworkLayerContextMenuDisabledState();
+
+  menu.hidden = false;
+
+  const position = calculateContextMenuPosition({
+    clientX,
+    clientY,
+    menuWidth: menu.offsetWidth,
+    menuHeight: menu.offsetHeight,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+
+  menu.style.left = `${position.left}px`;
+
+  menu.style.top = `${position.top}px`;
+
+  return true;
+}
+
+/**
+ * Closes the artwork layer context menu and clears its transient state.
+ *
+ * The function is idempotent: calling it when the menu is already closed or
+ * missing from the document is harmless.
+ *
+ * @returns {void}
+ */
+function closeArtworkLayerContextMenu() {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (menu) {
+    menu.hidden = true;
+
+    menu.style.left = "";
+
+    menu.style.top = "";
+  }
+
+  const targetTab = document.querySelector(
+    ".artwork-layer-tab.context-target",
+  );
+
+  if (targetTab) {
+    targetTab.classList.remove("context-target");
+  }
+
+  artworkLayerContextMenuState.productId = null;
+
+  artworkLayerContextMenuState.layerId = null;
+
+  artworkLayerContextMenuState.isOpen = false;
+}
+
+/**
+ * Moves keyboard focus between the enabled items of the artwork layer
+ * context menu.
+ *
+ * Arrow navigation wraps around, and disabled items such as the Delete Layer
+ * item in a single-layer workspace are skipped.
+ *
+ * @param {number} direction - +1 for ArrowDown, -1 for ArrowUp.
+ * @returns {void}
+ */
+function moveArtworkLayerContextMenuFocus(direction) {
+  const menu = document.getElementById("artwork-layer-context-menu");
+
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  const items = Array.from(
+    menu.querySelectorAll("[data-artwork-layer-context-action]"),
+  ).filter((item) => !item.disabled);
+
+  if (items.length === 0) {
+    return;
+  }
+
+  const currentIndex = items.indexOf(document.activeElement);
+
+  const nextIndex =
+    currentIndex === -1
+      ? direction === 1
+        ? 0
+        : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
+
+  items[nextIndex].focus();
+}
+
+/**
+ * Dispatches an artwork layer context menu action.
+ *
+ * The action always operates on the target (productId, layerId) pair stored
+ * when the menu was opened, never on the currently active layer. The menu is
+ * closed before the action flow starts so no orphaned menu remains during
+ * dialogs.
+ *
+ * Every action reuses the existing layer lifecycle operations:
+ * - "rename": renameArtworkLayerWithDialog() over the target layer;
+ * - "add": addArtworkLayer() through the existing prompt flow;
+ * - "delete": deleteArtworkLayerWithDialog() over the target layer.
+ *
+ * @param {string} action - One of "rename", "add" or "delete".
+ * @returns {void}
+ */
+function handleArtworkLayerContextMenuAction(action) {
+  const { productId, layerId } = artworkLayerContextMenuState;
+
+  closeArtworkLayerContextMenu();
+
+  switch (action) {
+    case "rename":
+      if (productId !== null && layerId !== null) {
+        renameArtworkLayerWithDialog(productId, layerId);
+      }
+
+      break;
+
+    case "add":
+      addArtworkLayer();
+
+      break;
+
+    case "delete":
+      if (productId !== null && layerId !== null) {
+        deleteArtworkLayerWithDialog(productId, layerId);
+      }
+
+      break;
+  }
 }
 
 // ============================================================
@@ -7086,10 +9293,12 @@ function showPromptDialog(options) {
  *
  * Behavior:
  * - current-schema imports are returned unchanged;
+ * - schema-v3 imports gain the canonical 6i checklist item as Pending;
  * - schema-v2 imports have their single artwork moved into the default
- *   layer and their single item pins moved into per-layer pin arrays;
+ *   layer and their single item pins moved into per-layer pin arrays, then
+ *   receive the canonical 6i checklist item;
  * - schema-v1 imports first run the legacy pixel-pin conversion and then the
- *   schema-v2 conversion;
+ *   schema-v2 and schema-v3 conversions;
  * - unsupported or malformed versions are rejected.
  *
  * Every migration step deep-clones the imported structure before modifying it
@@ -7112,6 +9321,22 @@ function migrateImportData(data) {
 
   if (data.schemaVersion === CURRENT_SCHEMA_VERSION) {
     return data;
+  }
+
+  if (data.schemaVersion === 3) {
+    try {
+      const migratedData = JSON.parse(JSON.stringify(data));
+
+      addPantoneComplianceItem(migratedData.items);
+
+      migratedData.schemaVersion = 4;
+
+      return migratedData;
+    } catch (error) {
+      console.error("Failed to migrate imported review:", error);
+
+      return null;
+    }
   }
 
   if (data.schemaVersion === 2) {
@@ -7152,6 +9377,10 @@ function migrateImportData(data) {
       });
 
       migratedData.schemaVersion = 3;
+
+      addPantoneComplianceItem(migratedData.items);
+
+      migratedData.schemaVersion = 4;
 
       return migratedData;
     } catch (error) {
@@ -7197,7 +9426,8 @@ function migrateImportData(data) {
  * - the imported product has a non-empty permanent ID;
  * - checklist items exist;
  * - the reconstructed candidate product satisfies the normal persisted-product
- *   validation rules.
+ *   validation rules, including the pantoneColors specifications and their
+ *   PANTONE_LIMITS string bounds.
  *
  * Optional import fields receive safe defaults before product validation so
  * older compatible exports can omit non-essential values.
@@ -7269,6 +9499,8 @@ function validateImportData(data) {
 
     activeArtworkLayerId: data.activeArtworkLayerId,
 
+    pantoneColors: data.pantoneColors,
+
     artwork: null,
 
     reviewer: data.reviewer ?? {
@@ -7308,6 +9540,8 @@ function validateImportData(data) {
  * - SKU;
  * - checklist review items;
  * - artwork metadata;
+ * - artwork layers and the active layer identifier;
+ * - pantoneColors (cloned when present, empty for pre-G5 exports);
  * - reviewer information;
  * - original creation timestamp when available.
  *
@@ -7352,6 +9586,10 @@ function buildImportedProduct(importedData) {
   );
 
   product.activeArtworkLayerId = importedData.activeArtworkLayerId;
+
+  product.pantoneColors = Array.isArray(importedData.pantoneColors)
+    ? clonePantoneColours(importedData.pantoneColors)
+    : [];
 
   product.reviewer = {
     ...product.reviewer,
@@ -7609,6 +9847,8 @@ function initializeApp() {
   bindArtworkInput();
 
   bindAppDialog();
+
+  initializeContextMenus();
 
   renderProductTabs();
 

@@ -1,11 +1,11 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20E2-success" alt="MVP E2">
-  <img src="https://img.shields.io/badge/checklist%20items-49-blue" alt="49 items">
+  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
+  <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-196%2F196%20passing-success" alt="196/196 tests passing">
-  <img src="https://img.shields.io/badge/schema-v3-blue" alt="Schema v3">
+  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="373/373 tests passing">
+  <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
@@ -15,8 +15,18 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G and G4** are complete.  
-> **Layer G4 — Multi-Layer Artwork Workspace is complete.**
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
+> **Layer G5 — Pantone Pack-Copy Compliance is complete.**
+
+## Engineering Documentation
+
+Detailed engineering documentation (architecture, domain model, persistence and migrations, ADRs, testing strategy, future architecture) lives in:
+
+```text
+docs/
+```
+
+Start at **[docs/README.md](docs/README.md)** — the documentation hub with recommended reading paths for developers, AI coding agents and reviewers. This README remains the project presentation; `docs/` carries the technical knowledge base.
 
 ---
 
@@ -62,7 +72,7 @@ Before food packaging goes into production, relevant copy and regulatory informa
 - recycling information;
 - multilingual wording.
 
-The application organizes this work into **49 review items across 6 sections**.
+The application organizes this work into **50 review items across 6 sections**.
 
 Each item has one review status:
 
@@ -106,7 +116,7 @@ no database
 
 | Feature                           | Description                                 |
 | --------------------------------- | ------------------------------------------- |
-| ✅ Interactive checklist          | 49 regulatory review items                  |
+| ✅ Interactive checklist          | 50 regulatory review items                  |
 | ✅ Collapsible sections           | 6 expandable checklist categories           |
 | ✅ Product data                   | Brand, Product Name, Weight and SKU         |
 | ✅ Central application state      | Domain data stored in `appState`            |
@@ -124,10 +134,14 @@ no database
 | ✅ Autosave                       | Review state is persisted in `localStorage` |
 | ✅ Reload restoration             | Saved state is restored on page load        |
 | ✅ Corrupted-state protection     | Invalid storage does not crash the app      |
-| ✅ Versioned serialization        | Canonical state uses schema version 3       |
-| ✅ State migration                | Legacy schema v1/v2 data migrates to v3     |
-| ✅ Multi-layer artwork domain     | Schema v3 layers, active layer and per-layer pins |
+| ✅ Versioned serialization        | Canonical state uses schema version 4       |
+| ✅ State migration                | Legacy schema v1/v2/v3 data migrates to v4  |
+| ✅ Multi-layer artwork domain     | Schema v4 layers, active layer and per-layer pins |
 | ✅ Multi-layer workspace          | Layer tabs with Add / Rename / Delete layer flows |
+| ✅ Pantone pack-copy compliance   | Checklist item 6I "Pantone Colours Match Approved Pack Copy?" |
+| ✅ Standard review workflow       | 6I uses Pending / Approved / Rejected + comment + pins |
+| ✅ Legacy Pantone registry        | `pantoneColors` metadata preserved on v3 → v4 migration |
+| ✅ Colour preservation            | Survives reload, export/import and duplication     |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -143,7 +157,9 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 196 browser-based tests                     |
+| ✅ Automated regression suite     | 373 browser-based tests                     |
+| ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
+| ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
 ---
 
@@ -203,12 +219,12 @@ Example:
 ```text
 10 Approved
 5 Rejected
-34 Pending
+35 Pending
 
-= 15 / 49 reviewed
+= 15 / 50 reviewed
 ```
 
-More detailed metrics belong to Layer F.
+Per-status counters (Approved / Rejected / Pending) and a separate approval percentage are part of the pending Layer F1 review-metrics work.
 
 ---
 
@@ -354,10 +370,10 @@ The viewer supports both the original demonstration artwork and real image files
 
 ### Demo mode
 
-If the active product has no artwork metadata:
+If the active product has no artwork metadata on its active layer:
 
 ```js
-product.artwork === null;
+getActiveArtworkMetadata(product) === null;
 ```
 
 the original Front & Back demonstration artwork is displayed.
@@ -463,19 +479,23 @@ existing pins are cleared
 
 ## Pins and proportional coordinates
 
-Each checklist item may contain:
+Each checklist item may contain one normalized pin per artwork layer:
 
 ```js
-item.pin = {
-  xRatio,
-  yRatio,
-};
+item.pins = [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+];
 ```
 
-Example:
+Example (first layer entry):
 
 ```js
 {
+  layerId: "layer-front",
   xRatio: 0.438,
   yRatio: 0.286
 }
@@ -549,10 +569,12 @@ Invalid stored JSON must never prevent the application from opening.
 Current canonical schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
-The application supports migration from compatible schema v1 state where pins were stored as pixels.
+The application supports migration from compatible schema v1 state where pins were stored as pixels, from schema v2 single-layer state and from schema v3 state without the Pantone compliance item.
+
+Schema v3 state migrates to v4 by adding the canonical checklist item 6I ("Pantone Colours Match Approved Pack Copy?") as Pending to every product. Legacy `pantoneColors` metadata is preserved unchanged and never influences the status of the migrated 6I item.
 
 ### Save Check
 
@@ -571,9 +593,13 @@ schemaVersion
 exportedAt
 product
 items
-artwork metadata
-reviewer data
+artworkLayers
+activeArtworkLayerId
+pantoneColors
+reviewer
 ```
+
+The export structure mirrors the appState product review: `artworkLayers`, `activeArtworkLayerId` and `pantoneColors` are top-level siblings of the `product` object. The `pantoneColors` registry is preserved for backward compatibility with earlier schema-v3 exports; reviews created by this version review Pantone compliance through checklist item 6I.
 
 It preserves:
 
@@ -626,12 +652,12 @@ Incompatible or malformed files are rejected without crashing the application.
 | 3   | **Nutrition & Serving**          |  10   | Nutrition and serving information |
 | 4   | **Storage & Cooking**            |   4   | Storage and preparation           |
 | 5   | **Claims & Certifications**      |  12   | Claims and certifications         |
-| 6   | **Packaging, Marks & Languages** |   8   | Marks, languages and packaging    |
+| 6   | **Packaging, Marks & Languages** |   9   | Marks, languages and packaging    |
 
 Total:
 
 ```text
-49 review items
+50 review items
 ```
 
 ---
@@ -688,6 +714,9 @@ Brand
 Product Name / Legal Name
 Weight
 SKU / Code
+Production Code
+Site
+Artwork Revision
 ```
 
 The values update the active product in `appState` and are automatically persisted.
@@ -703,6 +732,8 @@ Set Artwork
 Choose an image file.
 
 The artwork is loaded for the current session and its metadata is saved with the review.
+
+Each artwork layer of the product owns an independent artwork identity: switch layers through the layer tabs above the canvas, add new layers with `+ Add Layer`, rename them and delete them with their per-layer pins.
 
 ### 3. Review checklist items
 
@@ -748,7 +779,7 @@ Drag a checklist item onto the artwork.
 Its normalized position is stored in:
 
 ```js
-item.pin;
+item.pins; // one entry per layer, in the active layer
 ```
 
 ### 7. Navigate
@@ -812,25 +843,47 @@ The domain state is restored.
 
 If the review has artwork metadata, select the same image file again to restore the image itself.
 
+### 12. Review Pantone pack-copy compliance
+
+Section 6 of the checklist contains the canonical item:
+
+```text
+6I — Pantone Colours Match Approved Pack Copy?
+```
+
+The reviewer verifies that the artwork uses the Pantone colours specified in the approved pack copy. Item 6I follows the standard review workflow: Pending / Approved / Rejected, a required comment when rejected, and per-layer artwork pins exactly like every other checklist item.
+
+Reviews saved by earlier versions may still contain the legacy `pantoneColors` colour registry. That metadata remains fully preserved and round-trips through reload, Save/Open Check and product duplication, but it never influences the status of item 6I. The Colour Specification editor UI of the previous MVP is retired.
+
 ---
 
 ## Project structure
 
 ```text
 artwork-checklist/
-├── index.html
+├── assets/
+│   └── favicon.svg
 │
 ├── css/
+│   ├── base/
+│   ├── layout/
+│   ├── components/
+│   ├── utilities/
 │   └── style.css
 │
 ├── js/
 │   ├── app.js
-│   └── tests.js
+│   ├── tests.js
+│   └── tests/
+│       ├── core/
+│       └── layers/
 │
+├── docs/
 │
 ├── baseline.en.md
 ├── baseline.pt-BR.md
 │
+├── index.html
 ├── README.md
 └── README.pt-BR.md
 ```
@@ -921,7 +974,7 @@ const appState = {
 Current schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
 ```
 
 The architecture follows:
@@ -950,40 +1003,47 @@ Each product follows the structure:
 
 ```js
 {
-  (id,
-    brand,
-    productName,
-    weight,
-    sku,
-    artwork,
-    items,
-    reviewer,
-    signature,
-    createdAt,
-    updatedAt);
+  id,
+  brand,
+  productName,
+  weight,
+  sku,
+  productionCode,
+  site,
+  artworkVersion,
+  artworkLayers: [...],
+  activeArtworkLayerId,
+  pantoneColors: [...],
+  items,
+  reviewer,
+  signature,
+  createdAt,
+  updatedAt
 }
 ```
 
-The architecture already stores products in a collection, although the current UI still exposes a single-product workflow.
-
-Multi-product operations belong to Layer G.
+Products are stored in a collection and managed through product tabs (Layer G).
 
 ---
 
 ### Artwork metadata
 
-Artwork metadata belongs to the product:
+Artwork metadata belongs to each artwork layer:
 
 ```js
-artwork: {
-  (name, type, size, width, height);
+layer.artwork: {
+  name,
+  type,
+  size,
+  width,
+  height
 }
 ```
 
 or:
 
 ```js
-artwork: null;
+layer.artwork: null;
 ```
 
 The image binary does not belong to persisted domain state.
@@ -1006,16 +1066,20 @@ The image binary does not belong to persisted domain state.
 
   comment: "",
 
-  pin: null
+  pins: []
 }
 ```
 
-When pinned:
+When pinned, `item.pins` stores one normalized entry per artwork layer:
 
 ```js
-pin: {
-  (xRatio, yRatio);
-}
+pins: [
+  {
+    layerId: "layer-front",
+    xRatio,
+    yRatio
+  }
+]
 ```
 
 ---
@@ -1031,7 +1095,7 @@ product fields
 status
 comment
 currentTitle
-pin
+pins (per layer)
 artwork metadata
 reviewer
 timestamps
@@ -1106,13 +1170,13 @@ js/tests.js
 Open the application and run in DevTools Console:
 
 ```js
-runArtworkTests();
+await runArtworkTests();
 ```
 
 Current checkpoint:
 
 ```text
-196 / 196 tests passing
+312 / 312 → 357 / 357 → 373 / 373 tests passing
 ```
 
 The suite covers:
@@ -1130,6 +1194,7 @@ Layer E1
 Layer E2
 Layer G4A
 Layer G4B
+Layer G5
 ```
 
 Coverage includes:
@@ -1137,7 +1202,7 @@ Coverage includes:
 ```text
 appState structure
 active product
-49 checklist items
+50 checklist items
 6 sections
 
 valid review statuses
@@ -1197,9 +1262,20 @@ per-layer pins (item.pins[])
 layer-scoped sessions
 layer-scoped artwork identity
 schema v2 → v3 migration
-schema v1 → v2 → v3 chain
+schema v1 → v2 → v3 → v4 chain
 legacy storage key migration
 layer-aware rendering
+
+pantone pack-copy compliance
+canonical 6I item definition
+6I review workflow (Pending / Approved / Rejected)
+rejected-comment requirement on 6I
+6I per-layer pins
+schema v3 → v4 migration
+v1/v2/v3 review-file import to v4
+legacy pantoneColors preservation
+legacy colour registry serialization / localStorage roundtrip
+legacy colour JSON export / import roundtrip
 
 baseline DOM regression
 zoom regression
@@ -1213,30 +1289,17 @@ Automated tests complement manual browser testing, especially for actual file se
 
 ## Known limitations
 
-### 1. Single-product user interface
+### 1. Basic progress presentation
 
-The domain already contains:
-
-```js
-products;
-activeProductId;
-```
-
-but the current interface still operates as a single-product review.
-
-Multiple products, switching, duplication, deletion and tabs belong to Layer G.
-
-### 2. Basic progress presentation
-
-The current interface primarily displays:
+The interface displays:
 
 ```text
-X / 49 reviewed
+X / Y reviewed
 ```
 
-Detailed Approved / Rejected / Pending counters and separate review/approval percentages belong to Layer F.
+Per-status counters (Approved / Rejected / Pending) and a separate review/approval percentage are not implemented yet; they belong to the pending Layer F1 review-metrics work.
 
-### 3. Artwork binary is session-only
+### 2. Artwork binary is session-only
 
 Artwork metadata is persisted, but the local image file itself is not.
 
@@ -1252,11 +1315,11 @@ the reviewer must select the same artwork file again.
 
 Persisted metadata and normalized pin positions remain available.
 
-### 4. No reviewer/signature workflow yet
+### 3. No reviewer/signature workflow yet
 
 Reviewer identity and final signature belong to Layer H.
 
-### 5. No printable report or PDF yet
+### 4. No printable report or PDF yet
 
 The domain already preserves the data needed for future reports:
 
@@ -1272,13 +1335,13 @@ artwork metadata
 
 Report and PDF generation belong to Layer J.
 
-### 6. Desktop-oriented interface
+### 5. Desktop-oriented interface
 
 The interface is still primarily designed for desktop use.
 
 Responsive and touch hardening belong to later roadmap layers.
 
-### 7. No shared backend
+### 6. No shared backend
 
 The MVP is browser-local.
 
@@ -1294,11 +1357,15 @@ revision history
 
 These belong to Layer M if real usage justifies a backend.
 
+### 7. Pantone references are textual
+
+Legacy colour specifications stored the Pantone reference as free text. No official RGB or HEX equivalence is derived. The current Pantone compliance review is performed through checklist item 6I; the legacy `pantoneColors` registry is preserved only for data compatibility with earlier exports.
+
 ---
 
 ## Roadmap
 
-Development is guided by a separate development roadmap maintained outside this repository.
+Development is guided by a separate development roadmap maintained outside this repository. The historical in-repo roadmap document (`roadmap.md`) was removed in an earlier commit; the roadmap content relevant to this repository is reflected in this README and in the per-layer completion reports.
 
 | Status | Layer     | Deliverable                                       |
 | :----: | --------- | ------------------------------------------------- |
@@ -1313,9 +1380,11 @@ Development is guided by a separate development roadmap maintained outside this 
 |   ✅   | **D4**    | JSON import / Open Check                          |
 |   ✅   | **E1**    | Normalized proportional pins                      |
 |   ✅   | **E2**    | Artwork identity and replacement safeguards       |
-|   📋   | **F1**    | Review metrics                                    |
-|   📋   | **G1**    | Multiple-product domain operations                |
-|   📋   | **G2**    | Product tabs                                      |
+|   📋   | **F1**    | Review metrics (per-status counters, approval %)  |
+|   ✅   | **G1**    | Multiple-product domain operations                |
+|   ✅   | **G2**    | Product tabs                                      |
+|   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
+|   ✅   | **G5**    | Pantone pack-copy compliance (checklist 6I) |
 |   📋   | **H1–H2** | Reviewer + signature                              |
 |   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
 |   📋   | **J1–J3** | Printable report + PDF                            |
@@ -1323,9 +1392,34 @@ Development is guided by a separate development roadmap maintained outside this 
 |   📋   | **L1**    | Module separation                                 |
 |   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-The single-product workflow is considered stable through Layer E.
+The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and Pantone pack-copy compliance are now implemented through Layer G5.
 
-Layers F and G should remain isolated in dedicated branches if developed in parallel.
+Layers F1 and G were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
+
+### UX Polish — Artwork Layer Context Menu
+
+* [x] Custom right-click menu on artwork layer tabs.
+* [x] Rename target layer.
+* [x] Add Layer shortcut.
+* [x] Delete target layer.
+* [x] Last-layer deletion disabled.
+* [x] Viewport-safe positioning.
+* [x] Outside-click / Escape dismissal.
+* [x] Product / layer menu mutual exclusivity.
+* [x] Native browser menu preserved outside tabs.
+* [x] Artwork layer tab visual refinement.
+
+### UX Polish — Product Tab Context Menu
+
+* [x] Custom right-click menu.
+* [x] Rename target product.
+* [x] Duplicate target product.
+* [x] New Product shortcut.
+* [x] Delete target product.
+* [x] Last-product deletion disabled.
+* [x] Viewport-safe positioning.
+* [x] Outside-click / Escape dismissal.
+* [x] Product tab visual refinement.
 
 ---
 

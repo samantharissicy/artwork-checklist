@@ -17,8 +17,8 @@
     assertExists,
   } = window.ArtworkTests;
 
-  test("49 checklist elements are rendered", () => {
-    assertEqual(document.querySelectorAll(".check-item").length, 49);
+  test("50 checklist elements are rendered", () => {
+    assertEqual(document.querySelectorAll(".check-item").length, 50);
   });
 
   test("6 section buttons are rendered", () => {
