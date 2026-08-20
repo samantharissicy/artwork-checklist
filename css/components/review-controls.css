@@ -269,3 +269,9 @@
   border-color: #ef4444;
   box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.08);
 }
+
+.check-item.pin-target {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  background: #eff6ff;
+}

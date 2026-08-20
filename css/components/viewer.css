@@ -117,14 +117,22 @@
 
 .canvas-area {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .artwork-wrapper {
   position: relative;
-  transform-origin: top center;
-  transition: transform 0.2s ease;
+  transform-origin: top left;
+  transition: transform 0.15s ease;
+  will-change: transform;
+  cursor: grab;
+}
+
+.artwork-wrapper.is-panning {
+  cursor: grabbing;
+  transition: none;
 }
