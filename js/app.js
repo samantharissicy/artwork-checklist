@@ -2762,6 +2762,118 @@ function escapeHtml(value) {
 }
 
 /**
+ * Builds the compact status chips displayed in a checklist section header.
+ *
+ * Zero-value chips are intentionally omitted to keep the narrow checklist
+ * navigation readable. The accessible label still exposes every count, so
+ * the complete summary remains available to assistive technology.
+ *
+ * @param {Object} metrics - Review metrics for one checklist section.
+ * @returns {string} Section status summary HTML.
+ */
+function buildSectionStatusSummaryMarkup(metrics) {
+  const statuses = [
+    {
+      key: REVIEW_STATUSES.APPROVED,
+      label: "Approved",
+      symbol: "✓",
+      count: metrics.approved,
+    },
+    {
+      key: REVIEW_STATUSES.REJECTED,
+      label: "Rejected",
+      symbol: "×",
+      count: metrics.rejected,
+    },
+    {
+      key: REVIEW_STATUSES.PENDING,
+      label: "Pending",
+      symbol: "○",
+      count: metrics.pending,
+    },
+  ];
+
+  const chips = statuses
+    .filter((status) => status.count > 0)
+    .map(
+      (status) => `
+        <span
+          class="section-status-chip"
+          data-status="${status.key}"
+          title="${status.label}: ${status.count}"
+          aria-hidden="true"
+        >
+          <span class="section-status-symbol">${status.symbol}</span>
+          <span>${status.count}</span>
+        </span>
+      `,
+    )
+    .join("");
+
+  return `
+    <span
+      class="section-status-summary"
+      data-role="section-status-summary"
+      data-total="${metrics.total}"
+      data-approved="${metrics.approved}"
+      data-rejected="${metrics.rejected}"
+      data-pending="${metrics.pending}"
+      role="group"
+      aria-label="Approved: ${metrics.approved}; Rejected: ${metrics.rejected}; Pending: ${metrics.pending}"
+    >
+      ${chips}
+    </span>
+  `;
+}
+
+/**
+ * Re-renders the compact review summary for one checklist section.
+ *
+ * @param {string} sectionId - Permanent section identifier.
+ * @returns {boolean} True when a matching rendered section was updated.
+ */
+function renderSectionStatusSummary(sectionId) {
+  const product = getActiveProduct();
+
+  const section = sectionDefinitions.find(
+    (definition) => definition.id === sectionId,
+  );
+
+  if (!product || !section) {
+    return false;
+  }
+
+  const button = Array.from(document.querySelectorAll(".section-btn")).find(
+    (element) => element.dataset.sectionId === sectionId,
+  );
+
+  const currentSummary = button?.querySelector(
+    '[data-role="section-status-summary"]',
+  );
+
+  if (!currentSummary) {
+    return false;
+  }
+
+  const metrics = computeSectionReviewMetrics(product, section);
+
+  currentSummary.outerHTML = buildSectionStatusSummaryMarkup(metrics);
+
+  return true;
+}
+
+/**
+ * Synchronizes every rendered checklist section summary with appState.
+ *
+ * @returns {void}
+ */
+function renderSectionStatusSummaries() {
+  sectionDefinitions.forEach((section) => {
+    renderSectionStatusSummary(section.id);
+  });
+}
+
+/**
  * Creates the collapsible DOM elements for one checklist section.
  *
  * @param {Object} section - Static checklist section definition.
@@ -2771,34 +2883,61 @@ function escapeHtml(value) {
 function createChecklistSectionElements(section, sectionIndex) {
   const button = document.createElement("button");
 
+  const product = getActiveProduct();
+
+  const metrics = computeSectionReviewMetrics(product, section);
+
   button.type = "button";
 
   button.className = "section-btn" + (sectionIndex > 0 ? " collapsed" : "");
 
-  button.innerHTML = `
-    <span>${escapeHtml(section.title)}</span>
+  button.dataset.sectionId = section.id;
 
-    <svg
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
+  button.setAttribute("aria-expanded", String(sectionIndex === 0));
+
+  button.setAttribute("aria-controls", `section-content-${section.id}`);
+
+  button.innerHTML = `
+    <span
+      class="section-btn-title"
+      title="${escapeHtml(section.title)}"
     >
-      <path d="M19 9l-7 7-7-7"/>
-    </svg>
+      ${escapeHtml(section.title)}
+    </span>
+
+    ${buildSectionStatusSummaryMarkup(metrics)}
+
+    <span class="section-chevron" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path d="M19 9l-7 7-7-7"/>
+      </svg>
+    </span>
   `;
 
   const content = document.createElement("div");
 
   content.className = "section-content" + (sectionIndex > 0 ? " hidden" : "");
 
+  content.id = `section-content-${section.id}`;
+
+  content.dataset.sectionId = section.id;
+
   button.addEventListener("click", () => {
     content.classList.toggle("hidden");
 
     button.classList.toggle("collapsed");
+
+    button.setAttribute(
+      "aria-expanded",
+      String(!content.classList.contains("hidden")),
+    );
   });
 
   return {
@@ -3854,6 +3993,8 @@ function handleReviewAction(itemId, requestedStatus) {
 
   renderItemState(itemId);
 
+  renderSectionStatusSummary(item.sectionId);
+
   updateProgress();
 
   renderSignOffState();
@@ -3889,19 +4030,17 @@ function handleReviewAction(itemId, requestedStatus) {
 //
 
 /**
- * Computes review metrics for a product from appState.
+ * Computes review metrics for a collection of checklist items.
  *
  * This function is "pure": it only reads state and returns numbers.
  * It never touches the DOM, which makes it easy to test and reuse.
  *
- * @param {Product} product - Product whose metrics should be computed.
+ * @param {ReviewItem[]} items - Checklist items whose metrics should be computed.
  * @returns {{total: number, approved: number, rejected: number,
  *   pending: number, reviewed: number, reviewProgress: number,
  *   approvalRate: number}} Review metrics.
  */
-function computeReviewMetrics(product) {
-  const items = Object.values(product.items);
-
+function computeReviewMetricsForItems(items) {
   const total = items.length;
 
   const approved = items.filter(
@@ -3930,6 +4069,45 @@ function computeReviewMetrics(product) {
     reviewProgress,
     approvalRate,
   };
+}
+
+/**
+ * Computes review metrics for a product from appState.
+ *
+ * @param {Product} product - Product whose metrics should be computed.
+ * @returns {{total: number, approved: number, rejected: number,
+ *   pending: number, reviewed: number, reviewProgress: number,
+ *   approvalRate: number}} Review metrics.
+ */
+function computeReviewMetrics(product) {
+  const items = product?.items ? Object.values(product.items) : [];
+
+  return computeReviewMetricsForItems(items);
+}
+
+/**
+ * Computes review metrics for one canonical checklist section.
+ *
+ * Section membership comes from sectionDefinitions while status values come
+ * from the supplied product. Missing product items are ignored defensively;
+ * valid hydrated products always contain the complete canonical item set.
+ *
+ * @param {Product|null} product - Product whose section should be summarized.
+ * @param {Object|null} section - Canonical checklist section definition.
+ * @returns {{total: number, approved: number, rejected: number,
+ *   pending: number, reviewed: number, reviewProgress: number,
+ *   approvalRate: number}} Section review metrics.
+ */
+function computeSectionReviewMetrics(product, section) {
+  if (!product?.items || !Array.isArray(section?.items)) {
+    return computeReviewMetricsForItems([]);
+  }
+
+  const items = section.items
+    .map((definition) => product.items[definition.id])
+    .filter(Boolean);
+
+  return computeReviewMetricsForItems(items);
 }
 
 /**
@@ -9310,6 +9488,8 @@ function renderAppState() {
   Object.keys(product.items).forEach((itemId) => {
     renderItemState(itemId);
   });
+
+  renderSectionStatusSummaries();
 
   renderPins();
 

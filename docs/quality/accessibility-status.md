@@ -15,7 +15,7 @@
 | `role="dialog"` / `aria-modal` / `aria-labelledby` / `aria-describedby` | application dialog, sign-off panel and signature dialog |
 | `aria-hidden` | dialog overlay, decorative SVGs |
 | `aria-pressed` | approve/reject buttons (JS: ) |
-| `aria-expanded` | comment buttons (JS: ) |
+| `aria-expanded` | comment buttons and collapsible checklist section buttons |
 | `aria-invalid` | checklist rejection comment, department rejection comment and incomplete reviewer inputs |
 | `aria-disabled` | disabled context-menu items (JS: , 8666) |
 | `role="alert"` | checklist item markup (JS template) |
@@ -28,6 +28,7 @@
 | Context menus | Escape closes; ArrowUp/ArrowDown move focus  |
 | Custom dialog | Escape dismisses; Enter submits when prompt input focused  |
 | Buttons | All interactive controls are real `<button>` elements (keyboard-focusable by default) |
+| Checklist sections | Native buttons support Enter/Space; `aria-expanded` and `aria-controls` stay synchronized |
 | Sign-off dialogs | Escape/backdrop/close button dismiss; focus returns to trigger |
 | Signature pad | Pointer Events unify mouse, pen and touch; canvas has an accessible label |
 
@@ -37,15 +38,15 @@
 - Title-edit input focused + selected on begin.
 - Dialog focus via `requestAnimationFrame`.
 - Sign-off panel/signature canvas focus on open and restore the prior trigger on close.
-- `:focus-visible` styles exist in header, context-menu and sign-off controls.
+- `:focus-visible` styles exist in header, checklist section, context-menu and sign-off controls.
 
 ## Status Table
 
 | Requirement | Current Status | Evidence | Planned Layer |
 | --- | --- | --- | --- |
 | Real labels for inputs | Implemented | `aria-label` on all product inputs; visible labels in dialog | — |
-| Status not conveyed by colour alone | Partial | Status is text (`status-label`) + colour; buttons have `aria-pressed` | K2 |
-| Keyboard navigation of checklist sections | Not implemented | Sections expand via click only | K2 |
+| Status not conveyed by colour alone | Implemented for checklist | Items use text labels; section summaries combine symbols, counts and a complete `aria-label` | — |
+| Keyboard navigation of checklist sections | Implemented | Native buttons support Enter/Space and expose `aria-expanded` / `aria-controls` | — |
 | Focus trap in dialog | Partial | Escape/Enter handled; no explicit focus trap | K2 |
 | `aria-live` announcements | Not implemented | Toast is visual only | K2 |
 | Full keyboard alternative for drag-and-drop | Not implemented | Pin creation is drag-only (planned K3 proposes "Select item → click artwork") | K3 |
@@ -57,7 +58,7 @@
 
 - Focus trap + `aria-modal` interplay review in the dialog.
 - `aria-live="polite"` region for toast feedback.
-- Keyboard path for section collapse/expand and pin placement.
+- Keyboard path for pin placement.
 - Consistent `:focus-visible` across all components.
 
 ## Related Documents

@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20H-success" alt="MVP H">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-436%2F436%20passing-success" alt="436/436 tests passing">
+  <img src="https://img.shields.io/badge/tests-449%2F449%20passing-success" alt="449/449 tests passing">
   <img src="https://img.shields.io/badge/schema-v5-blue" alt="Schema v5">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -118,6 +118,7 @@ no database
 | --------------------------------- | ------------------------------------------- |
 | ✅ Interactive checklist          | 50 regulatory review items                  |
 | ✅ Collapsible sections           | 6 expandable checklist categories           |
+| ✅ Section status summaries       | Compact Approved / Rejected / Pending counts remain visible when collapsed |
 | ✅ Product data                   | Brand, Product Name, Weight and SKU         |
 | ✅ Central application state      | Domain data stored in `appState`            |
 | ✅ Single source of truth         | DOM represents state instead of defining it |
@@ -162,7 +163,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 436 browser-based tests                     |
+| ✅ Automated regression suite     | 449 browser-based tests                     |
 | ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 | ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
@@ -1189,7 +1190,7 @@ await runArtworkTests();
 Current checkpoint:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 tests passing
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 → 449 / 449 tests passing
 ```
 
 The suite covers:

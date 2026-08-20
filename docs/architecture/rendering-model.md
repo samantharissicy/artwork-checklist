@@ -33,7 +33,7 @@ flowchart TD
 ### `renderAppState()` — main coordinator (active product)
 
 - **Reads:** active product (fields, layers, items, active layer), `artworkSessions`, transient UI (`editingTitleItemId`, `openCommentItemIds`).
-- **Writes:** product inputs, context header, artwork layer tabs, artwork viewer state, per-item DOM, pins layer, progress and sign-off header/open panel.
+- **Writes:** product inputs, context header, artwork layer tabs, artwork viewer state, per-item DOM, per-section status summaries, pins layer, progress and sign-off header/open panel.
 - **Does not do:** rebuild the whole checklist (`renderChecklist` handles that), rebuild product tabs.
 - **Called by:** `loadStateFromStorage` pipeline, domain mutations (via helpers), tests.
 
@@ -44,13 +44,21 @@ flowchart TD
 
 ### `renderChecklist()`
 - **Reads:** `sectionDefinitions`, active product items.
-- **Writes:** `#checklist` — section buttons (`.section-btn`) and items (`.check-item[data-id]`).
+- **Writes:** `#checklist` — section buttons (`.section-btn`), their initial state-derived status summaries and items (`.check-item[data-id]`).
 - **Does not do:** render item internals (status/comments) — `renderItemState` per item does that.
 
 ### `renderItemState(itemId)`
 - **Reads:** item state, `editingTitleItemId`.
 - **Writes:** `.check-item-title`, edit input visibility/value, Edited badge, correction meta, status label (`[data-role="status-label"]`), approve/reject button states (`aria-pressed`, `.active`), `data-status`/`data-edited`; then calls `renderCommentState`.
 - **Called by:** `renderAppState`, review actions, title editing flows.
+
+### `renderSectionStatusSummary(sectionId)` / `renderSectionStatusSummaries()`
+
+- **Reads:** the active product's item statuses plus canonical section membership from `sectionDefinitions`.
+- **Writes:** `[data-role="section-status-summary"]` for one or all section headers.
+- **Presentation rule:** only non-zero Approved / Rejected / Pending chips are visible; `aria-label` and `data-*` values retain all three counts, including zeros.
+- **Called by:** `handleReviewAction` for a localized update and `renderAppState` for product switches, imports and full synchronization.
+- **Does not do:** persist UI state or modify review data; the summary is a projection of `appState`.
 
 ### `renderCommentState(itemId)`
 - **Reads:** item comment, `validateItemState`, `openCommentItemIds`.
