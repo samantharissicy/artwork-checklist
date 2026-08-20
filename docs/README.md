@@ -1,6 +1,6 @@
 # Artwork & Pack Copy Checklist — Engineering Documentation
 
-**Status: Current** — this documentation describes the repository as it exists today (schema v5, 50 checklist items, 436 tests).
+**Status: Current** — this documentation describes the repository as it exists today (schema v5, 50 checklist items, 449 tests).
 
 ## Purpose
 
@@ -39,11 +39,11 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 - **Status: Current.** Vanilla HTML5 + CSS + JavaScript; no framework, no npm, no build, no backend, no database, no runtime dependencies.
 - `appState` is the single source of truth; the DOM is a projection (see [architecture/architecture-overview.md](architecture/architecture-overview.md)).
 - Canonical schema **v5**, versioned `localStorage` key `artworkChecklist:v5` (see [architecture/persistence-and-schema.md](architecture/persistence-and-schema.md)).
-- **50 checklist items** in **6 sections**; item **6I — "Pantone Colours Match Approved Pack Copy?"** is the canonical Pantone compliance item (see [domain/domain-overview.md](domain/domain-overview.md)).
+- **50 checklist items** in **6 collapsible sections**, each with a compact state-derived Approved / Rejected / Pending summary; item **6I — "Pantone Colours Match Approved Pack Copy?"** is the canonical Pantone compliance item (see [domain/domain-overview.md](domain/domain-overview.md)).
 - Multi-product workspace with tabs and per-product context menus; multi-layer artwork with per-layer pins and layer tabs.
 - Cross-functional sign-off for Quality, Production and Product Development, with reviewer snapshots, derived overall approval and optional Pointer Event signatures.
 - Legacy `pantoneColors` metadata is preserved for backwards compatibility only (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
-- Test suite: **436 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
+- Test suite: **449 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
 
 ## Current Technical Status
 
@@ -57,7 +57,7 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 | Review statuses | `pending` / `approved` / `rejected` |
 | Allowed sites | `OH1`, `OH2`, `BL` |
 | Required sign-off departments | Quality, Production, Product Development |
-| Tests | 436 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest Layer H verification: 436/436 passing) |
+| Tests | 449 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest verification: 449/449 passing) |
 | App source | `js/app.js` (single classic-script application module) |
 
 ## Navigation Groups

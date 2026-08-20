@@ -15,14 +15,14 @@ js/tests.js                       → loader entry point
 js/tests/core/framework.js        → test registration + assertions
 js/tests/core/helpers.js          → fixtures, snapshots, DOM lookups
 js/tests/core/runner.js           → snapshot/run/restore + console reporting
-js/tests/layers/*.test.js         → 13 layer test modules
+js/tests/layers/*.test.js         → 14 test modules
 ```
 
 ## Loader (`js/tests.js`)
 
 - Loaded from `index.html` after `js/app.js` (`<script src="js/tests.js">`).
 - `loadTestScript(relativePath)` injects `<script>` tags **sequentially** (`async = false`), resolving paths against `document.currentScript.src`.
-- Order (`TEST_FILES`): `core/framework.js` → `core/helpers.js` → 13 layer files (B1 → C1 → C2 → C3 → D → E1 → E2 → F1 → G → G4 → G5 → H → **baseline-smoke last**) → `core/runner.js`.
+- Order (`TEST_FILES`): `core/framework.js` → `core/helpers.js` → 14 test files (B1 → C1 → C2 → C3 → D → E1 → E2 → F1 → G → G4 → G5 → H → section-summary UX → **baseline-smoke last**) → `core/runner.js`.
 - Exposes `window.artworkTestsReady` (promise), `window.runArtworkTests`, `window.getArtworkTestResults`.
 - `?run-tests=1` executes automatically and writes `data-test-status/total/passed/failed` on `<html>` for repeatable browser automation.
 
@@ -80,12 +80,13 @@ Note: the runner snapshots once before and restores once after the whole suite; 
 | `g4-multi-layer-artwork.test.js` | G4A/G4B/G4UX | 120 | layer domain, layer flows, layer tab UX, v2→v3 migration |
 | `g5-pantone-compliance.test.js` | G5/G5P/G5R | 109 | legacy `pantoneColors` compatibility (G5), Pantone limits/IDs (G5P), **canonical 6I workflow + schema v4 + v3→v4 migration (G5R)** |
 | `h-cross-functional-signoff.test.js` | H1–H4 | 58 | reviewer identity, independent decisions, rejection comments, revision reset, overall derivation, final blockers, Pointer Event signatures, schema v5, v4→v5, storage/export/import/duplication and UI |
+| `ux-section-status-summary.test.js` | Checklist UX | 13 | per-section metrics, compact chips, zero suppression, accessible labels, live review updates, collapsed state and product switching |
 
-**Total: 436 tests.**
+**Total: 449 tests.**
 
-Test ID conventions: `G5R-001…049` (current Pantone compliance), `G5-…` (legacy registry compatibility), `G5P-…` (Pantone limits), `G4A/G4B/G4UX-…`, `G2UX-…`, and layer prefixes (`D2 …`, `E1 …`, `B1 …`) for earlier layers. Baseline tests have no IDs.
+Test ID conventions: `UXS-001…013` (section status summaries), `G5R-001…049` (current Pantone compliance), `G5-…` (legacy registry compatibility), `G5P-…` (Pantone limits), `G4A/G4B/G4UX-…`, `G2UX-…`, and layer prefixes (`D2 …`, `E1 …`, `B1 …`) for earlier layers. Baseline tests have no IDs.
 
-> **Time-sensitive metric:** the exact count (436) changes as layers are implemented (history: 312 → 357 → 373 → 378 → 436). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
+> **Time-sensitive metric:** the exact count (449) changes as layers are implemented (history: 312 → 357 → 373 → 378 → 436 → 449). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
 
 ## How to Run
 
@@ -104,6 +105,7 @@ The suite snapshots application state before running and restores it afterwards,
 ## Known Artifacts
 
 - `F1` tests cover the review metrics (counters, review/approval percentages, progress bar).
+- `UXS` tests cover the per-section projection of those metrics and the collapsed-header interaction.
 - Tests that intentionally exercise error paths log `console.error` from application functions (e.g. corrupted-JSON tests) — expected noise.
 - `G4UX-028` uses fake `blob:http://localhost/…` session URLs to assert layer-scoped session revocation; the browser logs `Not allowed to load local resource: blob:…` for these fixture URLs — a known, pre-existing fixture artifact, not an application defect.
 

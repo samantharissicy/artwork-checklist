@@ -47,13 +47,15 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 
 ## Checklist
 
-- [ ] 6 sections, 50 items; sections expand/collapse.
+- [ ] 6 sections, 50 items; sections expand/collapse and each header keeps a compact status summary visible while collapsed.
 - [ ] Notes and reference tags visible.
 
 ## Review Status
 
 - [ ] Approve marks item green; Reject marks it red; clicking the active status toggles back to Pending.
 - [ ] Progress footer updates correctly: counters (total/approved/rejected/pending), `N% reviewed` / `N% approved`, and the bar (approved + rejected count as reviewed).
+- [ ] The affected section header updates immediately with `✓ Approved`, `× Rejected` and `○ Pending` counts; zero-value chips are omitted.
+- [ ] Switching products refreshes every section summary to the active product without changing which sections are open.
 
 ## Comments
 
@@ -151,8 +153,8 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 
 ## Final
 
-- [ ] Full test suite: `await runArtworkTests()` → `436/436 tests passed` (expected count is time-sensitive).
-- [ ] Automation URL: `http://localhost:5500/?run-tests=1` shows `436/436 automated tests passed`.
+- [ ] Full test suite: `await runArtworkTests()` → `449/449 tests passed` (expected count is time-sensitive).
+- [ ] Automation URL: `http://localhost:5500/?run-tests=1` shows `449/449 automated tests passed`.
 - [ ] No application-generated console errors (except the known `blob:` fixture warning from `G4UX-028`).
 - [ ] `git diff` shows only intended files.
 

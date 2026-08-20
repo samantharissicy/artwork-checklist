@@ -51,6 +51,8 @@
 
     "layers/h-cross-functional-signoff.test.js",
 
+    "layers/ux-section-status-summary.test.js",
+
     "layers/baseline-smoke.test.js",
 
     "core/runner.js",

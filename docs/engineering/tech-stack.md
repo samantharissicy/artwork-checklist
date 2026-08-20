@@ -66,8 +66,8 @@ Custom, dependency-free browser test framework built into the app:
 | --- | --- |
 | `js/tests/core/framework.js` | `test(name, fn)` + assertions (`assert`, `assertEqual`, `assertDeepEqual`, `assertClose`, …) |
 | `js/tests/core/helpers.js` | Fixtures (`createTestArtworkMetadata`), snapshot/restore, DOM lookup helpers |
-| `js/tests/core/runner.js` | Snapshot → run 436 tests → restore, console/query reporting |
-| `js/tests/layers/*.test.js` | 12 layer test modules (baseline, B1–G5) |
+| `js/tests/core/runner.js` | Snapshot → run 449 tests → restore, console/query reporting |
+| `js/tests/layers/*.test.js` | 14 test modules (baseline, B1–H and checklist UX) |
 
 Entry point: `runArtworkTests()` from DevTools. See [testing-strategy.md](testing-strategy.md).
 
