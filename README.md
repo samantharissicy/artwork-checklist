@@ -1,11 +1,11 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
+  <img src="https://img.shields.io/badge/status-MVP%20H-success" alt="MVP H">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-378%2F378%20passing-success" alt="378/378 tests passing">
-  <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
+  <img src="https://img.shields.io/badge/tests-436%2F436%20passing-success" alt="436/436 tests passing">
+  <img src="https://img.shields.io/badge/schema-v5-blue" alt="Schema v5">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
 </p>
@@ -15,8 +15,8 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven development plan.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
-> **Layer G5 — Pantone Pack-Copy Compliance is complete.**
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5 and H1–H4** are complete.
+> **Layer H — Cross-Functional Sign-Off is complete.**
 
 ## Engineering Documentation
 
@@ -134,14 +134,19 @@ no database
 | ✅ Autosave                       | Review state is persisted in `localStorage` |
 | ✅ Reload restoration             | Saved state is restored on page load        |
 | ✅ Corrupted-state protection     | Invalid storage does not crash the app      |
-| ✅ Versioned serialization        | Canonical state uses schema version 4       |
-| ✅ State migration                | Legacy schema v1/v2/v3 data migrates to v4  |
-| ✅ Multi-layer artwork domain     | Schema v4 layers, active layer and per-layer pins |
+| ✅ Versioned serialization        | Canonical state uses schema version 5       |
+| ✅ State migration                | Legacy schema v1/v2/v3/v4 data migrates to v5 |
+| ✅ Multi-layer artwork domain     | Layers, active layer and per-layer pins in schema v5 |
 | ✅ Multi-layer workspace          | Layer tabs with Add / Rename / Delete layer flows |
 | ✅ Pantone pack-copy compliance   | Checklist item 6I "Pantone Colours Match Approved Pack Copy?" |
 | ✅ Standard review workflow       | 6I uses Pending / Approved / Rejected + comment + pins |
 | ✅ Legacy Pantone registry        | `pantoneColors` metadata preserved on v3 → v4 migration |
 | ✅ Colour preservation            | Survives reload, export/import and duplication     |
+| ✅ Cross-functional sign-off      | Independent Quality, Production and Product Development decisions |
+| ✅ Reviewer identity snapshots    | Name, role, timestamp and artwork revision captured per decision |
+| ✅ Derived overall approval       | Rejected precedence; all required approvals needed |
+| ✅ Visual signatures              | Optional per-department Pointer Event canvas for mouse/pen/touch |
+| ✅ Final sign-off validation      | Required data, checklist and department blockers shown explicitly |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -157,7 +162,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 378 browser-based tests                     |
+| ✅ Automated regression suite     | 436 browser-based tests                     |
 | ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 | ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
@@ -572,12 +577,14 @@ Invalid stored JSON must never prevent the application from opening.
 Current canonical schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 ```
 
-The application supports migration from compatible schema v1 state where pins were stored as pixels, from schema v2 single-layer state and from schema v3 state without the Pantone compliance item.
+The application supports migration from compatible schema v1 pixel pins, schema v2 single-layer state, schema v3 without the Pantone compliance item and schema v4 without cross-functional sign-offs.
 
 Schema v3 state migrates to v4 by adding the canonical checklist item 6I ("Pantone Colours Match Approved Pack Copy?") as Pending to every product. Legacy `pantoneColors` metadata is preserved unchanged and never influences the status of the migrated 6I item.
+
+Schema v4 state migrates to v5 by adding Quality, Production and Product Development as Pending. No historical approval is inferred.
 
 ### Save Check
 
@@ -600,6 +607,7 @@ artworkLayers
 activeArtworkLayerId
 pantoneColors
 reviewer
+signOffs
 ```
 
 The export structure mirrors the appState product review: `artworkLayers`, `activeArtworkLayerId` and `pantoneColors` are top-level siblings of the `product` object. The `pantoneColors` registry is preserved for backward compatibility with earlier schema-v3 exports; reviews created by this version review Pantone compliance through checklist item 6I.
@@ -615,6 +623,8 @@ normalized pins
 product data
 artwork metadata
 timestamps
+department reviewer snapshots
+department decisions and optional signatures
 ```
 
 ### Open Check
@@ -977,7 +987,7 @@ const appState = {
 Current schema:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 ```
 
 The architecture follows:
@@ -1179,7 +1189,7 @@ await runArtworkTests();
 Current checkpoint:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 tests passing
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 tests passing
 ```
 
 The suite covers:
@@ -1198,6 +1208,7 @@ Layer E2
 Layer G4A
 Layer G4B
 Layer G5
+Layer H1–H4
 ```
 
 Coverage includes:
@@ -1265,7 +1276,7 @@ per-layer pins (item.pins[])
 layer-scoped sessions
 layer-scoped artwork identity
 schema v2 → v3 migration
-schema v1 → v2 → v3 → v4 chain
+schema v1 → v2 → v3 → v4 → v5 chain
 legacy storage key migration
 layer-aware rendering
 
@@ -1275,10 +1286,20 @@ canonical 6I item definition
 rejected-comment requirement on 6I
 6I per-layer pins
 schema v3 → v4 migration
-v1/v2/v3 review-file import to v4
+v1/v2/v3 review-file import through v4 compatibility
 legacy pantoneColors preservation
 legacy colour registry serialization / localStorage roundtrip
 legacy colour JSON export / import roundtrip
+
+cross-functional reviewer identity
+independent required department decisions
+rejected department comment validation
+artwork-revision decision reset
+derived overall approval and final blockers
+mouse/touch Pointer Event signatures
+schema v4 → v5 migration
+v1/v2/v3/v4 review-file import to v5
+sign-off storage/export/import/duplication roundtrips
 
 baseline DOM regression
 zoom regression
@@ -1378,16 +1399,16 @@ Development is guided by a separate development planned maintained outside this 
 |   ✅   | **G2**    | Product tabs                                      |
 |   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
 |   ✅   | **G5**    | Pantone pack-copy compliance (checklist 6I) |
-|   📋   | **H1–H2** | Reviewer + signature                              |
+|   ✅   | **H1–H4** | Cross-functional sign-off + signature + final validation |
 |   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
 |   📋   | **J1–J3** | Printable report + PDF                            |
 |   📋   | **K1–K4** | UX, accessibility, touch and regression hardening |
 |   📋   | **L1**    | Module separation                                 |
 |   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-The single-product workflow is stable since Layer E; multi-product tabs, artwork layers and Pantone pack-copy compliance are now implemented through Layer G5.
+The single-product workflow is stable since Layer E; multi-product tabs, artwork layers, Pantone compliance and cross-functional sign-off are implemented through Layer H.
 
-Layers F1 and G were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
+Layers F1, G and H were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
 
 ### UX Polish — Artwork Layer Context Menu
 

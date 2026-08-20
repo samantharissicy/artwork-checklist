@@ -23,12 +23,12 @@ flowchart TD
 | Concept | Location | Description |
 | --- | --- | --- |
 | **Domain State** | `appState` | `{ schemaVersion, activeProductId, products }` — the only authoritative review data |
-| **Transient UI State** | module-level variables | `openCommentItemIds`, `editingTitleItemId`, `currentZoom`, context-menu states, `appDialogState`, `toastTimeoutId` — never persisted |
+| **Transient UI State** | module-level variables | comment/title/zoom state, context menus, dialogs, `signOffUiState`, `signaturePadState`, toast timer — never persisted |
 | **Session Resources** | `artworkSessions` | `Map<productId, Map<layerId, {metadata, objectUrl}>>` — binary artwork + Object URLs, runtime only |
 | **Persistence Layer** | functions in js/app.js | `serializeState`, `validateState`, `migrateState`, `saveStateToStorage`, `loadStateFromStorage`, `buildExportData`, `applyImportedReview` |
-| **Rendering Layer** | 14 `render*` functions | Project `appState` into the DOM; see [rendering-model.md](rendering-model.md) |
+| **Rendering Layer** | named `render*` coordinators | Project `appState` into the DOM; see [rendering-model.md](rendering-model.md) |
 | **Validation** | `validate*` functions | Storage, import and business-rule validation before any mutation |
-| **Migration** | `migrate*` functions | v1→v2→v3→v4 chains for storage and import files; see [persistence-and-schema.md](persistence-and-schema.md) |
+| **Migration** | `migrate*` functions | v1→v2→v3→v4→v5 chains for storage and import files; see [persistence-and-schema.md](persistence-and-schema.md) |
 | **File Handling** | `handleArtworkFileChange`, `handleCheckFileChange` | Image upload (session-only) and JSON import (validated) |
 | **Tests** | `js/tests/` | Modular browser test suite; see [engineering/testing-strategy.md](../engineering/testing-strategy.md) |
 
@@ -56,7 +56,7 @@ sequenceDiagram
 
 ## Mutations Are Centered
 
-Almost every user action resolves to a small named domain function (205 `function` declarations in js/app.js):
+Almost every user action resolves to a small named domain function:
 
 - Review: `setItemStatus`, `setItemComment`, `setItemCurrentTitle`, `setItemPinForLayer`, `handleReviewAction`, `restoreOriginalTitle`.
 - Products: `createNewProduct`, `switchProduct`, `renameProduct`, `duplicateProduct`, `deleteProduct`.
@@ -64,12 +64,13 @@ Almost every user action resolves to a small named domain function (205 `functio
 - Artwork: `applyArtworkIdentity`, `adoptSessionArtwork`, `releaseLayerSessionArtwork`.
 - Pins: `addPin`, `clearPins`, `removeItemPinFromLayer`.
 - Import/export: `exportReviewAsJson`, `openCheck`, `applyImportedReview`.
+- Sign-off: `updateActiveReviewer`, `setDepartmentSignOffStatus`, `setDepartmentSignOffComment`, `setDepartmentSignature`, `computeOverallApproval`.
 
 ## Validation and Migration Boundaries
 
 - **localStorage read path**: `getStoredStateRecord` → `deserializeState` → `migrateState` → `validateState` → `rehydrateState`. Any failure leaves the in-memory state untouched.
 - **Import path**: file read → `migrateImportData` → `validateImportData` → `buildImportedProduct` → insert as a new product → render.
-- **Business rules** are enforced at interaction time (`validateItemState`: rejected requires comment) and never at persistence time alone.
+- **Business rules** are enforced separately from structural persistence validation. This allows an incomplete rejection to survive autosave while still blocking final approval.
 
 See [persistence/import-export.md](../persistence/import-export.md) and [persistence/migrations.md](../persistence/migrations.md).
 

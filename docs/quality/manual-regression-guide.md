@@ -105,27 +105,43 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 - [ ] The Colour Specification UI does not exist anywhere in the DOM.
 - [ ] No RGB/HEX or automatic colour features are present.
 
+## Cross-Functional Sign-Off (H1–H4)
+
+- [ ] Header **Sign-Off** opens a modal and shows the derived Pending/Approved/Rejected status.
+- [ ] Reviewer Name and Role are both required before a department decision; the saved decision shows the captured identity and timestamp.
+- [ ] Quality, Production and Product Development can be changed independently.
+- [ ] Reject focuses its department comment; an empty rejection shows validation and blocks final approval.
+- [ ] Product Name, Production Code, Site and Artwork Revision appear as blockers while empty.
+- [ ] Pending checklist items and rejected checklist items without comments block signatures/final approval.
+- [ ] With all checklist items and all departments Approved, overall status becomes Approved and blockers show Ready.
+- [ ] Any required department Rejected makes overall status Rejected.
+- [ ] Changing Artwork Revision resets every department to Pending and removes signatures; entering the same revision preserves decisions.
+- [ ] Add Signature accepts mouse/pen/touch drawing; Clear clears the draft; Confirm persists a PNG and displays `Signed`; Remove saved signature works.
+- [ ] Changing a signed department's decision removes its old signature.
+- [ ] Close button, backdrop and Escape close both modals; focus returns to the trigger.
+- [ ] At a narrow/touch viewport, the panel occupies the viewport without horizontal clipping and the canvas remains usable.
+
 ## Save Check
 
-- [ ] Save Check downloads a `.json` file with `schemaVersion: 4`, product, items (50), layers and pins.
+- [ ] Save Check downloads a `.json` file with `schemaVersion: 5`, product, items (50), layers, pins and all sign-offs/signatures.
 - [ ] Saved file opens without errors.
 
 ## Open Check
 
-- [ ] Open Check imports a valid v4 file as a **new** product and activates it.
-- [ ] Importing a v1/v2/v3 file succeeds and the product gains 6I as Pending (legacy `pantoneColors` preserved).
+- [ ] Open Check imports a valid v5 file as a **new** product and activates it.
+- [ ] Importing a v1/v2/v3/v4 file succeeds; v4 gains all departments as Pending and older versions also gain 6I (legacy `pantoneColors` preserved).
 - [ ] Importing a malformed/non-JSON/incompatible file is rejected with a toast and changes nothing.
 
 ## localStorage
 
 - [ ] After reload, products, statuses, comments, edits, pins metadata and 6I state are restored.
 - [ ] Zoom and open editors are not restored (expected).
-- [ ] Setting `localStorage["artworkChecklist:v4"]` to garbage and reloading does not crash the app.
+- [ ] Setting `localStorage["artworkChecklist:v5"]` to garbage and reloading does not crash the app.
 
 ## Migration
 
-- [ ] With only `artworkChecklist:v3` in storage, reload promotes state to v4: 6I appears Pending, existing data intact, old key removed.
-- [ ] v2/v1 keys behave the same way.
+- [ ] With only `artworkChecklist:v4` in storage, reload promotes state to v5: all departments appear Pending, existing data intact, old key removed.
+- [ ] v3/v2/v1 keys traverse the complete chain; 6I and sign-offs are added conservatively.
 
 ## Destructive Actions
 
@@ -135,7 +151,8 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 
 ## Final
 
-- [ ] Full test suite: `await runArtworkTests()` → `378/378 tests passed` (expected count is time-sensitive).
+- [ ] Full test suite: `await runArtworkTests()` → `436/436 tests passed` (expected count is time-sensitive).
+- [ ] Automation URL: `http://localhost:5500/?run-tests=1` shows `436/436 automated tests passed`.
 - [ ] No application-generated console errors (except the known `blob:` fixture warning from `G4UX-028`).
 - [ ] `git diff` shows only intended files.
 

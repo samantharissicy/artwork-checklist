@@ -60,7 +60,7 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 
 | ID | Rule | Enforced by |
 | --- | --- | --- |
-| BR-PERSISTENCE-001 | Canonical state shall be stored under a versioned key. | `STORAGE_KEY = "artworkChecklist:v4"` |
+| BR-PERSISTENCE-001 | Canonical state shall be stored under a versioned key. | `STORAGE_KEY = "artworkChecklist:v5"` |
 | BR-PERSISTENCE-002 | Corrupted or unsupported stored state shall never prevent the app from opening. | `loadStateFromStorage` pipeline; `deserializeState` → null |
 | BR-PERSISTENCE-003 | Legacy storage keys shall be migrated to the current key on successful load. | `getStoredStateRecord` + post-load save/remove |
 | BR-PERSISTENCE-004 | Stored state shall validate against the current schema before use. | `validateState` |
@@ -76,6 +76,23 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 | BR-PANTONE-003 | Migrated 6I items start as `pending`. | `addPantoneComplianceItem` (clones canonical item) |
 | BR-PANTONE-004 | Legacy `pantoneColors` metadata shall never influence the status of item 6I. | `migrateStateV3ToV4` / `addPantoneComplianceItem` never touch `pantoneColors` |
 | BR-PANTONE-005 | Legacy `pantoneColors` shall survive reload, export/import, migration and duplication. | rehydrate/export/import/duplicate paths clone it |
+
+## BR-SIGNOFF — Cross-functional sign-off
+
+| ID | Rule | Enforced by |
+| --- | --- | --- |
+| BR-SIGNOFF-001 | Quality, Production and Product Development shall each have an independent required decision. | `SIGN_OFF_DEPARTMENTS`; `createInitialSignOffs`; `validateSerializedSignOffs` |
+| BR-SIGNOFF-002 | Approved/Rejected decisions require current reviewer name, reviewer role and Artwork Revision. | `setDepartmentSignOffStatus` |
+| BR-SIGNOFF-003 | A completed decision shall snapshot reviewer, `reviewedAt` and the current artwork revision. | `setDepartmentSignOffStatus` |
+| BR-SIGNOFF-004 | A rejected department requires a non-empty comment for business validity. | `validateDepartmentSignOff`; sign-off UI `aria-invalid` |
+| BR-SIGNOFF-005 | An incomplete rejection remains structurally restorable but blocks final approval. | `validateSerializedSignOffs` vs `validateDepartmentSignOff` / `validateFinalSignOff` |
+| BR-SIGNOFF-006 | Changing Artwork Revision shall reset all department decisions and signatures. | `setActiveProductArtworkVersion` → `resetProductSignOffs` |
+| BR-SIGNOFF-007 | Any required department Rejected makes overall status Rejected. | `computeOverallApproval` rejection precedence |
+| BR-SIGNOFF-008 | Overall Approved requires every required department Approved and final validation valid. | `computeOverallApproval`; `validateFinalSignOff` |
+| BR-SIGNOFF-009 | Final approval is blocked by missing required context, Pending checklist items, invalid checklist rejections, Pending departments or Rejected departments. | `getProductContextBlockers`; `getChecklistSignOffBlockers`; `validateFinalSignOff` |
+| BR-SIGNOFF-010 | Department signatures are optional, bounded PNG data URLs and separate from decisions. | `isValidDepartmentSignature`; `setDepartmentSignature` |
+| BR-SIGNOFF-011 | Signature input shall support mouse, pen and touchscreen through Pointer Events. | `bindSignOffUi` pointer handlers; `touch-action: none` |
+| BR-SIGNOFF-012 | Changing a department decision shall clear its previous signature. | `setDepartmentSignOffStatus` |
 
 ## BR-IMPORT — Import
 
@@ -98,3 +115,4 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 - [domain-overview.md](domain-overview.md)
 - [review-workflow.md](review-workflow.md)
 - [data-dictionary.md](data-dictionary.md)
+- [cross-functional-signoff.md](cross-functional-signoff.md)

@@ -40,6 +40,12 @@
       editingTitleItemId,
 
       currentZoom,
+
+      signOffPanelOpen: signOffUiState.isOpen,
+
+      signaturePadOpen: signaturePadState.isOpen,
+
+      signatureDepartmentId: signaturePadState.departmentId,
     };
   }
 
@@ -102,6 +108,21 @@
     renderProductTabs();
 
     renderAppState();
+
+    closeSignaturePad({ restoreFocus: false });
+
+    closeSignOffPanel({ restoreFocus: false });
+
+    if (snapshot.signOffPanelOpen) {
+      openSignOffPanel();
+    }
+
+    if (
+      snapshot.signaturePadOpen &&
+      snapshot.signatureDepartmentId
+    ) {
+      openSignaturePad(snapshot.signatureDepartmentId);
+    }
   }
 
   function createTestArtworkMetadata(
@@ -300,6 +321,10 @@
     openCommentItemIds.clear();
 
     editingTitleItemId = null;
+
+    closeSignaturePad({ restoreFocus: false });
+
+    closeSignOffPanel({ restoreFocus: false });
 
     renderChecklist();
 

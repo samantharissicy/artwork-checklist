@@ -18,7 +18,7 @@ Clarify what is and is not backed up in this application, and how to preserve a 
 ## How to Back Up a Review
 
 1. Complete the review (statuses, comments, copy edits, pins).
-2. **Save Check** → downloads `product-name-…json` (schema v4).
+2. **Save Check** → downloads the active review as schema-v5 JSON, including department sign-offs and signatures.
 3. Store the file outside the browser (drive, shared folder).
 4. Optionally export one file per product (Save Check exports the **active product only**).
 

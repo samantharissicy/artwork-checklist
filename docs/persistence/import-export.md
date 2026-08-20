@@ -14,7 +14,7 @@ Flow: `exportReviewAsJson()` → `buildExportData()` → `downloadJsonFile(data,
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "exportedAt": "…ISO…",
   "product": { "id", "brand", "productName", "weight", "sku",
                "productionCode", "site", "artworkVersion",
@@ -24,7 +24,11 @@ Flow: `exportReviewAsJson()` → `buildExportData()` → `downloadJsonFile(data,
   "artworkLayers": [ { "id", "name", "artwork": { "name","type","size","width","height" } } ],
   "activeArtworkLayerId": "layer-main",
   "pantoneColors": [ { "id", "name", "pantoneCode", "notes", "layerIds" } ],
-  "reviewer": { "name", "role", "reviewedAt" }
+  "reviewer": { "name", "role", "reviewedAt" },
+  "signOffs": [
+    { "departmentId", "departmentName", "reviewer", "status", "comment",
+      "reviewedAt", "artworkVersion", "signature" }
+  ]
 }
 ```
 
@@ -41,7 +45,7 @@ Validation pipeline:
 ```mermaid
 flowchart LR
   A[read .json via file.text] --> B[deserializeState]
-  B --> C[migrateImportData v1-v4]
+  B --> C[migrateImportData v1-v5]
   C --> D[validateImportData]
   D --> E[buildImportedProduct]
   E --> F[insert as NEW product + activate]
@@ -52,9 +56,9 @@ flowchart LR
 | --- | --- |
 | File type | Only `.json` accepted (accept attribute + check) |
 | Parse | `deserializeState` — malformed JSON rejected with toast |
-| Migration | `migrateImportData` (see [migrations.md](migrations.md)) — v1/v2/v3 files promoted to v4 |
+| Migration | `migrateImportData` (see [migrations.md](migrations.md)) — v1/v2/v3/v4 files promoted to v5 |
 | Validation | `validateImportData` builds a candidate product and runs `validateSerializedProduct` — invalid structure rejected with toast, current state untouched |
-| Build | `buildImportedProduct` via `createProduct` + `rehydrateItems` + `createArtworkLayer`; `updatedAt` = now |
+| Build | `buildImportedProduct` via `createProduct` + `rehydrateItems` + `rehydrateSignOffs` + `createArtworkLayer`; `updatedAt` = now |
 | Insert | ID-collision resolution via `generateProductId`; imported review becomes a **new product** (never overwrites the workspace) and is activated |
 | Finish | `resetTransientReviewUiState`, save, `renderWorkspaceState({rebuildChecklist:true, scrollActiveTab:true})` |
 
@@ -65,7 +69,7 @@ flowchart LR
 | Non-JSON file selected | Toast rejection; nothing changes |
 | Malformed JSON | Toast rejection; nothing changes |
 | Unsupported schema / invalid structure | `validateImportData` → null → toast; nothing changes |
-| Valid v1/v2/v3 file | Migrated and imported as v4 |
+| Valid v1/v2/v3/v4 file | Migrated and imported as v5 |
 | ID collision | Fresh ID generated; import succeeds |
 
 ## Security Considerations
@@ -78,14 +82,17 @@ flowchart LR
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "exportedAt": "2026-08-19T10:00:00.000Z",
   "product": {
     "id": "product-1",
     "brand": "PAULIG",
     "productName": "Premium Basmati Rice",
     "weight": "250g",
-    "sku": "PRD-00458"
+    "sku": "PRD-00458",
+    "productionCode": "PRD-00458-UK",
+    "site": "OH1",
+    "artworkVersion": "REV-7"
   },
   "items": {
     "6i": {
@@ -102,9 +109,28 @@ flowchart LR
     { "id": "layer-main", "name": "Main Artwork", "artwork": null }
   ],
   "activeArtworkLayerId": "layer-main",
-  "pantoneColors": []
+  "pantoneColors": [],
+  "reviewer": {
+    "name": "Alex Morgan",
+    "role": "QA Lead",
+    "reviewedAt": "2026-08-20T12:00:00.000Z"
+  },
+  "signOffs": [
+    {
+      "departmentId": "quality",
+      "departmentName": "Quality",
+      "reviewer": { "name": "Alex Morgan", "role": "QA Lead" },
+      "status": "approved",
+      "comment": "",
+      "reviewedAt": "2026-08-20T12:00:00.000Z",
+      "artworkVersion": "REV-7",
+      "signature": null
+    }
+  ]
 }
 ```
+
+The abbreviated example shows one sign-off for readability; a valid schema-v5 file always contains all three canonical departments.
 
 ## Related Documents
 

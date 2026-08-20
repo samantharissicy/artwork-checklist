@@ -13,11 +13,11 @@ Technical dependencies between planned layers. The external development plan is 
 | A0 baseline | ✅ Current | `baseline.en.md` / `baseline.pt-BR.md` snapshots |
 | B1 state foundation | ✅ Current | `appState` single source of truth |
 | C1/C2/C3 review/comments/copy | ✅ Current | tri-state, comments, copy corrections |
-| D1–D4 persistence/export/import | ✅ Current | schema v1–v4 chain |
+| D1–D4 persistence/export/import | ✅ Current | schema v1–v5 chain |
 | E1/E2 pins/identity | ✅ Current | normalized pins, replacement safeguards |
 | F1 review metrics | ✅ Current | counters, review/approval percentages and progress bar |
 | G1–G5 products/layers/Pantone | ✅ Current | multi-product, multi-layer, 6I compliance |
-| H1–H4 sign-off | 📋 Planned | reviewer identity, department sign-off, signature, final validation |
+| H1–H4 sign-off | ✅ Current | reviewer identity, independent required departments, Pointer Event signatures, derived final validation |
 | I1–I2 high-res/responsive | 📋 Planned | storage strategy, viewports/touch |
 | J1–J3 report/PDF | 📋 Planned | report model, print view, PDF |
 | K1–K4 UX/a11y/touch/regression | 📋 Planned | confirmation/empty states, accessibility, touch, regression hardening |
@@ -28,7 +28,6 @@ Technical dependencies between planned layers. The external development plan is 
 
 | Planned work | Depends on | Why |
 | --- | --- | --- |
-| **H (sign-off)** | Current domain validation (`validateItemState`, `validateActiveProduct`), current `reviewer`/`signature` fields in the model | Sign-off gates on item validity; fields already round-trip |
 | **J1 report model** | A report must consume **state**, not the DOM (`buildReportData(product)`) | Rendering model is projection-based ([rendering-model.md](../architecture/rendering-model.md)); scraping the DOM would violate ADR-002 |
 | **J2 print view** | CSS `@media print` (none exists today — [css-architecture.md](../architecture/css-architecture.md)) | New print stylesheet layer |
 | **J3 PDF** | J1/J2 | Print-first, libraries only if proven necessary |
@@ -42,7 +41,7 @@ Technical dependencies between planned layers. The external development plan is 
 ## Sequencing Implications
 
 1. **F1 (metrics)** is implemented; it had no dependencies and could land at any time after the progress bar existed.
-2. **H (sign-off)** benefits from stable validation; the fields it needs already exist in the schema.
+2. **H (sign-off)** is implemented on schema v5 and provides revision-bound decisions for future report/audit layers.
 3. **J (report)** should be built against a report model, never the DOM.
 4. **L1 (modules)** should precede or accompany any large layer (H/J) to keep `js/app.js` manageable.
 5. **M (backend)** is conditional on real usage and depends on L1 discipline.

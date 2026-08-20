@@ -1,6 +1,6 @@
 # Documentation Verification Audit
 
-**Status: Current** — this report records a deep compatibility audit of every documentation file in `docs/` against the current repository state.
+**Status: Historical checkpoint (pre-Layer H)** — this report records the schema-v4 / 378-test audit that preceded Layer H. It is retained as verification history and is not the source for current schema/test counts. Current Layer H facts live in [docs/README.md](README.md), [domain/cross-functional-signoff.md](domain/cross-functional-signoff.md) and [engineering/testing-strategy.md](engineering/testing-strategy.md).
 
 ## Scope
 

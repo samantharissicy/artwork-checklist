@@ -24,6 +24,7 @@ flowchart TD
   RenderApp --> RenderItem[renderItemState per item]
   RenderApp --> RenderPins[renderPins]
   RenderApp --> UpdateProgress[updateProgress]
+  RenderApp --> RenderSignOff[renderSignOffState]
   RenderItem --> RenderComment[renderCommentState]
 ```
 
@@ -32,7 +33,7 @@ flowchart TD
 ### `renderAppState()` — main coordinator (active product)
 
 - **Reads:** active product (fields, layers, items, active layer), `artworkSessions`, transient UI (`editingTitleItemId`, `openCommentItemIds`).
-- **Writes:** product inputs, context header, artwork layer tabs, artwork viewer state, per-item DOM, pins layer, progress.
+- **Writes:** product inputs, context header, artwork layer tabs, artwork viewer state, per-item DOM, pins layer, progress and sign-off header/open panel.
 - **Does not do:** rebuild the whole checklist (`renderChecklist` handles that), rebuild product tabs.
 - **Called by:** `loadStateFromStorage` pipeline, domain mutations (via helpers), tests.
 
@@ -86,6 +87,13 @@ flowchart TD
 - **Reads:** active product items.
 - **Writes:** counters `#progress-total` / `#progress-approved` / `#progress-rejected` / `#progress-pending`, percentages `#progress-review-pct` (`N% reviewed`) / `#progress-approval-pct` (`N% approved`), and `#progress-bar` width (reviewed / total).
 - **Not a `render*` function** but part of the projection.
+
+### `renderSignOffState()` / `renderSignOffOverview()` / `renderDepartmentSignOffs()`
+
+- **Reads:** active product reviewer, sign-offs, required fields, checklist validity and transient `signOffUiState`.
+- **Writes:** header Sign-Off status, derived overall badge/message, reviewer form, blocker list and the three department cards.
+- `renderSignOffOverview` intentionally avoids rebuilding department textareas while typing; `renderDepartmentSignOffs` rebuilds cards after decision-level changes.
+- Signature canvas pixels are transient until Confirm; the persisted `DepartmentSignature` then drives the `Signed` preview.
 
 ### Legacy renderers (unused by current UI)
 

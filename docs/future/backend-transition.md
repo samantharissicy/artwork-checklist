@@ -12,10 +12,10 @@ Real needs only — per the development plan: multiple users, multiple computers
 
 | Current (local) | Future (backend) | Notes |
 | --- | --- | --- |
-| `localStorage` (`artworkChecklist:v4`) | Database (entities, schema, migrations) | The schema-v4 model maps cleanly to tables/documents; migration versioning should continue server-side |
+| `localStorage` (`artworkChecklist:v5`) | Database (entities, schema, migrations) | The schema-v5 model maps cleanly to tables/documents; migration versioning should continue server-side |
 | Session Object URL (artwork binary) | Object storage with access control | Requires upload/download flows, size limits, thumbnails (planned I1 concerns) |
 | Local product identity (`product-N`) | Database entity + server-assigned IDs | ID collision strategy already exists locally (`generateProductId`); server must own uniqueness |
-| Local reviewer string (future H1 field) | Authenticated user | `product.reviewer` becomes derived from the session user, not free text |
+| Local reviewer string (current H1 field) | Authenticated user | `product.reviewer` becomes derived from the session user, not free text |
 | Save Check JSON (backup/portability) | Export/backup endpoint | JSON stays as the interchange format; export becomes a server feature |
 | No audit events | Immutable audit log (planned M4) | Who did what, on which product/revision, when |
 | Versioned schema migration (v1→v4) | Server-side migration + client compatibility policy | Same non-destructive philosophy |

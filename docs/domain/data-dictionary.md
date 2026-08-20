@@ -10,7 +10,7 @@ Field-by-field reference for all persisted data. Models and factories: [data-mod
 
 | Field | Owner | Type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- | --- |
-| `schemaVersion` | workspace | number | yes | `4` | Must equal `CURRENT_SCHEMA_VERSION` |
+| `schemaVersion` | workspace | number | yes | `5` | Must equal `CURRENT_SCHEMA_VERSION` |
 | `activeProductId` | workspace | string | yes | `"product-1"` | Active product selection |
 | `products` | workspace | object | yes | `{}` | Products keyed by permanent ID |
 
@@ -30,8 +30,9 @@ Field-by-field reference for all persisted data. Models and factories: [data-mod
 | `activeArtworkLayerId` | product | string | yes | `"layer-main"` | Active layer selection |
 | `pantoneColors` | product | array | yes | `[]` | **Legacy** PantoneColour[] (compat only) |
 | `items` | product | object | yes | 50 canonical items | ReviewItem[] by ID |
-| `reviewer` | product | object | yes | `{name:"",role:"",reviewedAt:null}` | Future H1; never populated by current UI |
-| `signature` | product | object\|null | yes | `null` | Future H3; never populated |
+| `reviewer` | product | object | yes | `{name:"",role:"",reviewedAt:null}` | Current decision-maker form for sign-off |
+| `signOffs` | product | array | yes | three canonical Pending entries | Required department decisions and optional signatures |
+| `signature` | product | object\|null | yes | `null` | Legacy product-level signature field |
 | `createdAt` | product | string | no | ISO now | Creation timestamp |
 | `updatedAt` | product | string | no | ISO now | Touched by every mutation |
 
@@ -74,13 +75,35 @@ Field-by-field reference for all persisted data. Models and factories: [data-mod
 | `xRatio` | pin | number | yes | — | `0..1` proportion of artwork width |
 | `yRatio` | pin | number | yes | — | `0..1` proportion of artwork height |
 
-## Reviewer (model present, UI future)
+## Reviewer
 
 | Field | Owner | Type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- | --- |
-| `name` | product | string | no | `""` | Reviewer name (future H1) |
-| `role` | product | string | no | `""` | Reviewer role (future H1) |
-| `reviewedAt` | product | string\|null | no | `null` | Review timestamp (future H1) |
+| `name` | product | string | no | `""` | Current reviewer name; required with role before a decision |
+| `role` | product | string | no | `""` | Current reviewer role; required with name before a decision |
+| `reviewedAt` | product | string\|null | no | `null` | Timestamp of the most recently recorded department decision |
+
+## DepartmentSignOff
+
+| Field | Owner | Type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `departmentId` | sign-off | string | yes | canonical | `quality`, `production`, `product-development` |
+| `departmentName` | sign-off | string | yes | canonical | Display name; cannot be redefined by import |
+| `reviewer` | sign-off | object | yes | blank name/role | Snapshot copied when decision is completed |
+| `status` | sign-off | enum | yes | `"pending"` | Independent department decision |
+| `comment` | sign-off | string | yes | `""` | Required for a valid Rejected decision |
+| `reviewedAt` | sign-off | string\|null | yes | `null` | Decision timestamp |
+| `artworkVersion` | sign-off | string | yes | `""` | Exact artwork revision approved/rejected |
+| `signature` | sign-off | DepartmentSignature\|null | yes | `null` | Optional visual signature |
+
+## DepartmentSignature
+
+| Field | Owner | Type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `dataUrl` | signature | string | yes | — | PNG data URL, maximum 250,000 characters |
+| `signedAt` | signature | string | yes | — | ISO signature timestamp |
+| `width` | signature | number | yes | `900` | Positive intrinsic canvas width |
+| `height` | signature | number | yes | `260` | Positive intrinsic canvas height |
 
 ## Legacy PantoneColour (backwards compatibility only)
 
@@ -101,7 +124,7 @@ Limits: `PANTONE_LIMITS = { CODE: 120, NAME: 120, NOTES: 500 }`.
 | `REVIEW_STATUSES` | `pending` / `approved` / `rejected` |
 | `REVIEW_STATUS_LABELS` | `Pending` / `Approved` / `Rejected` |
 | `ALLOWED_SITES` | `OH1` / `OH2` / `BL` |
-| Schema versions | `1` / `2` / `3` / `4` |
+| Schema versions | `1` / `2` / `3` / `4` / `5` |
 
 ## Related Documents
 
@@ -109,3 +132,4 @@ Limits: `PANTONE_LIMITS = { CODE: 120, NAME: 120, NOTES: 500 }`.
 - [business-rules.md](business-rules.md)
 - [glossary.md](glossary.md)
 - [persistence/serialization.md](../persistence/serialization.md)
+- [cross-functional-signoff.md](cross-functional-signoff.md)

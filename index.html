@@ -66,8 +66,15 @@
         </span>
 
         <span class="badge">
-          App v2.1
+          App v2.2
         </span>
+
+        <button type="button" id="signoff-button" class="btn-signoff" onclick="openSignOffPanel()"
+          title="Review cross-functional approval status" aria-haspopup="dialog">
+          <span class="signoff-button-dot" aria-hidden="true"></span>
+          <span>Sign-Off</span>
+          <span id="signoff-button-status" class="signoff-button-status">Pending</span>
+        </button>
 
         <button type="button" class="btn-open" onclick="openCheck()" title="Open a saved review">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -538,6 +545,105 @@
   </div>
 
   <div class="toast" id="toast">Checklist saved!</div>
+
+  <!-- ========================================================
+     CROSS-FUNCTIONAL SIGN-OFF — H1–H4
+     ======================================================== -->
+  <div id="signoff-overlay" class="signoff-overlay hidden" aria-hidden="true">
+    <section id="signoff-panel" class="signoff-panel" role="dialog" aria-modal="true"
+      aria-labelledby="signoff-title" aria-describedby="signoff-description" tabindex="-1">
+      <header class="signoff-panel-header">
+        <div>
+          <p class="signoff-eyebrow">Cross-functional review</p>
+          <h2 id="signoff-title">Department Sign-Off</h2>
+          <p id="signoff-description">Decisions apply only to the current artwork revision.</p>
+        </div>
+        <button type="button" id="signoff-close" class="signoff-close" aria-label="Close sign-off panel">×</button>
+      </header>
+
+      <div class="signoff-panel-body">
+        <section class="signoff-overall" aria-labelledby="signoff-overall-heading">
+          <div>
+            <span class="signoff-section-label" id="signoff-overall-heading">Overall approval</span>
+            <strong id="signoff-overall-status" class="signoff-overall-status" data-status="pending">Pending</strong>
+          </div>
+          <p id="signoff-overall-message">All required departments must approve.</p>
+        </section>
+
+        <section class="signoff-reviewer" aria-labelledby="signoff-reviewer-heading">
+          <div class="signoff-section-heading">
+            <div>
+              <span class="signoff-section-label">H1 · Reviewer identity</span>
+              <h3 id="signoff-reviewer-heading">Current decision maker</h3>
+            </div>
+            <span class="signoff-required-note">Required for each decision</span>
+          </div>
+          <div class="signoff-reviewer-fields">
+            <label>
+              <span>Name</span>
+              <input type="text" id="signoff-reviewer-name" autocomplete="name" maxlength="120"
+                placeholder="Reviewer name" />
+            </label>
+            <label>
+              <span>Role</span>
+              <input type="text" id="signoff-reviewer-role" autocomplete="organization-title" maxlength="120"
+                placeholder="Job title or role" />
+            </label>
+          </div>
+          <p class="signoff-help">The current identity is copied into a department decision when you approve or reject.</p>
+        </section>
+
+        <section id="signoff-blocker-section" class="signoff-blockers" aria-labelledby="signoff-blockers-heading">
+          <div class="signoff-section-heading">
+            <div>
+              <span class="signoff-section-label">H4 · Final validation</span>
+              <h3 id="signoff-blockers-heading">Approval readiness</h3>
+            </div>
+            <span id="signoff-blocker-count" class="signoff-blocker-count">0 blockers</span>
+          </div>
+          <ul id="signoff-blockers"></ul>
+        </section>
+
+        <section class="signoff-departments" aria-labelledby="signoff-departments-heading">
+          <div class="signoff-section-heading">
+            <div>
+              <span class="signoff-section-label">H2 · Independent decisions</span>
+              <h3 id="signoff-departments-heading">Required departments</h3>
+            </div>
+          </div>
+          <div id="department-signoffs" class="department-signoff-list"></div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <div id="signature-overlay" class="signature-overlay hidden" aria-hidden="true">
+    <section class="signature-dialog" role="dialog" aria-modal="true" aria-labelledby="signature-title"
+      aria-describedby="signature-description">
+      <header class="signature-dialog-header">
+        <div>
+          <p class="signoff-eyebrow">H3 · Visual signature</p>
+          <h2 id="signature-title">Sign department decision</h2>
+          <p id="signature-description">Draw with a mouse, pen or touchscreen.</p>
+        </div>
+        <button type="button" id="signature-close" class="signoff-close" aria-label="Close signature pad">×</button>
+      </header>
+      <div class="signature-department" id="signature-department"></div>
+      <div class="signature-canvas-shell">
+        <canvas id="signature-canvas" width="900" height="260" tabindex="0" role="img"
+          aria-label="Signature drawing area"></canvas>
+        <span class="signature-baseline" aria-hidden="true"></span>
+      </div>
+      <p id="signature-validation" class="signature-validation" role="status"></p>
+      <div class="signature-actions">
+        <button type="button" id="signature-clear" class="signature-btn signature-btn-secondary">Clear</button>
+        <button type="button" id="signature-remove" class="signature-btn signature-btn-danger hidden">Remove saved signature</button>
+        <span class="signature-action-spacer"></span>
+        <button type="button" id="signature-cancel" class="signature-btn signature-btn-secondary">Cancel</button>
+        <button type="button" id="signature-confirm" class="signature-btn signature-btn-primary">Confirm signature</button>
+      </div>
+    </section>
+  </div>
 
   <!-- ========================================================
      APPLICATION DIALOG

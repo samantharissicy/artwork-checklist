@@ -15,15 +15,16 @@ js/tests.js                       → loader entry point
 js/tests/core/framework.js        → test registration + assertions
 js/tests/core/helpers.js          → fixtures, snapshots, DOM lookups
 js/tests/core/runner.js           → snapshot/run/restore + console reporting
-js/tests/layers/*.test.js         → 12 layer test modules
+js/tests/layers/*.test.js         → 13 layer test modules
 ```
 
 ## Loader (`js/tests.js`)
 
 - Loaded from `index.html` after `js/app.js` (`<script src="js/tests.js">`).
 - `loadTestScript(relativePath)` injects `<script>` tags **sequentially** (`async = false`), resolving paths against `document.currentScript.src`.
-- Order (`TEST_FILES`, js/tests.js:30–55): `core/framework.js` → `core/helpers.js` → 12 layer files (B1 → C1 → C2 → C3 → D → E1 → E2 → F1 → G → G4 → G5 → **baseline-smoke last**) → `core/runner.js`.
+- Order (`TEST_FILES`): `core/framework.js` → `core/helpers.js` → 13 layer files (B1 → C1 → C2 → C3 → D → E1 → E2 → F1 → G → G4 → G5 → H → **baseline-smoke last**) → `core/runner.js`.
 - Exposes `window.artworkTestsReady` (promise), `window.runArtworkTests`, `window.getArtworkTestResults`.
+- `?run-tests=1` executes automatically and writes `data-test-status/total/passed/failed` on `<html>` for repeatable browser automation.
 
 ## Framework (`js/tests/core/framework.js`)
 
@@ -44,7 +45,7 @@ Exported as `window.ArtworkTests` (`{ RESULTS, TESTS, test, assert, ... }`).
 | Helper | Purpose |
 | --- | --- |
 | `clonePin(pin)` | Pin fixture cloning |
-| `createSnapshot()` / `restoreSnapshot(snapshot)` | Capture/restore serialized state, storage, open comment ids, title-edit target, zoom; restore re-renders via `renderChecklist`/`renderProductTabs`/`renderAppState` |
+| `createSnapshot()` / `restoreSnapshot(snapshot)` | Capture/restore serialized state, storage, open comment ids, title-edit target, zoom and sign-off/signature modal state; restore re-renders via `renderChecklist`/`renderProductTabs`/`renderAppState` |
 | `createTestArtworkMetadata(name)` | Canonical artwork metadata fixture (`image/png`, 1200×1600) |
 | `resetArtworkForTest()` | Clears active layer artwork + pins |
 | `resetItem1A()` | Resets item 1a to canonical state |
@@ -78,12 +79,13 @@ Note: the runner snapshots once before and restores once after the whole suite; 
 | `g-multiple-products.test.js` | G1–G3 + G2UX | 53 | product domain, tabs, context metadata, product context menu UX |
 | `g4-multi-layer-artwork.test.js` | G4A/G4B/G4UX | 120 | layer domain, layer flows, layer tab UX, v2→v3 migration |
 | `g5-pantone-compliance.test.js` | G5/G5P/G5R | 109 | legacy `pantoneColors` compatibility (G5), Pantone limits/IDs (G5P), **canonical 6I workflow + schema v4 + v3→v4 migration (G5R)** |
+| `h-cross-functional-signoff.test.js` | H1–H4 | 58 | reviewer identity, independent decisions, rejection comments, revision reset, overall derivation, final blockers, Pointer Event signatures, schema v5, v4→v5, storage/export/import/duplication and UI |
 
-**Total: 378 tests.**
+**Total: 436 tests.**
 
 Test ID conventions: `G5R-001…049` (current Pantone compliance), `G5-…` (legacy registry compatibility), `G5P-…` (Pantone limits), `G4A/G4B/G4UX-…`, `G2UX-…`, and layer prefixes (`D2 …`, `E1 …`, `B1 …`) for earlier layers. Baseline tests have no IDs.
 
-> **Time-sensitive metric:** the exact count (378) changes as layers are implemented (history: 312 → 357 → 373 → 378). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
+> **Time-sensitive metric:** the exact count (436) changes as layers are implemented (history: 312 → 357 → 373 → 378 → 436). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
 
 ## How to Run
 
@@ -94,6 +96,8 @@ Test ID conventions: `G5R-001…049` (current Pantone compliance), `G5-…` (leg
        await runArtworkTests();
 4. Read the summary line: "N/N tests passed"
 ```
+
+Automation-friendly alternative: open `http://localhost:5500/?run-tests=1`; the completion toast reports `N/N automated tests passed` and the result is exposed through `<html data-test-status="passed">`.
 
 The suite snapshots application state before running and restores it afterwards, so it is safe to run against a working session.
 

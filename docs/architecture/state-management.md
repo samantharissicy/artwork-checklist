@@ -10,7 +10,7 @@ Explain what lives in `appState`, what lives outside it, and why the split matte
 
 ```js
 const appState = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   activeProductId: "product-1",
   products: {},
 };
@@ -20,7 +20,7 @@ const appState = {
 
 Rules:
 
-- **Product ownership**: every product is stored by permanent ID in `appState.products`; the product owns its fields, layers, items, pins, legacy registry and timestamps. No product data lives anywhere else.
+- **Product ownership**: every product is stored by permanent ID in `appState.products`; the product owns its fields, layers, items, pins, reviewer, department sign-offs/signatures, legacy registry and timestamps. No product data lives anywhere else.
 - **Active selection**: `activeProductId` selects which product the workspace renders. `switchProduct` changes only this field, resets transient UI, persists and re-renders.
 - **Active layer**: each product owns `activeArtworkLayerId`. `switchArtworkLayer` changes it without touching product timestamps.
 - **Immutable vs mutable**: `originalTitle` is immutable by construction (`Object.defineProperty` with `writable:false`). `currentTitle`, `status`, `comment`, `pins` are mutable through named domain functions only.
@@ -39,6 +39,8 @@ Reads go through small helpers instead of ad-hoc traversal:
 | `isArtworkLoadedInSession(metadata, productId, layerId)` | Whether the session still holds the matching binary |
 | `getChecklistDefinition(itemId)` | Canonical `{section, definition}` for an ID |
 | `layerPinCount(productId, layerId)` | Number of pins on a layer |
+| `getDepartmentSignOff(product, departmentId)` | Canonical department decision for a product |
+| `computeOverallApproval(product)` | Derived overall department/final-validation state |
 
 ## Domain Mutations (authorized writers)
 
@@ -53,6 +55,10 @@ Reads go through small helpers instead of ad-hoc traversal:
 | `createArtworkLayerForProduct` / `switchArtworkLayer` / `renameArtworkLayer` / `deleteArtworkLayer` | artworkLayers / activeArtworkLayerId / pins / legacy layer references |
 | `applyArtworkIdentity(metadata, confirmReplacement, productId, layerId)` | layer.artwork (and clears layer pins when identity changes) |
 | `adoptSessionArtwork(metadata, objectUrl, productId, layerId)` | artworkSessions only (never appState) |
+| `updateActiveReviewer(field, value)` | current reviewer + updatedAt |
+| `setDepartmentSignOffStatus` / `setDepartmentSignOffComment` | department decision snapshot/comment + updatedAt |
+| `setActiveProductArtworkVersion(value)` | revision + resets sign-offs when changed |
+| `setDepartmentSignature` / `removeDepartmentSignature` | optional department signature + updatedAt |
 
 All of them validate input before mutating (status whitelist, non-empty names, pin bounds, artwork identity rules).
 
@@ -60,7 +66,7 @@ All of them validate input before mutating (status whitelist, non-empty names, p
 
 - Domain functions mutate state first, then call renderers (`renderItemState`, `renderPins`, `renderAppState`, …) and `saveStateToStorage`.
 - The DOM is rebuilt from state; event handlers read state, never the other way around.
-- `renderAppState()` is the coordinator for the active product: product inputs, context header, layer tabs, artwork state, per-item render, pins, progress.
+- `renderAppState()` is the coordinator for the active product: product inputs, context header, layer tabs, artwork state, per-item render, pins, progress and sign-off summary.
 - See [rendering-model.md](rendering-model.md).
 
 ## Transient State Outside appState
@@ -77,8 +83,10 @@ These are module-level variables, intentionally **not** part of `appState`:
 | `artworkLayerContextMenuState` | `{productId, layerId, isOpen}` | Open layer menu target | Menu lifecycle |
 | `appDialogState` | `{isOpen, resolve, type}` | Custom dialog promise bridge | Dialog lifecycle |
 | `pantoneColourEditorState` | `{isOpen, colourId, productId}` | Legacy Pantone editor (unused) | Legacy UI |
+| `signOffUiState` | `{isOpen, previousFocus}` | Department modal lifecycle | UI/focus state |
+| `signaturePadState` | drawing target, ink and pointer state | Signature modal/canvas draft | UI gesture state; confirmed PNG moves into `appState` |
 
-`resetTransientReviewUiState()` clears comments, title-edit and legacy editor state on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
+`resetTransientReviewUiState()` clears comments/title editing and closes the legacy editor, sign-off panel and signature pad on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
 
 ## Why Transient State Is Not Persisted
 

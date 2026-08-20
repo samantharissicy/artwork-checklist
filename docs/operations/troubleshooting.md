@@ -45,13 +45,13 @@ Common problems, likely causes, checks and resolutions. Commands listed are the 
 
 | Symptom | Likely cause | Check | Resolution |
 | --- | --- | --- | --- |
-| App opens with default product, old data "lost" | Garbage under `artworkChecklist:v4` | Application → Local Storage | Safe fallback is intentional (test `D2`); delete the key to start fresh |
+| App opens with default product, old data "lost" | Garbage under `artworkChecklist:v5` | Application → Local Storage | Safe fallback is intentional (test `D2`); delete the key to start fresh |
 
 ## Old Schema Migration
 
 | Symptom | Likely cause | Check | Resolution |
 | --- | --- | --- | --- |
-| v3/v2/v1 state loaded and promoted | Legacy keys walked in order | Storage tab: key changed to `artworkChecklist:v4`, old key removed | Expected behaviour; 6I added as Pending, data preserved |
+| v4/v3/v2/v1 state loaded and promoted | Legacy keys walked in order | Storage tab: key changed to `artworkChecklist:v5`, old key removed | Expected behaviour; missing 6I/sign-offs added as Pending, data preserved |
 | Migration failed silently | Unsupported version | Console shows `console.warn` | Re-save as v4 file via Save Check; do not hand-edit the key |
 
 ## Context Menu Not Appearing

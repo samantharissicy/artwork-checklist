@@ -49,6 +49,8 @@
 
     "layers/g5-pantone-compliance.test.js",
 
+    "layers/h-cross-functional-signoff.test.js",
+
     "layers/baseline-smoke.test.js",
 
     "core/runner.js",
@@ -105,4 +107,20 @@
   window.getArtworkTestResults = function getArtworkTestResults() {
     return window.ArtworkTests?.getResults?.() ?? [];
   };
+
+  if (new URLSearchParams(window.location.search).get("run-tests") === "1") {
+    window.artworkTestsReady.then(async () => {
+      const summary = await window.runArtworkTests();
+
+      document.documentElement.dataset.testStatus =
+        summary.failed === 0 ? "passed" : "failed";
+      document.documentElement.dataset.testTotal = String(summary.total);
+      document.documentElement.dataset.testPassed = String(summary.passed);
+      document.documentElement.dataset.testFailed = String(summary.failed);
+
+      showToast(
+        `${summary.passed}/${summary.total} automated tests passed.`,
+      );
+    });
+  }
 })();

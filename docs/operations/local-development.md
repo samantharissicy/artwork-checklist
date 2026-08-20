@@ -35,7 +35,7 @@ Windows note: `python -m http.server 5500` works in PowerShell and CMD with Pyth
 
 1. Open DevTools (F12 / Ctrl+Shift+I).
 2. **Console tab**: watch for errors; run tests here.
-3. **Application tab → Local Storage → http://localhost:5500**: inspect `artworkChecklist:v4`.
+3. **Application tab → Local Storage → http://localhost:5500**: inspect `artworkChecklist:v5`.
 
 ## Running the Tests
 
@@ -45,7 +45,7 @@ Windows note: `python -m http.server 5500` works in PowerShell and CMD with Pyth
 3. DevTools Console:
      await runArtworkTests();
 4. Read the summary line, e.g.:
-     %c378/378 tests passed
+     %c436/436 tests passed
 ```
 
 The suite snapshots application state before running and restores it afterwards.

@@ -11,7 +11,7 @@ The original prototype stored state in the DOM: checkboxes represented approval,
 Domain state lives in a single object:
 
 ```js
-const appState = { schemaVersion: 4, activeProductId: "product-1", products: {} };
+const appState = { schemaVersion: 5, activeProductId: "product-1", products: {} };
 ```
 
 The DOM is a **projection**: renderers rebuild it from `appState`; event handlers read state and call named domain mutations; no authoritative data is read back from the DOM. Serialization is `JSON.stringify(appState)`.

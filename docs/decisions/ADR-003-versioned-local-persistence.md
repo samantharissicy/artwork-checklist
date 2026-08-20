@@ -10,7 +10,7 @@ Reviews must survive page reloads and be portable between machines. The MVP has 
 
 Use **`localStorage` under a versioned key** for textual review state, plus **versioned JSON export** for portability:
 
-- `STORAGE_KEY = "artworkChecklist:v4"` (derived from `CURRENT_SCHEMA_VERSION = 4`); legacy keys `artworkChecklist:v1/v2/v3` are walked and promoted.
+- `STORAGE_KEY = "artworkChecklist:v5"` (derived from `CURRENT_SCHEMA_VERSION = 5`); legacy keys `artworkChecklist:v1/v2/v3/v4` are walked and promoted.
 - Every state shape carries `schemaVersion`; `serializeState`/`deserializeState`/`validateState`/`migrateState` gate all persistence paths.
 - Binary artwork is excluded (see ADR-004); only text metadata is stored.
 

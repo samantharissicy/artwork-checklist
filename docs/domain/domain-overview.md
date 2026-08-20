@@ -21,6 +21,10 @@ flowchart LR
   Items --> Pins
   Product --> PackCopy[Approved Pack Copy]
   PackCopy --> Pantone[Pantone Compliance 6I]
+  Product --> Reviewer[Current Reviewer]
+  Product --> SignOffs[Required Department Sign-Offs]
+  SignOffs --> Overall[Derived Overall Approval]
+  SignOffs --> Signatures[Optional Signatures]
 ```
 
 ## Concepts (implemented)
@@ -39,14 +43,15 @@ flowchart LR
 | **Pack Copy** | The approved packaging text that artwork must match (the reviewer's reference; not stored in-app beyond the checklist) | — |
 | **Pantone Compliance** | Checklist item **6I — "Pantone Colours Match Approved Pack Copy?"** — the reviewer verifies artwork colours against the approved pack copy | G5 layer, [review-workflow.md](review-workflow.md) |
 | **Review Progress** | Progress footer counters (total/approved/rejected/pending) and percentages `N% reviewed` / `N% approved`; reviewed = approved + rejected | `updateProgress` |
+| **Reviewer** | Current name/role entered in the sign-off panel and copied into a completed department decision | H1, `product.reviewer` |
+| **Department Sign-Off** | Independent revision-bound decision by Quality, Production or Product Development | H2, `product.signOffs[]` |
+| **Visual Signature** | Optional bounded PNG signature attached to one completed department decision | H3, `DepartmentSignature` |
+| **Overall Approval** | Derived status: any rejection → Rejected; all valid required approvals → Approved; otherwise Pending | H4, `computeOverallApproval` |
 
 ## Concepts (planned — not implemented)
 
 | Concept | Status | Planned layer |
 | --- | --- | --- |
-| **Reviewer** | Field exists in the model (`{name, role, reviewedAt}`) but no UI writes it | H1 |
-| **Signature** | Field exists (`product.signature = null`), never populated | H3 |
-| **Department Sign-Off** | Independent approvals by Quality / Production / Product Development | H2 |
 | **Report / PDF** | Printable report and print view | J1–J3 |
 | **Artwork Revision history** | Versioned revisions with per-revision checklists | M3 |
 | **Audit trail** | Who did what, when | M4 |
@@ -75,3 +80,4 @@ flowchart LR
 - [business-rules.md](business-rules.md) — formal rules.
 - [data-dictionary.md](data-dictionary.md) — field reference.
 - [glossary.md](glossary.md) — terminology.
+- [cross-functional-signoff.md](cross-functional-signoff.md) — H1–H4 workflow and validation.
