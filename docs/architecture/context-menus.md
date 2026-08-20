@@ -10,48 +10,48 @@ Document the two right-click context menus: the Product Tab Context Menu and the
 
 | Menu | DOM element | Actions | Target stored in |
 | --- | --- | --- | --- |
-| Product tab menu | `#product-context-menu` (`role="menu"`) | rename, duplicate, new, delete | `productContextMenuState.productId` (js/app.js:8089) |
-| Artwork layer menu | `#artwork-layer-context-menu` (`role="menu"`) | rename, add, delete | `artworkLayerContextMenuState.{productId, layerId}` (js/app.js:8594) |
+| Product tab menu | `#product-context-menu` (`role="menu"`) | rename, duplicate, new, delete | `productContextMenuState.productId` |
+| Artwork layer menu | `#artwork-layer-context-menu` (`role="menu"`) | rename, add, delete | `artworkLayerContextMenuState.{productId, layerId}` |
 
 Menu items carry `data-product-context-action` / `data-artwork-layer-context-action` attributes; destructive items use `.context-menu-danger`.
 
 ## Trigger Behaviour
 
-- `contextmenu` event on tabs: `preventDefault()` and open the menu (`openProductContextMenu`, js/app.js:8244 / `openArtworkLayerContextMenu`, js/app.js:8699).
+- `contextmenu` event on tabs: `preventDefault()` and open the menu (`openProductContextMenu` / `openArtworkLayerContextMenu`).
 - Everywhere else, the native context menu is preserved.
 - **Target may differ from the active product/layer**: opening a menu never switches `activeProductId` or `activeArtworkLayerId`; actions apply to the stored target.
-- Menus are **mutually exclusive**: opening one closes the other (`closeAllContextMenus`, js/app.js:8305).
+- Menus are **mutually exclusive**: opening one closes the other (`closeAllContextMenus`).
 
 ## Viewport-Safe Positioning
 
-`calculateContextMenuPosition({clientX, clientY, menuWidth, menuHeight, viewportWidth, viewportHeight, margin})` (js/app.js:8119) is a pure function that:
+`calculateContextMenuPosition({clientX, clientY, menuWidth, menuHeight, viewportWidth, viewportHeight, margin})` is a pure function that:
 
 1. positions the menu at the pointer;
 2. flips it when it would overflow the bottom/right edge;
-3. clamps it inside the viewport with `CONTEXT_MENU_MARGIN = 8` (js/app.js:8095).
+3. clamps it inside the viewport with `CONTEXT_MENU_MARGIN = 8`.
 
 Verified by tests (`G2UX-015`-range and `G4UX` position assertions).
 
-## Dismissal (initializeContextMenus, js/app.js:8446)
+## Dismissal (initializeContextMenus)
 
 | Trigger | Behaviour |
 | --- | --- |
 | Click outside the menu | Closes both menus |
 | `Escape` | Closes both menus |
-| `ArrowDown` / `ArrowUp` | Moves focus between menu items (`moveProductContextMenuFocus`, js/app.js:8350) |
+| `ArrowDown` / `ArrowUp` | Moves focus between menu items (`moveProductContextMenuFocus`) |
 | Window `resize` | Closes menus |
 | Scroll (capture phase) | Closes menus |
 
 ## Disabled-State Safeguards
 
-- `refreshProductContextMenuDisabledState` (js/app.js:8202): **delete** is disabled in a one-product workspace.
-- `refreshArtworkLayerContextMenuDisabledState` (js/app.js:8651): **delete** is disabled when the layer is the last one.
+- `refreshProductContextMenuDisabledState`: **delete** is disabled in a one-product workspace.
+- `refreshArtworkLayerContextMenuDisabledState`: **delete** is disabled when the layer is the last one.
 - Disabled items get `aria-disabled="true"` and are non-actionable.
 
 ## Destructive Action Safeguards
 
 - Delete product: `deleteProduct` rejects the last product; otherwise custom `showConfirmDialog` (via `deleteProductWithDialog`).
-- Delete layer: `deleteArtworkLayerWithDialog` (js/app.js:6996) requires confirmation when the layer has pins or artwork, and **re-verifies the target after the async dialog** before acting.
+- Delete layer: `deleteArtworkLayerWithDialog` requires confirmation when the layer has pins or artwork, and **re-verifies the target after the async dialog** before acting.
 
 ## Why Context-Menu State Is NOT appState
 

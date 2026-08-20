@@ -14,7 +14,7 @@ Domain state lives in a single object:
 const appState = { schemaVersion: 4, activeProductId: "product-1", products: {} };
 ```
 
-(js/app.js:636). The DOM is a **projection**: renderers rebuild it from `appState`; event handlers read state and call named domain mutations; no authoritative data is read back from the DOM. Serialization is `JSON.stringify(appState)`.
+The DOM is a **projection**: renderers rebuild it from `appState`; event handlers read state and call named domain mutations; no authoritative data is read back from the DOM. Serialization is `JSON.stringify(appState)`.
 
 ## Rationale
 

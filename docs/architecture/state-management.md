@@ -16,15 +16,15 @@ const appState = {
 };
 ```
 
-(js/app.js:636)
+
 
 Rules:
 
 - **Product ownership**: every product is stored by permanent ID in `appState.products`; the product owns its fields, layers, items, pins, legacy registry and timestamps. No product data lives anywhere else.
-- **Active selection**: `activeProductId` selects which product the workspace renders. `switchProduct` (js/app.js:3468) changes only this field, resets transient UI, persists and re-renders.
-- **Active layer**: each product owns `activeArtworkLayerId`. `switchArtworkLayer` (js/app.js:946) changes it without touching product timestamps.
-- **Immutable vs mutable**: `originalTitle` is immutable by construction (`Object.defineProperty` with `writable:false`, js/app.js:535). `currentTitle`, `status`, `comment`, `pins` are mutable through named domain functions only.
-- **Timestamps**: every domain mutation calls `touchProduct`/`touchActiveProduct` (js/app.js:1996/2016) which sets `updatedAt` to now.
+- **Active selection**: `activeProductId` selects which product the workspace renders. `switchProduct` changes only this field, resets transient UI, persists and re-renders.
+- **Active layer**: each product owns `activeArtworkLayerId`. `switchArtworkLayer` changes it without touching product timestamps.
+- **Immutable vs mutable**: `originalTitle` is immutable by construction (`Object.defineProperty` with `writable:false`). `currentTitle`, `status`, `comment`, `pins` are mutable through named domain functions only.
+- **Timestamps**: every domain mutation calls `touchProduct`/`touchActiveProduct` which sets `updatedAt` to now.
 
 ## Domain Getters
 
@@ -33,7 +33,7 @@ Reads go through small helpers instead of ad-hoc traversal:
 | Getter | Purpose |
 | --- | --- |
 | `getActiveProduct()` | Active product object |
-| `getActiveArtworkLayer()` | Active layer of the active product (falls back to `artworkLayers[0]`, js/app.js:777) |
+| `getActiveArtworkLayer()` | Active layer of the active product (falls back to `artworkLayers[0]`) |
 | `getItemById(itemId)` | Item by canonical ID in the active product |
 | `getArtworkSession(metadata, productId, layerId)` | Session record for a (product, layer) |
 | `isArtworkLoadedInSession(metadata, productId, layerId)` | Whether the session still holds the matching binary |
@@ -60,7 +60,7 @@ All of them validate input before mutating (status whitelist, non-empty names, p
 
 - Domain functions mutate state first, then call renderers (`renderItemState`, `renderPins`, `renderAppState`, …) and `saveStateToStorage`.
 - The DOM is rebuilt from state; event handlers read state, never the other way around.
-- `renderAppState()` (js/app.js:7737) is the coordinator for the active product: product inputs, context header, layer tabs, artwork state, per-item render, pins, progress.
+- `renderAppState()` is the coordinator for the active product: product inputs, context header, layer tabs, artwork state, per-item render, pins, progress.
 - See [rendering-model.md](rendering-model.md).
 
 ## Transient State Outside appState
@@ -69,17 +69,16 @@ These are module-level variables, intentionally **not** part of `appState`:
 
 | Variable | Type | Meaning | Why not persisted |
 | --- | --- | --- | --- |
-| `openCommentItemIds` (2727) | `Set` | Open comment panels | Pure UI expansion state |
-| `editingTitleItemId` (2729) | `string\|null` | Item in inline title edit | Editor focus state |
-| `currentZoom` (2761) | `number` | Viewer zoom 0.5–2.0 | View preference, not review data |
-| `artworkSessions` (652) | `Map` | Session artworks `{metadata, objectUrl}` per (product, layer) | Binary + URL are runtime-only |
-| `toastTimeoutId` (6769) | `number` | Toast auto-hide timer | Timing |
-| `productContextMenuState` (8089) | `{productId, isOpen}` | Open product menu target | Menu lifecycle |
-| `artworkLayerContextMenuState` (8594) | `{productId, layerId, isOpen}` | Open layer menu target | Menu lifecycle |
-| `appDialogState` (8877) | `{isOpen, resolve, type}` | Custom dialog promise bridge | Dialog lifecycle |
-| `pantoneColourEditorState` (7208) | `{isOpen, colourId, productId}` | Legacy Pantone editor (unused) | Legacy UI |
+| `openCommentItemIds` | `Set` | Open comment panels | Pure UI expansion state |
+| `editingTitleItemId` | `string\|null` | Item in inline title edit | Editor focus state |
+| `artworkSessions` | `Map` | Session artworks `{metadata, objectUrl}` per (product, layer) | Binary + URL are runtime-only |
+| `toastTimeoutId` | `number` | Toast auto-hide timer | Timing |
+| `productContextMenuState` | `{productId, isOpen}` | Open product menu target | Menu lifecycle |
+| `artworkLayerContextMenuState` | `{productId, layerId, isOpen}` | Open layer menu target | Menu lifecycle |
+| `appDialogState` | `{isOpen, resolve, type}` | Custom dialog promise bridge | Dialog lifecycle |
+| `pantoneColourEditorState` | `{isOpen, colourId, productId}` | Legacy Pantone editor (unused) | Legacy UI |
 
-`resetTransientReviewUiState()` (js/app.js:2753) clears comments, title-edit and legacy editor state on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
+`resetTransientReviewUiState()` clears comments, title-edit and legacy editor state on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
 
 ## Why Transient State Is Not Persisted
 

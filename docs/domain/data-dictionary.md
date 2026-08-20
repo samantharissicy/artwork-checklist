@@ -92,16 +92,16 @@ Field-by-field reference for all persisted data. Models and factories: [data-mod
 | `notes` | colour | string | no | `""` | Notes (≤ 500) |
 | `layerIds` | colour | array | yes | `[]` | Associated layer IDs |
 
-Limits: `PANTONE_LIMITS = { CODE: 120, NAME: 120, NOTES: 500 }` (js/app.js:1101).
+Limits: `PANTONE_LIMITS = { CODE: 120, NAME: 120, NOTES: 500 }`.
 
 ## Enums
 
-| Enum | Values | Where |
-| --- | --- | --- |
-| `REVIEW_STATUSES` | `pending` / `approved` / `rejected` | js/app.js:134 |
-| `REVIEW_STATUS_LABELS` | `Pending` / `Approved` / `Rejected` | js/app.js:140 |
-| `ALLOWED_SITES` | `OH1` / `OH2` / `BL` | js/app.js:162 |
-| Schema versions | `1` / `2` / `3` / `4` | migration chain |
+| Enum | Values |
+| --- | --- |
+| `REVIEW_STATUSES` | `pending` / `approved` / `rejected` |
+| `REVIEW_STATUS_LABELS` | `Pending` / `Approved` / `Rejected` |
+| `ALLOWED_SITES` | `OH1` / `OH2` / `BL` |
+| Schema versions | `1` / `2` / `3` / `4` |
 
 ## Related Documents
 

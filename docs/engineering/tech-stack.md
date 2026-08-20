@@ -20,7 +20,7 @@
 | --- | --- |
 | HTML5 | `index.html` — single-page markup |
 | CSS | Modular stylesheets under `css/` (see [css-architecture.md](../architecture/css-architecture.md)) |
-| JavaScript | Vanilla ES2020+ classless script style; `js/app.js` (~9,805 lines, 203 named functions), `js/tests.js` + `js/tests/**` |
+| JavaScript | Vanilla ES2020+ classless script style; `js/app.js` (~9,860 lines, 205 `function` declarations), `js/tests.js` + `js/tests/**` |
 
 ## Persistence
 
@@ -33,22 +33,22 @@
 
 | Mechanism | Use |
 | --- | --- |
-| File API (`file.text()`) | Reading imported review JSON (`handleCheckFileChange`, js/app.js:9692) |
-| `File` + `Image` | Artwork upload inspection (`inspectArtworkFile`, js/app.js:5052) |
-| `Blob` + Object URL | JSON download (`downloadJsonFile`, js/app.js:6745) |
+| File API (`file.text()`) | Reading imported review JSON (`handleCheckFileChange`) |
+| `File` + `Image` | Artwork upload inspection (`inspectArtworkFile`) |
+| `Blob` + Object URL | JSON download (`downloadJsonFile`) |
 | `URL.createObjectURL` / `URL.revokeObjectURL` | Session artwork and download lifecycle |
 
 ## Browser APIs Used (verified)
 
 | API | Where |
 | --- | --- |
-| `localStorage` | `saveStateToStorage` / `loadStateFromStorage` (js/app.js:6484/6408) |
-| `crypto.randomUUID` | ID generation (with `Date.now()`/`Math.random()` fallback, js/app.js:735) |
-| Drag and Drop API | Checklist → artwork pinning (js/app.js:2629, 4296, 4300) |
+| `localStorage` | `saveStateToStorage` / `loadStateFromStorage` |
+| `crypto.randomUUID` | ID generation (with `Date.now()`/`Math.random()` fallback) |
+| Drag and Drop API | Checklist → artwork pinning |
 | Pointer/mouse events | `pointerdown` stopPropagation, `mouseenter`/`mouseleave` pin highlight |
 | DOM events | `click`, `input`, `change`, `contextmenu`, `blur`, `keydown` |
 | `JSON` / `Date` | Serialization, timestamps |
-| `requestAnimationFrame` | Dialog focus (js/app.js:9082) |
+| `requestAnimationFrame` | Dialog focus |
 | `scrollIntoView` | Tab and item scrolling |
 | `window.confirm` | Only as a default dependency-injection parameter (`deleteProduct`, `applyArtworkIdentity`) — the UI uses the custom dialog |
 

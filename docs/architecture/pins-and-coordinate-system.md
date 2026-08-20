@@ -21,8 +21,8 @@ Pixel coordinates are meaningless when the artwork viewer can be zoomed (50%–2
 ```
 
 - Stored in `item.pins[]`; **one pin per (item, layer)** — an item may be pinned on multiple layers.
-- Validated by `isValidStoredLayerPin` (js/app.js:5534): non-empty string `layerId`, finite ratios in `[0, 1]`.
-- `validateItemPins` (js/app.js:5562) additionally rejects duplicate (item, layer) pairs.
+- Validated by `isValidStoredLayerPin`: non-empty string `layerId`, finite ratios in `[0, 1]`.
+- `validateItemPins` additionally rejects duplicate (item, layer) pairs.
 
 ## Coordinate Space
 
@@ -34,7 +34,7 @@ Pixel coordinates are meaningless when the artwork viewer can be zoomed (50%–2
 
 ### Browser → Normalized
 
-`calculatePinRatios(clientX, clientY, rect)` (js/app.js:4226): subtracts the artwork wrapper's bounding rect origin, divides by width/height, clamps to `[0, 1]`.
+`calculatePinRatios(clientX, clientY, rect)`: subtracts the artwork wrapper's bounding rect origin, divides by width/height, clamps to `[0, 1]`.
 
 ### Normalized → CSS Percentage
 
@@ -42,47 +42,47 @@ Pixel coordinates are meaningless when the artwork viewer can be zoomed (50%–2
 
 ## Zoom Independence
 
-- `zoom(delta)` (js/app.js:2782) scales `#artwork-wrapper` via `transform: scale(N)`, range `0.5..2.0`.
+- `zoom(delta)` scales `#artwork-wrapper` via `transform: scale(N)`, range `0.5..2.0`.
 - Pins render in the **unscaled coordinate system** of the wrapper; the transform scales both artwork and pins together, so ratios stay correct at any zoom.
 - Tests assert: `E1 zoom does not mutate normalized pin state` and pins render at correct ratios at 50%/100%/200% (`e1-pin-geometry.test.js`).
 
 ## Multi-Layer Pin Ownership
 
 - `item.pins[]` holds pins for **all** layers; each pin records `layerId`.
-- `renderPins()` (js/app.js:4452) renders only pins whose `layerId` equals the **active layer** (pins of other layers stay hidden until their layer is active).
-- `setItemPinForLayer(itemId, layerId, pin)` (js/app.js:1810) assigns/replaces/removes the pin for one (item, layer).
-- `addPin(itemId, pin)` (js/app.js:4496) uses the active layer, renders immediately, persists and toasts.
-- `removeItemPinFromLayer(itemId, layerId)` (js/app.js:1861) removes one layer pin.
+- `renderPins()` renders only pins whose `layerId` equals the **active layer** (pins of other layers stay hidden until their layer is active).
+- `setItemPinForLayer(itemId, layerId, pin)` assigns/replaces/removes the pin for one (item, layer).
+- `addPin(itemId, pin)` uses the active layer, renders immediately, persists and toasts.
+- `removeItemPinFromLayer(itemId, layerId)` removes one layer pin.
 
 ## Interaction Flows
 
 ### Drag-and-drop (checklist → artwork)
 
-1. Checklist item `dragstart` (js/app.js:2629): `dataTransfer.setData("text/plain", item.id)`, `effectAllowed = "copy"`, `.dragging` class.
-2. `#pins-layer` `dragover` (4296): `preventDefault()` (allow drop).
-3. `drop` (4300): reads item id, `calculatePinRatios`, `addPin`.
+1. Checklist item `dragstart`: `dataTransfer.setData("text/plain", item.id)`, `effectAllowed = "copy"`, `.dragging` class.
+2. `#pins-layer` `dragover`: `preventDefault()` (allow drop).
+3. `drop`: reads item id, `calculatePinRatios`, `addPin`.
 
 ### Pin → item / item → pin navigation
 
-- Click a pin: `scrollToItem` (js/app.js:4560) scrolls the checklist to the item and highlights it.
-- Hover an item (mouseenter/mouseleave, js/app.js:2647/2651): highlights its pin.
+- Click a pin: `scrollToItem` scrolls the checklist to the item and highlights it.
+- Hover an item (mouseenter/mouseleave): highlights its pin.
 
 ### Clear Pins
 
-`clearPins()` (js/app.js:5360) clears pins of the **active layer only** (`clearLayerPins`), touches timestamp, persists, re-renders, toasts.
+`clearPins()` clears pins of the **active layer only** (`clearLayerPins`), touches timestamp, persists, re-renders, toasts.
 
 ## Artwork Replacement Consequences
 
-- Replacing the artwork of a layer with a **different identity** and existing pins requires confirmation; confirmed replacement **clears the layer's pins** (`applyArtworkIdentity`, js/app.js:4662).
+- Replacing the artwork of a layer with a **different identity** and existing pins requires confirmation; confirmed replacement **clears the layer's pins** (`applyArtworkIdentity`).
 - The same-file reselection keeps pins (identity unchanged).
 - Deleting a layer clears its pins; deleting a product clears all its pins.
 
 ## Migration from Legacy Absolute Pixels (v1 → v2)
 
-- Legacy v1 pin shape: `{x, y}` pixels (`isLegacyPixelPin`, js/app.js:4201).
-- `convertLegacyPixelPin(pin, width, height)` (js/app.js:4283) → `{xRatio: x/width, yRatio: y/height}` using the artwork base dimensions.
-- `migrateItemsPinsToV2(items, dimensions)` (js/app.js:6056) applies it per item during `migrateStateV1ToV2`.
-- `normalizedPinToPixels(pin)` (js/app.js:6628) converts back — used only by the **legacy baseline export** (`buildLegacyCheckData`, js/app.js:6669) which still writes pixel pins and boolean checks for old consumers.
+- Legacy v1 pin shape: `{x, y}` pixels (`isLegacyPixelPin`).
+- `convertLegacyPixelPin(pin, width, height)` → `{xRatio: x/width, yRatio: y/height}` using the artwork base dimensions.
+- `migrateItemsPinsToV2(items, dimensions)` applies it per item during `migrateStateV1ToV2`.
+- `normalizedPinToPixels(pin)` converts back — used only by the **legacy baseline export** (`buildLegacyCheckData`) which still writes pixel pins and boolean checks for old consumers.
 
 ## Example
 

@@ -58,7 +58,7 @@ Why not destructive removal: existing schema-v3 reviews and review files contain
 
 ## Related Files
 
-- `js/app.js` — `sectionDefinitions` 6I, `addPantoneComplianceItem`, `migrateStateV3ToV4`, `migrateImportData`, legacy Pantone block (js/app.js:1072–1621, 7194–7666)
+- `js/app.js` — `sectionDefinitions` 6I, `addPantoneComplianceItem`, `migrateStateV3ToV4`, `migrateImportData`, legacy Pantone block
 - `css/components/artwork-colours.css` (LEGACY banner)
 - [domain/review-workflow.md](../domain/review-workflow.md)
 - [persistence/legacy-compatibility.md](../persistence/legacy-compatibility.md)

@@ -29,77 +29,67 @@ flowchart TD
 
 ## Renderer Inventory
 
-### `renderAppState()` — js/app.js:7737 — main coordinator (active product)
+### `renderAppState()` — main coordinator (active product)
 
 - **Reads:** active product (fields, layers, items, active layer), `artworkSessions`, transient UI (`editingTitleItemId`, `openCommentItemIds`).
 - **Writes:** product inputs, context header, artwork layer tabs, artwork viewer state, per-item DOM, pins layer, progress.
 - **Does not do:** rebuild the whole checklist (`renderChecklist` handles that), rebuild product tabs.
 - **Called by:** `loadStateFromStorage` pipeline, domain mutations (via helpers), tests.
 
-### `renderWorkspaceState({scrollActiveTab, rebuildChecklist})` — js/app.js:3436
-
+### `renderWorkspaceState({scrollActiveTab, rebuildChecklist})`
 - **Reads:** `appState`.
 - **Writes:** checklist (when `rebuildChecklist`), product tabs, then `renderAppState`; optionally scrolls the active tab into view.
 - **Called by:** product operations (create/rename/duplicate/delete/switch), import (`applyImportedReview`).
 
-### `renderChecklist()` — js/app.js:2688
-
+### `renderChecklist()`
 - **Reads:** `sectionDefinitions`, active product items.
 - **Writes:** `#checklist` — section buttons (`.section-btn`) and items (`.check-item[data-id]`).
 - **Does not do:** render item internals (status/comments) — `renderItemState` per item does that.
 
-### `renderItemState(itemId)` — js/app.js:3164
-
+### `renderItemState(itemId)`
 - **Reads:** item state, `editingTitleItemId`.
 - **Writes:** `.check-item-title`, edit input visibility/value, Edited badge, correction meta, status label (`[data-role="status-label"]`), approve/reject button states (`aria-pressed`, `.active`), `data-status`/`data-edited`; then calls `renderCommentState`.
 - **Called by:** `renderAppState`, review actions, title editing flows.
 
-### `renderCommentState(itemId)` — js/app.js:2883
-
+### `renderCommentState(itemId)`
 - **Reads:** item comment, `validateItemState`, `openCommentItemIds`.
 - **Writes:** comment panel visibility, textarea value, `aria-invalid`, comment button `.has-comment`/`aria-expanded`, inline error (`[data-role="comment-error"]`), `data-valid`.
 
-### `renderProductTabs()` — js/app.js:7981
-
+### `renderProductTabs()`
 - **Reads:** `appState.products`, `activeProductId`.
 - **Writes:** `#product-tabs` (`.product-tab[data-product-id]`, `role="tab"`, `aria-selected`); closes the product context menu.
 
-### `renderProductContext()` — js/app.js:3880
-
+### `renderProductContext()`
 - **Reads:** active product.
 - **Writes:** `#ctx-product`, `#ctx-code`, `#ctx-site`, `#ctx-artwork-rev`.
 
-### `renderProductInputs()` — js/app.js:3928
-
+### `renderProductInputs()`
 - **Reads:** active product fields.
 - **Writes:** `#inp-brand`, `#inp-name`, `#inp-weight`, `#inp-sku`, `#inp-production-code`, `#inp-site`, `#inp-artwork-version`.
 
-### `renderArtworkLayerTabs()` — js/app.js:7102
-
+### `renderArtworkLayerTabs()`
 - **Reads:** product layers, `activeArtworkLayerId`.
 - **Writes:** `#artwork-layer-tabs` (`.artwork-layer-tab[data-layer-id]`, `role="tab"`, `aria-selected`); closes the layer context menu.
 
-### `renderArtworkState()` — js/app.js:5200
-
+### `renderArtworkState()`
 - **Reads:** active layer `artwork` metadata, `artworkSessions`.
 - **Writes:** tri-state of `#demo-artwork` / `#artwork-image` / `#artwork-missing` (`hidden` flags), `#artwork-status-badge`, `#artwork-meta`, `#btn-artwork` label, `pinsLayer.hidden`.
 - **Does not do:** load or revoke Object URLs (session layer owns those).
 
-### `renderPins()` — js/app.js:4452 / `renderPin(itemId)` — js/app.js:4407
-
+### `renderPins()` — / `renderPin(itemId)`
 - **Reads:** items + active layer id; pins of the **active layer only**.
 - **Writes:** `#pins-layer` pin elements (`.pin[data-item-id][data-pid][data-layer-id]`, tooltip = `currentTitle`).
 - **Note:** `setItemPinForLayer` does **not** render; use `addPin` (which calls `renderPin`) or `renderPins` after bulk changes.
 
-### `updateProgress()` — js/app.js:3366
+### `updateProgress()`
 
 - **Reads:** active product items.
-- **Writes:** `#progress-text` (`"X / 50 reviewed"`) and `#progress-bar` width.
+- **Writes:** counters `#progress-total` / `#progress-approved` / `#progress-rejected` / `#progress-pending`, percentages `#progress-review-pct` (`N% reviewed`) / `#progress-approval-pct` (`N% approved`), and `#progress-bar` width (reviewed / total).
 - **Not a `render*` function** but part of the projection.
 
 ### Legacy renderers (unused by current UI)
 
-- `renderPantoneColours()` (js/app.js:7349) and `renderPantoneColourEditorLayers()` (7390) rebuild the retired Colour Specification UI. They are retained for historical compatibility but **nothing calls them** — the G5 test suite asserts the component element does not exist (`document.getElementById("colour-specification") === null`).
+- `renderPantoneColours()` and `renderPantoneColourEditorLayers()` rebuild the retired Colour Specification UI. They are retained for historical compatibility but **nothing calls them** — the G5 test suite asserts the component element does not exist (`document.getElementById("colour-specification") === null`).
 
 ## Render/Update Discipline
 

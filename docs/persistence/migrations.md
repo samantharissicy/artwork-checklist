@@ -25,22 +25,22 @@ flowchart LR
 
 | Step | What changes | Function |
 | --- | --- | --- |
-| **v1 → v2** | `item.pin` `{x, y}` pixels → `{xRatio, yRatio}` using artwork base dimensions | `migrateStateV1ToV2` (js/app.js:6107) → `migrateItemsPinsToV2` (6056) → `convertLegacyPixelPin` (4283) |
-| **v2 → v3** | `product.artwork` → `artworkLayers: [{id:"layer-main", name:"Main Artwork"}]`; `item.pin` → `item.pins: [{layerId:"layer-main", ...}]`; `activeArtworkLayerId` added | `migrateStateV2ToV3` (6155) |
-| **v3 → v4** | Adds canonical checklist item **6I** ("Pantone Colours Match Approved Pack Copy?", Pending) to every product; `pantoneColors` preserved untouched | `migrateStateV3ToV4` (6255) → `addPantoneComplianceItem` (6228) |
+| **v1 → v2** | `item.pin` `{x, y}` pixels → `{xRatio, yRatio}` using artwork base dimensions | `migrateStateV1ToV2` → `migrateItemsPinsToV2` → `convertLegacyPixelPin` |
+| **v2 → v3** | `product.artwork` → `artworkLayers: [{id:"layer-main", name:"Main Artwork"}]`; `item.pin` → `item.pins: [{layerId:"layer-main", ...}]`; `activeArtworkLayerId` added | `migrateStateV2ToV3` |
+| **v3 → v4** | Adds canonical checklist item **6I** ("Pantone Colours Match Approved Pack Copy?", Pending) to every product; `pantoneColors` preserved untouched | `migrateStateV3ToV4` → `addPantoneComplianceItem` |
 
-Orchestrator: `migrateState(state)` (js/app.js:6295) — returns the current schema unchanged, runs the appropriate chain steps, and returns `null` (with `console.warn`) for unsupported versions.
+Orchestrator: `migrateState(state)` — returns the current schema unchanged, runs the appropriate chain steps, and returns `null` (with `console.warn`) for unsupported versions.
 
 ## Legacy Storage Key Handling
 
-- `STORAGE_KEY = "artworkChecklist:v4"`; `LEGACY_STORAGE_KEYS = ["artworkChecklist:v3", "artworkChecklist:v2", "artworkChecklist:v1"]` (js/app.js:5391–5393).
-- `getStoredStateRecord()` (6355): reads the current key first, then walks legacy keys in order.
-- `loadStateFromStorage()` (6408): after a successful legacy load, saves under the current key and removes the old key (6448–6459; failure only `console.warn`s).
+- `STORAGE_KEY = "artworkChecklist:v4"`; `LEGACY_STORAGE_KEYS = ["artworkChecklist:v3", "artworkChecklist:v2", "artworkChecklist:v1"]`.
+- `getStoredStateRecord()` : reads the current key first, then walks legacy keys in order.
+- `loadStateFromStorage()` : after a successful legacy load, saves under the current key and removes the old key (failure only `console.warn`s).
 - Result: older reviews are promoted to v4 storage exactly once.
 
 ## Import Migration (files)
 
-`migrateImportData(data)` (js/app.js:9262) implements the same chain for **review files**, whose top-level shape differs from `appState`:
+`migrateImportData(data)` implements the same chain for **review files**, whose top-level shape differs from `appState`:
 
 - v1 file → pins→v2 → recurse → (v2 branch) layer-wrap + pins arrays → (v3 branch) `addPantoneComplianceItem` → v4.
 - v2 file → v3 steps → `addPantoneComplianceItem` → v4.

@@ -8,7 +8,7 @@ Document Save Check (export) and Open Check (import): canonical structure, valid
 
 ## Save Check (export)
 
-Flow: `exportReviewAsJson()` (js/app.js:6589) → `buildExportData()` (6531) → `downloadJsonFile(data, filename)` (6745).
+Flow: `exportReviewAsJson()` → `buildExportData()` → `downloadJsonFile(data, filename)`.
 
 `buildExportData` exports the **active product only**:
 
@@ -30,11 +30,11 @@ Flow: `exportReviewAsJson()` (js/app.js:6589) → `buildExportData()` (6531) →
 
 - Filename includes product name + timestamp.
 - Download is a `Blob` + Object URL + `<a download>`, revoked in `finally`.
-- **Legacy export**: `buildLegacyCheckData()` (js/app.js:6669) + `saveCheck()` (6732) produce the baseline format (boolean `checks`, pixel `pins`, `product:{brand,name,weight,sku}`, `timestamp`) — retained for historical consumers. See [legacy-compatibility.md](legacy-compatibility.md).
+- **Legacy export**: `buildLegacyCheckData()` + `saveCheck()` produce the baseline format (boolean `checks`, pixel `pins`, `product:{brand,name,weight,sku}`, `timestamp`) — retained for historical consumers. See [legacy-compatibility.md](legacy-compatibility.md).
 
 ## Open Check (import)
 
-Flow: `openCheck()` (9664) → `selectCheckFile()` (9668) → `handleCheckFileChange(event)` (9692) → `applyImportedReview(importedData)` (9592).
+Flow: `openCheck()` → `selectCheckFile()` → `handleCheckFileChange(event)` → `applyImportedReview(importedData)`.
 
 Validation pipeline:
 
@@ -53,8 +53,8 @@ flowchart LR
 | File type | Only `.json` accepted (accept attribute + check) |
 | Parse | `deserializeState` — malformed JSON rejected with toast |
 | Migration | `migrateImportData` (see [migrations.md](migrations.md)) — v1/v2/v3 files promoted to v4 |
-| Validation | `validateImportData` (9388) builds a candidate product and runs `validateSerializedProduct` — invalid structure rejected with toast, current state untouched |
-| Build | `buildImportedProduct` (9508) via `createProduct` + `rehydrateItems` + `createArtworkLayer`; `updatedAt` = now |
+| Validation | `validateImportData` builds a candidate product and runs `validateSerializedProduct` — invalid structure rejected with toast, current state untouched |
+| Build | `buildImportedProduct` via `createProduct` + `rehydrateItems` + `createArtworkLayer`; `updatedAt` = now |
 | Insert | ID-collision resolution via `generateProductId`; imported review becomes a **new product** (never overwrites the workspace) and is activated |
 | Finish | `resetTransientReviewUiState`, save, `renderWorkspaceState({rebuildChecklist:true, scrollActiveTab:true})` |
 

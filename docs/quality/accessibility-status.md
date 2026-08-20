@@ -10,30 +10,30 @@
 | --- | --- |
 | `aria-label` | `#header-context`, `#product-tabs`, `#artwork-layer-tabs`, both context menus, product-form inputs, `#inp-site` |
 | `role="tablist"` | `#product-tabs`, `#artwork-layer-tabs` |
-| `role="tab"` / `aria-selected` | tab elements (aria-selected set via JS: js/app.js:7138, 8013) |
+| `role="tab"` / `aria-selected` | tab elements (aria-selected set via JS: , 8013) |
 | `role="menu"` / `role="menuitem"` / `role="separator"` | both context menus (7 menuitems, 2 separators) |
 | `role="dialog"` / `aria-modal` / `aria-labelledby` / `aria-describedby` | `#app-dialog-overlay` / `.app-dialog` |
 | `aria-hidden` | dialog overlay, decorative SVGs |
-| `aria-pressed` | approve/reject buttons (JS: js/app.js:3246) |
-| `aria-expanded` | comment buttons (JS: js/app.js:2937) |
-| `aria-invalid` | comment textarea on invalid rejection (JS: js/app.js:2927) |
-| `aria-disabled` | disabled context-menu items (JS: js/app.js:8214, 8666) |
+| `aria-pressed` | approve/reject buttons (JS: ) |
+| `aria-expanded` | comment buttons (JS: ) |
+| `aria-invalid` | comment textarea on invalid rejection (JS: ) |
+| `aria-disabled` | disabled context-menu items (JS: , 8666) |
 | `role="alert"` | checklist item markup (JS template) |
 
 ### Keyboard support currently implemented
 
 | Feature | Behaviour |
 | --- | --- |
-| Inline title edit | Enter commits, Escape cancels (js/app.js:2575–2586) |
-| Context menus | Escape closes; ArrowUp/ArrowDown move focus (js/app.js:8499–8512) |
-| Custom dialog | Escape dismisses; Enter submits when prompt input focused (js/app.js:9162–9167) |
+| Inline title edit | Enter commits, Escape cancels  |
+| Context menus | Escape closes; ArrowUp/ArrowDown move focus  |
+| Custom dialog | Escape dismisses; Enter submits when prompt input focused  |
 | Buttons | All interactive controls are real `<button>` elements (keyboard-focusable by default) |
 
 ### Focus management
 
-- Comment textarea focused after reject (js/app.js:2852, 3333).
-- Title-edit input focused + selected on begin (js/app.js:3001).
-- Dialog focus via `requestAnimationFrame` (js/app.js:9082).
+- Comment textarea focused after reject.
+- Title-edit input focused + selected on begin.
+- Dialog focus via `requestAnimationFrame`.
 - `:focus-visible` styles exist in header.css and context-menu.css.
 
 ## Status Table

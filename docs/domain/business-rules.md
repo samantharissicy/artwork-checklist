@@ -13,7 +13,7 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 | BR-REVIEW-001 | Every checklist item shall have exactly one review status. | `REVIEW_STATUSES` enum; `validateSerializedItem` |
 | BR-REVIEW-002 | Every new item shall default to `pending`. | `createInitialItems`; `rehydrateItems` |
 | BR-REVIEW-003 | `approved` and `rejected` are mutually exclusive; selecting one replaces the other. | single `status` field; `setItemStatus` |
-| BR-REVIEW-004 | Rejected items require a non-empty comment. | `validateItemState` (js/app.js:2170); UI error + `aria-invalid` |
+| BR-REVIEW-004 | Rejected items require a non-empty comment. | `validateItemState` ; UI error + `aria-invalid` |
 | BR-REVIEW-005 | Rejecting an item opens its comment editor. | `handleReviewAction` |
 | BR-REVIEW-006 | Clicking the active status button toggles the item back to `pending`. | `handleReviewAction` |
 | BR-REVIEW-007 | Review progress counts approved + rejected as reviewed. | `updateProgress` |

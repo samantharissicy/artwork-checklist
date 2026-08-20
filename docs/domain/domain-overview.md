@@ -38,7 +38,7 @@ flowchart LR
 | **Pin** | A normalized (`xRatio`,`yRatio`) annotation tying an item to a location on one artwork layer | [pins-and-coordinate-system.md](../architecture/pins-and-coordinate-system.md) |
 | **Pack Copy** | The approved packaging text that artwork must match (the reviewer's reference; not stored in-app beyond the checklist) | — |
 | **Pantone Compliance** | Checklist item **6I — "Pantone Colours Match Approved Pack Copy?"** — the reviewer verifies artwork colours against the approved pack copy | G5 layer, [review-workflow.md](review-workflow.md) |
-| **Review Progress** | "X / 50 reviewed" (approved + rejected); approval-rate metrics are future F1 | `updateProgress` |
+| **Review Progress** | Progress footer counters (total/approved/rejected/pending) and percentages `N% reviewed` / `N% approved`; reviewed = approved + rejected | `updateProgress` |
 
 ## Concepts (planned — not implemented)
 
@@ -53,7 +53,7 @@ flowchart LR
 
 ## The Checklist Domain (canonical)
 
-6 sections, 50 items (source: `sectionDefinitions`, js/app.js:191):
+6 sections, 50 items (source: `sectionDefinitions`):
 
 | # | Section | Items |
 | --- | --- | --- |

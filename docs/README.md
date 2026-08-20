@@ -6,7 +6,7 @@
 
 This `docs/` tree is the technical knowledge base for the **Artwork & Pack Copy Checklist** application. It exists so that:
 
-1. a new developer can understand the project without reading all ~9,800 lines of `js/app.js` first;
+1. a new developer can understand the project without reading all ~9,860 lines of `js/app.js` first;
 2. an AI coding agent can receive `docs/` as context and correctly understand the current architecture;
 3. important technical decisions do not have to be re-discussed repeatedly;
 4. future changes can identify architecture, domain rules, data model, persistence, migrations, responsibilities, tests, limitations and historical decisions;
@@ -48,21 +48,22 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 
 | Area | Value |
 | --- | --- |
-| Schema | v4 (`CURRENT_SCHEMA_VERSION = 4`, `js/app.js:129`) |
-| Storage key | `artworkChecklist:v4` (`js/app.js:5391`) |
+| Schema | v4 (`CURRENT_SCHEMA_VERSION = 4`) |
+| Storage key | `artworkChecklist:v4` |
 | Legacy keys | `artworkChecklist:v3`, `artworkChecklist:v2`, `artworkChecklist:v1` |
 | Checklist items | 50 |
 | Sections | 6 |
 | Review statuses | `pending` / `approved` / `rejected` |
 | Allowed sites | `OH1`, `OH2`, `BL` |
-| Tests | 373 / 373 passing (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md)) |
-| App source | `js/app.js` (~9,805 lines, 203 named functions) |
+| Tests | 373 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest audit: 370 passing, 3 progress tests fail against the removed `#progress-text` element — see [documentation-audit.md](documentation-audit.md)) |
+| App source | `js/app.js` (~9,860 lines, 205 function declarations) |
 
 ## Navigation Groups
 
 | Group | Contents |
 | --- | --- |
 | [Overview](project-overview.md) | Business purpose, MVP scope, roadmap methodology |
+| [Documentation Audit](documentation-audit.md) | Deep docs-vs-code compatibility audit, verified facts, test-suite results |
 | [Architecture](architecture/architecture-overview.md) | Architecture, data model, state, rendering, persistence, artwork, pins, context menus, CSS |
 | [Engineering](engineering/tech-stack.md) | Stack, development workflow, coding standards, testing, error handling, browser runtime |
 | [Domain](domain/domain-overview.md) | Domain concepts, review workflow, business rules, data dictionary, glossary |

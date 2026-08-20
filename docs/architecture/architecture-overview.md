@@ -22,9 +22,9 @@ flowchart TD
 
 | Concept | Location | Description |
 | --- | --- | --- |
-| **Domain State** | `appState` (js/app.js:636) | `{ schemaVersion, activeProductId, products }` — the only authoritative review data |
+| **Domain State** | `appState` | `{ schemaVersion, activeProductId, products }` — the only authoritative review data |
 | **Transient UI State** | module-level variables | `openCommentItemIds`, `editingTitleItemId`, `currentZoom`, context-menu states, `appDialogState`, `toastTimeoutId` — never persisted |
-| **Session Resources** | `artworkSessions` (js/app.js:652) | `Map<productId, Map<layerId, {metadata, objectUrl}>>` — binary artwork + Object URLs, runtime only |
+| **Session Resources** | `artworkSessions` | `Map<productId, Map<layerId, {metadata, objectUrl}>>` — binary artwork + Object URLs, runtime only |
 | **Persistence Layer** | functions in js/app.js | `serializeState`, `validateState`, `migrateState`, `saveStateToStorage`, `loadStateFromStorage`, `buildExportData`, `applyImportedReview` |
 | **Rendering Layer** | 14 `render*` functions | Project `appState` into the DOM; see [rendering-model.md](rendering-model.md) |
 | **Validation** | `validate*` functions | Storage, import and business-rule validation before any mutation |
@@ -56,7 +56,7 @@ sequenceDiagram
 
 ## Mutations Are Centered
 
-Almost every user action resolves to a small named domain function (203 named functions in js/app.js):
+Almost every user action resolves to a small named domain function (205 `function` declarations in js/app.js):
 
 - Review: `setItemStatus`, `setItemComment`, `setItemCurrentTitle`, `setItemPinForLayer`, `handleReviewAction`, `restoreOriginalTitle`.
 - Products: `createNewProduct`, `switchProduct`, `renameProduct`, `duplicateProduct`, `deleteProduct`.

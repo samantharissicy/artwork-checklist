@@ -34,15 +34,15 @@ See [state-management.md](../architecture/state-management.md) for the full tran
 
 ## The Functions
 
-| Function | Purpose | Location |
-| --- | --- | --- |
-| `serializeState()` | `JSON.stringify(appState)` — whole workspace | js/app.js:5442 |
-| `deserializeState(serialized)` | `JSON.parse` with try/catch → `null` on failure | js/app.js:5468 |
-| `validateState(state)` | Workspace structural validation (schema 4, products, active id) | js/app.js:5851 |
-| `rehydrateState(savedState)` | Fresh object graph rebuild from validated state | js/app.js:6020 |
-| `buildExportData()` | Single-product export payload (active product) | js/app.js:6531 |
-| `saveStateToStorage()` | Serialize + write `localStorage` | js/app.js:6484 |
-| `loadStateFromStorage()` | Read → migrate → validate → rehydrate → replace | js/app.js:6408 |
+| Function | Purpose |
+| --- | --- |
+| `serializeState()` | `JSON.stringify(appState)` — whole workspace |
+| `deserializeState(serialized)` | `JSON.parse` with try/catch → `null` on failure |
+| `validateState(state)` | Workspace structural validation (schema 4, products, active id) |
+| `rehydrateState(savedState)` | Fresh object graph rebuild from validated state |
+| `buildExportData()` | Single-product export payload (active product) |
+| `saveStateToStorage()` | Serialize + write `localStorage` |
+| `loadStateFromStorage()` | Read → migrate → validate → rehydrate → replace |
 
 ## Round-Trip Guarantee
 
@@ -50,8 +50,8 @@ See [state-management.md](../architecture/state-management.md) for the full tran
 
 ## Rehydration Details
 
-- `rehydrateItems` (js/app.js:5914) starts from `createInitialItems()` and copies only `currentTitle`, `status`, `comment`, `pins` (cloned) — discarded unknown fields are ignored, missing canonical fields are restored.
-- `rehydrateProduct` (js/app.js:5959) builds a brand-new product object graph, clones `pantoneColors` and pins, merges `reviewer`, restores `signature`/timestamps.
+- `rehydrateItems` starts from `createInitialItems()` and copies only `currentTitle`, `status`, `comment`, `pins` (cloned) — discarded unknown fields are ignored, missing canonical fields are restored.
+- `rehydrateProduct` builds a brand-new product object graph, clones `pantoneColors` and pins, merges `reviewer`, restores `signature`/timestamps.
 - No references into the parsed JSON survive rehydration — mutation of the DOM can never corrupt serialized data structure.
 
 ## Related Documents

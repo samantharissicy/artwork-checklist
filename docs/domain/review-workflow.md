@@ -33,7 +33,7 @@ Each item has exactly one status: `pending` / `approved` / `rejected` (`REVIEW_S
 | rejected | click Reject again | pending (toggle) |
 | rejected | click Approve | approved |
 
-Implementation: `handleReviewAction(itemId, requestedStatus)` (js/app.js:3303) — approve/reject toggle, opens and focuses the comment textarea on reject, re-renders, persists.
+Implementation: `handleReviewAction(itemId, requestedStatus)` — approve/reject toggle, opens and focuses the comment textarea on reject, re-renders, persists.
 
 ## Rejection Rule
 
@@ -42,24 +42,24 @@ IF status = rejected
 THEN comment.trim().length > 0
 ```
 
-- Enforced at interaction time by `validateItemState` (js/app.js:2170) and surfaced inline (`[data-role="comment-error"]`: "Comment required…"); typing a comment clears the error.
-- `validateActiveProduct` (js/app.js:2197) aggregates invalid items across the active product (prefixed `ID:`).
+- Enforced at interaction time by `validateItemState` and surfaced inline (`[data-role="comment-error"]`: "Comment required…"); typing a comment clears the error.
+- `validateActiveProduct` aggregates invalid items across the active product (prefixed `ID:`).
 - Rejecting without a comment is allowed to be *pending a comment* in the UI (the panel opens), but the item is flagged invalid until the comment is written.
 
 ## Review Progress
 
-- `updateProgress` (js/app.js:3366): `"X / 50 reviewed"` where reviewed = approved + rejected.
+- `updateProgress`: updates the progress footer — counters (total/approved/rejected/pending) and percentages `N% reviewed` / `N% approved`; reviewed = approved + rejected, and the bar always follows reviewed / total.
 - Per-status counters and an approval percentage are **not** implemented (roadmap F1).
 
 ## Comments
 
-- `toggleCommentPanel` / `openCommentPanel` (js/app.js:2815/2839) manage the open panel set (`openCommentItemIds`).
+- `toggleCommentPanel` / `openCommentPanel` manage the open panel set (`openCommentItemIds`).
 - Comments persist per item and survive reload, export/import, duplication.
 
 ## Copy Corrections
 
 - `originalTitle` is immutable; `currentTitle` is editable via inline edit (Enter commits, Escape cancels, Blur commits/cancels per `commitTitleEdit`).
-- Edited items show an `Edited` badge and `Restore original` (`restoreOriginalTitle`, js/app.js:3108).
+- Edited items show an `Edited` badge and `Restore original` (`restoreOriginalTitle`).
 - Pin tooltips use `currentTitle`.
 
 ## Pins
@@ -71,7 +71,7 @@ THEN comment.trim().length > 0
 
 ## Pantone Compliance — Item 6I
 
-Canonical item (js/app.js:479):
+Canonical item:
 
 ```text
 6I — Pantone Colours Match Approved Pack Copy?
@@ -91,8 +91,8 @@ Operational meaning:
 
 | Step | Action | Behaviour |
 | --- | --- | --- |
-| Save Check | `exportReviewAsJson()` (js/app.js:6589) | Downloads schema-v4 JSON of the active product via `buildExportData` |
-| Open Check | `openCheck()` → `handleCheckFileChange` (9692) | Reads `.json`, `migrateImportData`, `validateImportData`, imports as a **new product**, activates it |
+| Save Check | `exportReviewAsJson()` | Downloads schema-v4 JSON of the active product via `buildExportData` |
+| Open Check | `openCheck()` → `handleCheckFileChange` | Reads `.json`, `migrateImportData`, `validateImportData`, imports as a **new product**, activates it |
 
 See [persistence/import-export.md](../persistence/import-export.md).
 

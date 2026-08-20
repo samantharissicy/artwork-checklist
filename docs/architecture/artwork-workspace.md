@@ -28,17 +28,17 @@ flowchart TD
 
 | Operation | Function | Behaviour |
 | --- | --- | --- |
-| Add | `addArtworkLayer()` (js/app.js:6829) → `createArtworkLayerForProduct` (888) | Prompt for name; new layer becomes active; persisted; toast |
-| Rename | `renameActiveArtworkLayer()` → `renameArtworkLayer` (985) | Trims name; ID/artwork/pins/sessions untouched |
-| Delete | `deleteActiveArtworkLayer()` → `deleteArtworkLayerWithDialog` (6996) → `deleteArtworkLayer` (1031) | Rejects deleting the **last** layer; dialog when layer has pins or artwork; clears layer pins, `clearPantoneLayerReferences`, releases session artwork, deterministic new active layer |
-| Switch | `switchArtworkLayer(layerId)` (946) | Sets active layer; persists; renders; scrolls tab; no timestamp touch |
+| Add | `addArtworkLayer()` → `createArtworkLayerForProduct` | Prompt for name; new layer becomes active; persisted; toast |
+| Rename | `renameActiveArtworkLayer()` → `renameArtworkLayer` | Trims name; ID/artwork/pins/sessions untouched |
+| Delete | `deleteActiveArtworkLayer()` → `deleteArtworkLayerWithDialog` → `deleteArtworkLayer` | Rejects deleting the **last** layer; dialog when layer has pins or artwork; clears layer pins, `clearPantoneLayerReferences`, releases session artwork, deterministic new active layer |
+| Switch | `switchArtworkLayer(layerId)` | Sets active layer; persists; renders; scrolls tab; no timestamp touch |
 
 ## Artwork Metadata vs Binary vs Object URL
 
 | Data | Persistence | Where |
 | --- | --- | --- |
 | `layer.artwork` metadata `{name,type,size,width,height}` | PERSISTED | inside `appState` |
-| Binary image | SESSION-ONLY | `artworkSessions` Map, js/app.js:652 |
+| Binary image | SESSION-ONLY | `artworkSessions` Map |
 | Object URL | RUNTIME-ONLY | inside session record `{metadata, objectUrl}` |
 
 **Explicit rule:** metadata is persistent; the binary is session-only; the Object URL is runtime-only. Reload restores metadata (and the "File required" state) but never the image.
@@ -55,22 +55,22 @@ flowchart TD
 
 | Function | Purpose |
 | --- | --- |
-| `inspectArtworkFile(file)` (5052) | `URL.createObjectURL` + `new Image()`; loads natural dimensions; revokes URL on failure |
-| `createArtworkMetadata(file, width, height)` (4752) | Canonical metadata factory |
-| `adoptSessionArtwork(metadata, objectUrl, productId, layerId)` (4969) | Stores session; revokes previous URL for that (product, layer) |
-| `releaseLayerSessionArtwork` (4861), `releaseProductSessionArtworks` (4890), `releaseSessionArtwork` (4918) | Revoke + remove |
-| `releaseAllSessionArtworks()` | Bound to `beforeunload` (js/app.js:9740) |
-| `isArtworkLoadedInSession(metadata, productId, layerId)` (5016) | Whether the session still holds the matching binary |
-| `handleArtworkFileChange(event)` (7825) | Upload entry: validates `image/*`, inspects, re-verifies target (product, layer) after async read, applies identity rules, adopts session |
+| `inspectArtworkFile(file)` | `URL.createObjectURL` + `new Image()`; loads natural dimensions; revokes URL on failure |
+| `createArtworkMetadata(file, width, height)` | Canonical metadata factory |
+| `adoptSessionArtwork(metadata, objectUrl, productId, layerId)` | Stores session; revokes previous URL for that (product, layer) |
+| `releaseLayerSessionArtwork`, `releaseProductSessionArtworks`, `releaseSessionArtwork` | Revoke + remove |
+| `releaseAllSessionArtworks()` | Bound to `beforeunload` |
+| `isArtworkLoadedInSession(metadata, productId, layerId)` | Whether the session still holds the matching binary |
+| `handleArtworkFileChange(event)` | Upload entry: validates `image/*`, inspects, re-verifies target (product, layer) after async read, applies identity rules, adopts session |
 
 ## File Selection and Replacement
 
-1. `selectArtwork()` (js/app.js:7773) opens `#artwork-file-input` (`accept="image/*"`, hidden).
+1. `selectArtwork()` opens `#artwork-file-input` (`accept="image/*"`, hidden).
 2. `handleArtworkFileChange` captures `targetProductId` + `targetLayerId` **at event start** (async-safety), validates type, inspects the file.
-3. Identity comparison: `isSameArtworkIdentity` (js/app.js:1732). If the identity differs and the layer has pins, `applyArtworkIdentity` (4662) requests confirmation — message: `"Replacing this artwork will invalidate existing pins.\nContinue?"` (`ARTWORK_REPLACEMENT_MESSAGE`).
+3. Identity comparison: `isSameArtworkIdentity`. If the identity differs and the layer has pins, `applyArtworkIdentity` requests confirmation — message: `"Replacing this artwork will invalidate existing pins.\nContinue?"` (`ARTWORK_REPLACEMENT_MESSAGE`).
 4. Confirmed replacement clears the layer's pins and adopts the new metadata + session image.
 
-## Viewer Tri-State (renderArtworkState, js/app.js:5200)
+## Viewer Tri-State (renderArtworkState)
 
 | State | DOM |
 | --- | --- |

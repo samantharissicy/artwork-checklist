@@ -17,29 +17,29 @@ Document how the application handles failure: recoverable errors, validation err
 
 ## Error Handling Mechanisms
 
-### Toast (`showToast`, js/app.js:6786)
+### Toast (`showToast`)
 
 - Writes `#toast` text, adds `.show`, auto-hides after 2500 ms (`toastTimeoutId`).
 - Used for non-blocking feedback: save confirmation, import success/failure, clear pins, add layer, etc.
 
-### Custom Dialog (`openAppDialog`, js/app.js:9016)
+### Custom Dialog (`openAppDialog`)
 
 - Modal `#app-dialog-overlay` with `role="dialog"`, `aria-modal`, tones (warning/danger/success), optional text prompt.
-- Public wrappers: `showConfirmDialog(options)` (js/app.js:9201) and `showPromptDialog(options)` (js/app.js:9221).
+- Public wrappers: `showConfirmDialog(options)` and `showPromptDialog(options)`.
 - Keyboard: Escape dismisses; Enter submits when the prompt input is focused.
-- `deleteProduct(productId, confirmDelete = window.confirm)` (js/app.js:3733) and `applyArtworkIdentity(..., confirmReplacement, ...)` (4662) accept a confirm callback — production uses the custom dialog, tests inject stubs.
+- `deleteProduct(productId, confirmDelete = window.confirm)` and `applyArtworkIdentity(..., confirmReplacement, ...)` accept a confirm callback — production uses the custom dialog, tests inject stubs.
 
 ### Safe Fallbacks (by function)
 
 | Function | Fallback |
 | --- | --- |
-| `deserializeState` (5468) | `null` on malformed JSON |
-| `loadStateFromStorage` (6408) | any pipeline failure → in-memory `appState` untouched |
-| `migrateState` (6295) / `migrateImportData` (9262) | `null` on unsupported versions (with `console.warn`) |
-| `saveStateToStorage` (6484) | `false` + `console.error` on quota/API errors |
-| `getActiveArtworkLayer` (777) | falls back to `artworkLayers[0]` |
+| `deserializeState` | `null` on malformed JSON |
+| `loadStateFromStorage` | any pipeline failure → in-memory `appState` untouched |
+| `migrateState` / `migrateImportData` | `null` on unsupported versions (with `console.warn`) |
+| `saveStateToStorage` | `false` + `console.error` on quota/API errors |
+| `getActiveArtworkLayer` | falls back to `artworkLayers[0]` |
 | `getArtworkSession` | `null` when no session exists |
-| `validateImportData` (9388) | `null` → import rejected with toast |
+| `validateImportData` | `null` → import rejected with toast |
 
 ### try/catch Blocks (13 in js/app.js)
 
@@ -57,7 +57,7 @@ Located in: `deserializeState`, `migrateStateV1ToV2`, `migrateStateV2ToV3`, `mig
 | **Artwork replacement** | `isSameArtworkIdentity` comparison; confirm dialog when pins exist; confirmed replacement clears pins |
 | **Last product deletion** | rejected (`deleteProduct`), delete menu item disabled |
 | **Last layer deletion** | rejected (`deleteArtworkLayer`), delete menu item disabled |
-| **Rejected without comment** | `validateItemState` (js/app.js:2170) flags invalid; UI shows inline error "Comment required"; final gating in `validateActiveProduct` |
+| **Rejected without comment** | `validateItemState` flags invalid; UI shows inline error "Comment required"; final gating in `validateActiveProduct` |
 | **Invalid domain references** | pin/layer validation (`isValidStoredLayerPin`, `validateItemPins`, `validateProductLayers`); dangling layer references rejected on import |
 | **Object URL cleanup** | `URL.revokeObjectURL` on session release, replacement, product/layer deletion, `beforeunload` |
 | **User cancellation** | dialogs resolve `null`/false; no state change |

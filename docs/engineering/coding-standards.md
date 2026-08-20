@@ -14,7 +14,7 @@ Document the conventions actually used in the codebase. These describe the curre
 | `const` by default; `let` for mutable module state | `currentZoom`, `editingTitleItemId` are `let`; most declarations `const` |
 | Descriptive function names | `setItemStatus`, `renderArtworkState`, `migrateStateV3ToV4`, `isValidArtworkMetadata` |
 | Small, single-purpose functions | see [architecture-overview.md](../architecture/architecture-overview.md) |
-| JSDoc-style comments in English for domain types | typedefs at js/app.js:73–129 (`PantoneColour`, `ArtworkMetadata`, `StoredLayerPin`, `ReviewItem`, …) |
+| JSDoc-style comments in English for domain types | typedefs at –129 (`PantoneColour`, `ArtworkMetadata`, `StoredLayerPin`, `ReviewItem`, …) |
 | Explicit domain functions instead of inline mutations | `setItemStatus`, `setItemComment`, `setItemPinForLayer`, `touchProduct` |
 | No hidden DOM state | DOM is rebuilt from `appState`; event handlers read state, not DOM values |
 | User content via `textContent` | titles, comments and notes are rendered as text, not injected HTML |
@@ -53,7 +53,7 @@ See [css-architecture.md](../architecture/css-architecture.md).
 | --- | --- |
 | Test names identify roadmap layer | `G5R-001 …` (Pantone compliance), `G4A-…`, `G4UX-…`, `E1 …`, `D2 …`, `B1 …` |
 | Regression tests preserved across features | suite grows: 312 → 357 → 373 |
-| Tests self-reset their own state | `resetItem1A()`, `resetWorkspaceForMultiProductTest()`, `freshWorkspace()` |
+| Tests self-reset their own state | `resetItem1A()`, `resetWorkspaceForMultiProductTest()`, `resetArtworkForTest()` |
 | Test files are IIFEs over `window.ArtworkTests` | destructure `test`, `assertEqual`, helpers at load time |
 
 See [testing-strategy.md](testing-strategy.md).

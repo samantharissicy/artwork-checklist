@@ -13,7 +13,7 @@ Split artwork data into three layers:
 | Data | Persistence |
 | --- | --- |
 | Metadata `{name, type, size, width, height}` | **Persisted** in `layer.artwork` |
-| Binary image | **Session-only** — `artworkSessions` Map (js/app.js:652) |
+| Binary image | **Session-only** — `artworkSessions` Map |
 | Object URL | **Runtime-only** — inside the session record; revoked on release |
 
 Reload shows a "File Required" state; re-selecting the same file restores the image and, because identity matches, existing pins are kept.

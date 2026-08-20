@@ -53,7 +53,7 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 ## Review Status
 
 - [ ] Approve marks item green; Reject marks it red; clicking the active status toggles back to Pending.
-- [ ] Progress text `X / 50 reviewed` and bar update correctly (approved + rejected count as reviewed).
+- [ ] Progress footer updates correctly: counters (total/approved/rejected/pending), `N% reviewed` / `N% approved`, and the bar (approved + rejected count as reviewed).
 
 ## Comments
 

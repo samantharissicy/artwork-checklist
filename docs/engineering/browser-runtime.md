@@ -57,7 +57,7 @@ Why not just double-click `index.html` (file://)?
 
 ## Session Lifecycle
 
-- `beforeunload` → `releaseAllSessionArtworks()` (js/app.js:9740): revokes every Object URL.
+- `beforeunload` → `releaseAllSessionArtworks()`: revokes every Object URL.
 - Session images and Object URLs never survive a reload; metadata does.
 
 ## Known Runtime Limitations

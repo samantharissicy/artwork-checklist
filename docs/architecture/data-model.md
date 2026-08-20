@@ -1,6 +1,6 @@
 # Data Model
 
-**Status: Current** — schema version 4 (`CURRENT_SCHEMA_VERSION = 4`, js/app.js:129).
+**Status: Current** — schema version 4 (`CURRENT_SCHEMA_VERSION = 4`).
 
 ## Purpose
 
@@ -24,12 +24,12 @@ Document the actual persisted domain models. Every property below is implemented
 }
 ```
 
-- Owned by the module `const appState` (js/app.js:636).
-- Validated by `validateState` (js/app.js:5851): plain object, schemaVersion === 4, non-empty activeProductId, active id exists, `products` keys match `product.id`.
+- Owned by the module `const appState`.
+- Validated by `validateState`: plain object, schemaVersion === 4, non-empty activeProductId, active id exists, `products` keys match `product.id`.
 
 ## Product
 
-Factory: `createProduct(id)` (js/app.js:583).
+Factory: `createProduct(id)`.
 
 | Property | Type | Default | Persistence | Meaning |
 | --- | --- | --- | --- | --- |
@@ -50,7 +50,7 @@ Factory: `createProduct(id)` (js/app.js:583).
 | `createdAt` | string (ISO) | now | PERSISTED | Creation timestamp |
 | `updatedAt` | string (ISO) | now | PERSISTED | Touched on every domain mutation (`touchProduct`) |
 
-Constraints enforced by `validateSerializedProduct` (js/app.js:5727):
+Constraints enforced by `validateSerializedProduct`:
 
 - All string fields are strings (site/productionCode/artworkVersion optional).
 - `artworkLayers` non-empty, unique non-empty IDs, valid artwork metadata per layer, `activeArtworkLayerId` references an existing layer.
@@ -60,7 +60,7 @@ Constraints enforced by `validateSerializedProduct` (js/app.js:5727):
 
 ## ArtworkLayer
 
-Factory: `createArtworkLayer(id, name, artwork)` (js/app.js:561).
+Factory: `createArtworkLayer(id, name, artwork)`.
 
 ```js
 {
@@ -72,7 +72,7 @@ Factory: `createArtworkLayer(id, name, artwork)` (js/app.js:561).
 
 ## ArtworkMetadata
 
-Created by `createArtworkMetadata(file, width, height)` (js/app.js:4752).
+Created by `createArtworkMetadata(file, width, height)`.
 
 | Property | Type | Persistence | Meaning |
 | --- | --- | --- | --- |
@@ -82,11 +82,11 @@ Created by `createArtworkMetadata(file, width, height)` (js/app.js:4752).
 | `width` | number > 0 | PERSISTED | Natural width in pixels |
 | `height` | number > 0 | PERSISTED | Natural height in pixels |
 
-Validated by `isValidArtworkMetadata` (js/app.js:1698). **The binary image is never persisted**: see [artwork-workspace.md](artwork-workspace.md) and ADR-004.
+Validated by `isValidArtworkMetadata`. **The binary image is never persisted**: see [artwork-workspace.md](artwork-workspace.md) and ADR-004.
 
 ## ReviewItem
 
-Factory: `createInitialItems()` (js/app.js:507) driven by `sectionDefinitions` (js/app.js:191).
+Factory: `createInitialItems()` driven by `sectionDefinitions`.
 
 ```js
 {
@@ -102,8 +102,8 @@ Factory: `createInitialItems()` (js/app.js:507) driven by `sectionDefinitions` (
 ```
 
 - `originalTitle` is defined with `Object.defineProperty(item, "originalTitle", { writable: false })` — it cannot be mutated.
-- `rehydrateItems` (js/app.js:5914) rebuilds items from the canonical definitions and copies only `currentTitle`, `status`, `comment`, `pins`, guaranteeing the shape and the immutable title even for imported files.
-- Status values: `pending` / `approved` / `rejected` (`REVIEW_STATUSES`, js/app.js:134).
+- `rehydrateItems` rebuilds items from the canonical definitions and copies only `currentTitle`, `status`, `comment`, `pins`, guaranteeing the shape and the immutable title even for imported files.
+- Status values: `pending` / `approved` / `rejected` (`REVIEW_STATUSES`).
 
 ## StoredLayerPin
 
@@ -115,7 +115,7 @@ Factory: `createInitialItems()` (js/app.js:507) driven by `sectionDefinitions` (
 }
 ```
 
-- Validated by `isValidStoredLayerPin` (js/app.js:5534) and `validateItemPins` (js/app.js:5562, no duplicate item+layer pairs).
+- Validated by `isValidStoredLayerPin` and `validateItemPins` (no duplicate item+layer pairs).
 - One pin per (item, layer); an item can be pinned on several layers.
 - See [pins-and-coordinate-system.md](pins-and-coordinate-system.md).
 
@@ -133,7 +133,7 @@ Persisted and round-tripped, but **no current UI writes it**. Planned for roadma
 
 ## Legacy PantoneColour (backwards compatibility only)
 
-Factory: `createPantoneColour(...)` (js/app.js:1159). Typedef `PantoneColour` (js/app.js:73).
+Factory: `createPantoneColour(...)`. Typedef `PantoneColour`.
 
 ```js
 {
@@ -145,15 +145,15 @@ Factory: `createPantoneColour(...)` (js/app.js:1159). Typedef `PantoneColour` (j
 }
 ```
 
-| Function | Purpose (js/app.js) |
+| Function | Purpose |
 | --- | --- |
-| `validateSerializedPantoneColours` (1366) | Import validation |
-| `validateSerializedProduct` (5755) | Structural validation |
-| `rehydrateProduct` (5982) | Cloned on rehydration |
-| `buildExportData` (6566) | Cloned into JSON export |
-| `buildImportedProduct` (9535) | Cloned on import |
-| `duplicateProduct` (3668) | Cloned on duplication |
-| `migrateStateV3ToV4` (6263) | Preserved untouched on migration |
+| `validateSerializedPantoneColours` | Import validation |
+| `validateSerializedProduct` | Structural validation |
+| `rehydrateProduct` | Cloned on rehydration |
+| `buildExportData` | Cloned into JSON export |
+| `buildImportedProduct` | Cloned on import |
+| `duplicateProduct` | Cloned on duplication |
+| `migrateStateV3ToV4` | Preserved untouched on migration |
 
 The legacy editor UI functions (`renderPantoneColours`, `openAddPantoneColourEditor`, …) are retained but **never called** by the current interface. The canonical Pantone review is checklist item **6I**. See [legacy-compatibility.md](../persistence/legacy-compatibility.md) and ADR-009.
 
