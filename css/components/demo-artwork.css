@@ -23,7 +23,8 @@
   display: block;
   width: auto;
   height: auto;
-  max-width: 760px;
+  max-width: none;
+  max-height: none;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);

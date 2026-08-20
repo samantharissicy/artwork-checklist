@@ -144,7 +144,8 @@
     <!-- ========================================================
      MAIN WORKSPACE
      ======================================================== -->
-    <div class="main">
+        <div class="main">
+      <div class="panel-backdrop" id="panel-backdrop" onclick="toggleLeftPanel()"></div>
       <!-- Left: Checklist -->
       <div class="left-panel">
         <div class="product-bar">
@@ -196,9 +197,13 @@
       <!-- Right: Artwork Viewer -->
       <div class="right-panel">
         <div class="viewer-toolbar">
-          <div class="viewer-label">
+                    <div class="viewer-label">
+            <button type="button" class="btn-panel-toggle" id="btn-panel-toggle" onclick="toggleLeftPanel()" title="Toggle checklist panel" aria-label="Toggle checklist panel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
             <span>Artwork Viewer</span>
-
             <span class="viewer-badge" id="artwork-status-badge">
               Demo
             </span>
@@ -701,6 +706,22 @@
     </div>
   </div>
 
+    <script>
+    // Sync backdrop with panel state for mobile overlay
+    const _panelObserver = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        if (m.type === "attributes" && m.attributeName === "class") {
+          const panel = document.querySelector(".left-panel");
+          const backdrop = document.getElementById("panel-backdrop");
+          if (panel && backdrop) {
+            backdrop.classList.toggle("open", panel.classList.contains("open"));
+          }
+        }
+      });
+    });
+    const _panelEl = document.querySelector(".left-panel");
+    if (_panelEl) _panelObserver.observe(_panelEl, { attributes: true });
+  </script>
   <script src="js/app.js"></script>
   <script src="js/tests.js"></script>
 </body>

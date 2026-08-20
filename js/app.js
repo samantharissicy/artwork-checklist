@@ -3301,12 +3301,18 @@ function bindChecklistItemEvents(itemElement, item) {
     itemElement.classList.remove("dragging");
   });
 
-  itemElement.addEventListener("mouseenter", () => {
+    itemElement.addEventListener("mouseenter", () => {
     highlightPin(item.id);
   });
 
   itemElement.addEventListener("mouseleave", () => {
     unhighlightPin(item.id);
+  });
+
+  // CAMADA I — Touch-friendly pin target
+  itemElement.addEventListener("click", (event) => {
+    if (event.target.closest("button, textarea, input, label")) return;
+    setPinTargetItem(item.id);
   });
 }
 
@@ -3435,6 +3441,18 @@ function resetTransientReviewUiState() {
 let currentZoom = 1;
 
 // ============================================================
+// CAMADA I — VIEWPORT STATE
+// ============================================================
+
+let currentPan = { x: 0, y: 0 };
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let panInitial = { x: 0, y: 0 };
+let lastTouchDistance = 0;
+let lastTouchCenter = null;
+let pinTargetItemId = null;
+
+// ============================================================
 // ZOOM
 // ============================================================
 
@@ -3453,20 +3471,233 @@ let currentZoom = 1;
  * @param {number} delta - Amount to add to the current zoom level.
  * @returns {void}
  */
-function zoom(delta) {
-  currentZoom = Math.max(0.5, Math.min(2, currentZoom + delta));
-
+function applyViewportTransform() {
   const wrapper = document.getElementById("artwork-wrapper");
-
   const zoomLevel = document.getElementById("zoom-level");
 
   if (wrapper) {
-    wrapper.style.transform = `scale(${currentZoom})`;
+    wrapper.style.transform = `translate(${currentPan.x}px, ${currentPan.y}px) scale(${currentZoom})`;
   }
 
   if (zoomLevel) {
     zoomLevel.textContent = Math.round(currentZoom * 100) + "%";
   }
+}
+
+function zoom(delta) {
+  const canvasArea = document.getElementById("canvas-area");
+  let newZoom = currentZoom + delta;
+  newZoom = Math.max(0.1, Math.min(5, newZoom));
+
+  if (canvasArea && newZoom !== currentZoom) {
+    const rect = canvasArea.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const zoomRatio = newZoom / currentZoom;
+    currentPan.x = centerX - (centerX - currentPan.x) * zoomRatio;
+    currentPan.y = centerY - (centerY - currentPan.y) * zoomRatio;
+  }
+
+  currentZoom = newZoom;
+  applyViewportTransform();
+}
+
+function resetViewport() {
+  currentZoom = 1;
+  currentPan = { x: 0, y: 0 };
+  applyViewportTransform();
+}
+
+function getArtworkNaturalDimensions() {
+  const artworkImage = document.getElementById("artwork-image");
+  const demoArtwork = document.getElementById("demo-artwork");
+  const metadata = getActiveArtworkMetadata();
+
+  if (metadata && !artworkImage.hidden) {
+    return {
+      width: metadata.width || artworkImage.naturalWidth || 480,
+      height: metadata.height || artworkImage.naturalHeight || 640,
+    };
+  }
+
+  if (demoArtwork && !demoArtwork.hidden) {
+    return {
+      width: 480,
+      height: demoArtwork.offsetHeight || 640,
+    };
+  }
+
+  return { width: 480, height: 640 };
+}
+
+function fitArtworkToViewport() {
+  const canvasArea = document.getElementById("canvas-area");
+  if (!canvasArea) return;
+
+  const rect = canvasArea.getBoundingClientRect();
+  const padding = 48;
+  const availableW = Math.max(100, rect.width - padding);
+  const availableH = Math.max(100, rect.height - padding);
+
+  const dims = getArtworkNaturalDimensions();
+  if (!dims.width || !dims.height) return;
+
+  const scale = Math.min(availableW / dims.width, availableH / dims.height, 1);
+  currentZoom = scale;
+
+  const scaledW = dims.width * scale;
+  const scaledH = dims.height * scale;
+
+  currentPan.x = (rect.width - scaledW) / 2;
+  currentPan.y = (rect.height - scaledH) / 2;
+
+  applyViewportTransform();
+}
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+function getTouchCenter(touches, relativeTo) {
+  const r = relativeTo.getBoundingClientRect();
+  return {
+    x: ((touches[0].clientX + touches[1].clientX) / 2) - r.left,
+    y: ((touches[0].clientY + touches[1].clientY) / 2) - r.top,
+  };
+}
+
+function initializeViewportInteractions() {
+  const canvasArea = document.getElementById("canvas-area");
+  const wrapper = document.getElementById("artwork-wrapper");
+  if (!canvasArea || !wrapper) return;
+
+  // Mouse pan
+  canvasArea.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".pin")) return;
+    if (e.button !== 0) return;
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    panInitial = { x: currentPan.x, y: currentPan.y };
+    wrapper.classList.add("is-panning");
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    currentPan.x = panInitial.x + dx;
+    currentPan.y = panInitial.y + dy;
+    applyViewportTransform();
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (isPanning) {
+      isPanning = false;
+      wrapper.classList.remove("is-panning");
+    }
+  });
+
+  // Touch: single-finger pan, two-finger pinch zoom
+  canvasArea.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      if (e.target.closest(".pin")) return;
+      isPanning = true;
+      panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      panInitial = { x: currentPan.x, y: currentPan.y };
+      wrapper.classList.add("is-panning");
+    } else if (e.touches.length === 2) {
+      isPanning = false;
+      lastTouchDistance = getTouchDistance(e.touches);
+      lastTouchCenter = getTouchCenter(e.touches, canvasArea);
+    }
+  }, { passive: false });
+
+  canvasArea.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1 && isPanning) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - panStart.x;
+      const dy = e.touches[0].clientY - panStart.y;
+      currentPan.x = panInitial.x + dx;
+      currentPan.y = panInitial.y + dy;
+      applyViewportTransform();
+    } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches, canvasArea);
+      if (lastTouchDistance > 0) {
+        const scaleFactor = dist / lastTouchDistance;
+        const newZoom = Math.max(0.1, Math.min(5, currentZoom * scaleFactor));
+        if (lastTouchCenter) {
+          const zoomRatio = newZoom / currentZoom;
+          currentPan.x = center.x - (center.x - currentPan.x) * zoomRatio;
+          currentPan.y = center.y - (center.y - currentPan.y) * zoomRatio;
+        }
+        currentZoom = newZoom;
+        applyViewportTransform();
+      }
+      lastTouchDistance = dist;
+      lastTouchCenter = center;
+    }
+  }, { passive: false });
+
+  canvasArea.addEventListener("touchend", () => {
+    isPanning = false;
+    wrapper.classList.remove("is-panning");
+    lastTouchDistance = 0;
+    lastTouchCenter = null;
+  });
+
+  // Wheel zoom towards pointer
+  canvasArea.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    const rect = canvasArea.getBoundingClientRect();
+    const pointX = e.clientX - rect.left;
+    const pointY = e.clientY - rect.top;
+    const newZoom = Math.max(0.1, Math.min(5, currentZoom + delta));
+    const zoomRatio = newZoom / currentZoom;
+    currentPan.x = pointX - (pointX - currentPan.x) * zoomRatio;
+    currentPan.y = pointY - (pointY - currentPan.y) * zoomRatio;
+    currentZoom = newZoom;
+    applyViewportTransform();
+  }, { passive: false });
+
+  // Click-to-pin (touch-friendly alternative to drag-and-drop)
+  canvasArea.addEventListener("click", (e) => {
+    if (isPanning) return;
+    if (!pinTargetItemId || !artworkWrapper) return;
+    if (e.target.closest(".pin")) return;
+
+    const rect = artworkWrapper.getBoundingClientRect();
+    const pin = calculatePinRatios(e.clientX, e.clientY, rect);
+    if (pin) {
+      addPin(pinTargetItemId, pin);
+      clearPinTarget();
+    }
+  });
+}
+
+function setPinTargetItem(itemId) {
+  clearPinTarget();
+  pinTargetItemId = itemId;
+  const el = document.querySelector(`.check-item[data-id="${itemId}"]`);
+  if (el) {
+    el.classList.add("pin-target");
+    showToast("Tap the artwork to place the pin");
+  }
+}
+
+function clearPinTarget() {
+  pinTargetItemId = null;
+  document.querySelectorAll(".check-item.pin-target").forEach((el) => {
+    el.classList.remove("pin-target");
+  });
+}
+
+function toggleLeftPanel() {
+  document.querySelector(".left-panel")?.classList.toggle("open");
 }
 
 // ============================================================
@@ -6268,10 +6499,14 @@ function renderArtworkState() {
       missingState.hidden = true;
     }
 
-    if (artworkImage) {
+        if (artworkImage) {
       artworkImage.src = artworkSession.objectUrl;
 
       artworkImage.hidden = false;
+
+      artworkImage.onload = () => {
+        fitArtworkToViewport();
+      };
     }
 
     if (statusBadge) {
@@ -12152,11 +12387,24 @@ function initializeApp() {
 
   initializeContextMenus();
 
-  renderProductTabs();
+    renderProductTabs();
 
   renderAppState();
 
   bindCheckInput();
+
+  initializeViewportInteractions();
+
+  window.addEventListener("resize", () => {
+    clearTimeout(window._camadaIResizeTimeout);
+    window._camadaIResizeTimeout = setTimeout(() => {
+      fitArtworkToViewport();
+    }, 150);
+  });
+
+  window.addEventListener("orientationchange", () => {
+    setTimeout(fitArtworkToViewport, 200);
+  });
 }
 
 initializeApp();

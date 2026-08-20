@@ -217,3 +217,191 @@
 .app-dialog-btn-danger:hover {
   background: #b91c1c;
 }
+
+/* ==========================================================
+   CAMADA I — RESPONSIVE ARTWORK VIEWER
+   ========================================================== */
+
+/* Touch-friendly targets on coarse pointers */
+@media (pointer: coarse) {
+  .review-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pin-marker {
+    width: 36px;
+    height: 36px;
+    font-size: 11px;
+    border-width: 3px;
+  }
+
+  .check-item {
+    padding: 10px 12px;
+  }
+
+  .section-btn {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .left-panel {
+    width: 360px;
+  }
+
+  .header-context {
+    gap: 10px;
+  }
+
+  .context-item {
+    font-size: 10px;
+  }
+}
+
+/* Small tablet / mobile landscape */
+@media (max-width: 768px) {
+  .main {
+    position: relative;
+  }
+
+  .left-panel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 88%;
+    max-width: 380px;
+    z-index: 90;
+    transform: translateX(-101%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.18);
+  }
+
+  .left-panel.open {
+    transform: translateX(0);
+  }
+
+  .right-panel {
+    width: 100%;
+  }
+
+  .header-context {
+    display: none;
+  }
+
+  .header-title {
+    font-size: 13px;
+  }
+
+  .viewer-toolbar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .viewer-label {
+    min-width: 0;
+  }
+
+  .artwork-meta {
+    max-width: 160px;
+  }
+
+  .canvas-area {
+    padding: 12px;
+  }
+
+  .product-tabs-shell {
+    padding: 6px 8px;
+  }
+
+  .product-action-btn,
+  .product-new-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+}
+
+/* Very small viewports */
+@media (max-width: 480px) {
+  .header {
+    padding: 8px 12px;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .btn-open,
+  .btn-save {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .btn-open span,
+  .btn-save span {
+    display: none;
+  }
+
+  .viewer-badge {
+    display: none;
+  }
+
+  .artwork-meta {
+    display: none;
+  }
+
+  .zoom-text {
+    width: 36px;
+  }
+}
+
+/* Panel overlay backdrop */
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 85;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.panel-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toolbar panel toggle button */
+.btn-panel-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.btn-panel-toggle:hover {
+  background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .btn-panel-toggle {
+    display: inline-flex;
+  }
+}
+
+/* Ensure demo artwork defines wrapper size consistently */
+.artwork {
+  width: 480px;
+  max-width: none;
+}
