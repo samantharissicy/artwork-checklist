@@ -16,6 +16,7 @@
 // - normalized artwork pins;
 // - local persistence;
 // - JSON import/export;
+// - printable approval reports;
 // - UI rendering and dialogs.
 //
 // The application follows a data-first architecture:
@@ -4158,6 +4159,213 @@ function updateProgress() {
   if (progressBar) {
     progressBar.style.width = m.reviewProgress + "%";
   }
+}
+
+// ============================================================
+// REPORT MODEL — J1
+// ============================================================
+
+/**
+ * Returns the latest valid ISO timestamp associated with a product review.
+ *
+ * Completed department decisions are considered alongside the current
+ * reviewer timestamp and the product's last modification. Invalid or empty
+ * values are ignored so incomplete reviews still produce a usable report.
+ *
+ * @param {Product} product - Product whose review date should be derived.
+ * @returns {string|null} Latest valid timestamp, or null when unavailable.
+ */
+function deriveReportReviewDate(product) {
+  const candidates = [
+    product?.reviewer?.reviewedAt,
+    ...(Array.isArray(product?.signOffs)
+      ? product.signOffs.map((signOff) => signOff.reviewedAt)
+      : []),
+    product?.updatedAt,
+  ];
+
+  return candidates.reduce((latest, value) => {
+    if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+      return latest;
+    }
+
+    if (!latest || Date.parse(value) > Date.parse(latest)) {
+      return value;
+    }
+
+    return latest;
+  }, null);
+}
+
+/**
+ * Creates the detached report representation of one checklist item.
+ *
+ * @param {ReviewItem} item - Domain item to project.
+ * @param {Object} section - Canonical section definition owning the item.
+ * @returns {Object} Report-safe checklist item.
+ */
+function buildReportItemData(item, section) {
+  return {
+    id: item.id,
+    sectionId: section.id,
+    sectionTitle: section.title,
+    originalTitle: item.originalTitle,
+    currentTitle: item.currentTitle,
+    note: item.note,
+    status: item.status,
+    comment: item.comment,
+    isEdited: item.currentTitle !== item.originalTitle,
+  };
+}
+
+/**
+ * Builds a detached, print-oriented representation of one product review.
+ *
+ * The report model is deliberately derived from appState rather than the DOM.
+ * It introduces no persisted fields and never mutates the supplied product.
+ * Canonical section definitions provide ordering and category names while the
+ * product supplies all review decisions and user-entered content.
+ *
+ * @param {Product|null} product - Product review to represent.
+ * @returns {Object|null} Complete intermediate report data, or null when no
+ *   product is supplied.
+ */
+function buildReportData(product) {
+  if (!product || !isPlainObject(product.items)) {
+    return null;
+  }
+
+  const generatedAt = new Date().toISOString();
+
+  const sections = sectionDefinitions.map((section) => {
+    const items = section.items
+      .map((definition) => product.items[definition.id])
+      .filter(Boolean)
+      .map((item) => buildReportItemData(item, section));
+
+    return {
+      id: section.id,
+      title: section.title,
+      metrics: computeReviewMetricsForItems(items),
+      items,
+    };
+  });
+
+  const items = sections.flatMap((section) => section.items);
+  const metrics = computeReviewMetricsForItems(items);
+  const overallStatus = computeOverallApproval(product);
+  const finalValidation = validateFinalSignOff(product);
+  const reviewDate = deriveReportReviewDate(product);
+
+  const approvedItems = items.filter(
+    (item) => item.status === REVIEW_STATUSES.APPROVED,
+  );
+
+  const rejectedItems = items.filter(
+    (item) => item.status === REVIEW_STATUSES.REJECTED,
+  );
+
+  const pendingItems = items.filter(
+    (item) => item.status === REVIEW_STATUSES.PENDING,
+  );
+
+  const comments = items
+    .filter((item) => item.comment.trim() !== "")
+    .map((item) => ({
+      itemId: item.id,
+      sectionId: item.sectionId,
+      sectionTitle: item.sectionTitle,
+      title: item.currentTitle,
+      status: item.status,
+      comment: item.comment,
+    }));
+
+  const copyCorrections = items
+    .filter((item) => item.isEdited)
+    .map((item) => ({
+      itemId: item.id,
+      sectionId: item.sectionId,
+      sectionTitle: item.sectionTitle,
+      originalTitle: item.originalTitle,
+      currentTitle: item.currentTitle,
+    }));
+
+  const signOffs = (Array.isArray(product.signOffs) ? product.signOffs : []).map(
+    (signOff) => ({
+      departmentId: signOff.departmentId,
+      departmentName: signOff.departmentName,
+      reviewer: cloneReviewerIdentity(signOff.reviewer),
+      status: signOff.status,
+      comment: signOff.comment,
+      reviewedAt: signOff.reviewedAt,
+      artworkVersion: signOff.artworkVersion,
+      signature: cloneDepartmentSignature(signOff.signature),
+    }),
+  );
+
+  const signatures = signOffs
+    .filter((signOff) => signOff.signature !== null)
+    .map((signOff) => ({
+      departmentId: signOff.departmentId,
+      departmentName: signOff.departmentName,
+      reviewer: cloneReviewerIdentity(signOff.reviewer),
+      ...cloneDepartmentSignature(signOff.signature),
+    }));
+
+  return {
+    generatedAt,
+    reviewDate,
+
+    productInformation: {
+      id: product.id,
+      brand: product.brand,
+      productName: product.productName,
+      weight: product.weight,
+      sku: product.sku,
+      productionCode: product.productionCode,
+      site: product.site,
+      artworkVersion: product.artworkVersion,
+      artworkLayers: product.artworkLayers.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        artwork: cloneArtworkMetadata(layer.artwork),
+      })),
+    },
+
+    reviewMetadata: {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      reviewDate,
+      generatedAt,
+      overallStatus,
+      finalApprovalValid: finalValidation.valid,
+      blockers: [...finalValidation.blockers],
+      metrics: { ...metrics },
+      commentCount: comments.length,
+      copyCorrectionCount: copyCorrections.length,
+      signedDepartmentCount: signatures.length,
+    },
+
+    sections,
+    approvedItems,
+    rejectedItems,
+    pendingItems,
+    comments,
+    copyCorrections,
+
+    reviewer: {
+      name: String(product.reviewer?.name ?? "").trim(),
+      role: String(product.reviewer?.role ?? "").trim(),
+      reviewedAt:
+        typeof product.reviewer?.reviewedAt === "string"
+          ? product.reviewer.reviewedAt
+          : null,
+    },
+
+    signOffs,
+    signatures,
+  };
 }
 
 // ============================================================
@@ -9436,6 +9644,387 @@ function bindSignOffUi() {
 }
 
 // ============================================================
+// PRINTABLE APPROVAL REPORT — J2–J3
+// ============================================================
+
+/**
+ * Formats an ISO timestamp for the human-readable print report.
+ *
+ * @param {string|null} value - Timestamp to display.
+ * @returns {string} Localized date/time or a stable empty-state label.
+ */
+function formatReportDate(value) {
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+    return "Not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+/**
+ * Converts an optional report value into printable text.
+ *
+ * @param {*} value - Value to normalize.
+ * @param {string} [fallback="Not provided"] - Empty-state text.
+ * @returns {string} Non-empty printable value.
+ */
+function getReportDisplayValue(value, fallback = "Not provided") {
+  const normalized = String(value ?? "").trim();
+
+  return normalized || fallback;
+}
+
+/**
+ * Builds one field in the printable product information grid.
+ *
+ * @param {string} label - Field label.
+ * @param {*} value - Field value.
+ * @returns {string} Product field markup.
+ */
+function buildPrintReportFieldMarkup(label, value) {
+  return `
+    <div class="print-report-field">
+      <dt>${escapeHtml(label)}</dt>
+      <dd>${escapeHtml(getReportDisplayValue(value))}</dd>
+    </div>
+  `;
+}
+
+/**
+ * Builds one checklist row for the printable report.
+ *
+ * @param {Object} item - Report-model checklist item.
+ * @returns {string} Printable item row markup.
+ */
+function buildPrintReportItemMarkup(item) {
+  const correctionMarkup = item.isEdited
+    ? `
+      <div class="print-report-correction">
+        <span><strong>Original:</strong> ${escapeHtml(item.originalTitle)}</span>
+        <span><strong>Reviewed copy:</strong> ${escapeHtml(item.currentTitle)}</span>
+      </div>
+    `
+    : "";
+
+  const commentMarkup = item.comment.trim()
+    ? `
+      <div class="print-report-comment">
+        <strong>Comment:</strong>
+        <span>${escapeHtml(item.comment)}</span>
+      </div>
+    `
+    : "";
+
+  const noteMarkup = item.note.trim()
+    ? `<p class="print-report-item-note">${escapeHtml(item.note)}</p>`
+    : "";
+
+  return `
+    <tr data-report-item="${escapeHtml(item.id)}" data-status="${escapeHtml(
+      item.status,
+    )}">
+      <td class="print-report-item-ref">${escapeHtml(item.id.toUpperCase())}</td>
+      <td>
+        <strong class="print-report-item-title">${escapeHtml(
+          item.currentTitle,
+        )}</strong>
+        ${noteMarkup}
+        ${correctionMarkup}
+        ${commentMarkup}
+      </td>
+      <td class="print-report-item-status-cell">
+        <span class="print-report-status" data-status="${escapeHtml(
+          item.status,
+        )}">${escapeHtml(getReviewStatusLabel(item.status))}</span>
+      </td>
+    </tr>
+  `;
+}
+
+/**
+ * Builds one canonical checklist section for the printable report.
+ *
+ * @param {Object} section - Report-model section.
+ * @returns {string} Printable section markup.
+ */
+function buildPrintReportSectionMarkup(section) {
+  const metrics = section.metrics;
+
+  return `
+    <section class="print-report-section" data-report-section="${escapeHtml(
+      section.id,
+    )}">
+      <header class="print-report-section-header">
+        <h2>${escapeHtml(section.title)}</h2>
+        <p>
+          ${metrics.approved} Approved ·
+          ${metrics.rejected} Rejected ·
+          ${metrics.pending} Pending
+        </p>
+      </header>
+      <table class="print-report-items">
+        <colgroup>
+          <col class="print-report-ref-column" />
+          <col />
+          <col class="print-report-status-column" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Ref</th>
+            <th scope="col">Requirement and review detail</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${section.items.map(buildPrintReportItemMarkup).join("")}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
+/**
+ * Builds one cross-functional department block for the print report.
+ *
+ * @param {Object} signOff - Detached report-model department decision.
+ * @returns {string} Printable sign-off markup.
+ */
+function buildPrintReportSignOffMarkup(signOff) {
+  const reviewer = [signOff.reviewer.name, signOff.reviewer.role]
+    .filter((value) => value.trim() !== "")
+    .join(" · ");
+
+  const signatureMarkup = signOff.signature
+    ? `
+      <figure class="print-report-signature">
+        <img src="${escapeHtml(signOff.signature.dataUrl)}" alt="${escapeHtml(
+          `${signOff.departmentName} signature`,
+        )}" />
+        <figcaption>Signed ${escapeHtml(
+          formatReportDate(signOff.signature.signedAt),
+        )}</figcaption>
+      </figure>
+    `
+    : `<p class="print-report-signature-empty">Not signed</p>`;
+
+  return `
+    <article class="print-report-signoff" data-report-department="${escapeHtml(
+      signOff.departmentId,
+    )}" data-status="${escapeHtml(signOff.status)}">
+      <header>
+        <h3>${escapeHtml(signOff.departmentName)}</h3>
+        <span class="print-report-status" data-status="${escapeHtml(
+          signOff.status,
+        )}">${escapeHtml(getReviewStatusLabel(signOff.status))}</span>
+      </header>
+      <dl class="print-report-signoff-meta">
+        <div>
+          <dt>Reviewer</dt>
+          <dd>${escapeHtml(getReportDisplayValue(reviewer, "Not recorded"))}</dd>
+        </div>
+        <div>
+          <dt>Decision date</dt>
+          <dd>${escapeHtml(formatReportDate(signOff.reviewedAt))}</dd>
+        </div>
+        <div>
+          <dt>Artwork revision</dt>
+          <dd>${escapeHtml(getReportDisplayValue(signOff.artworkVersion))}</dd>
+        </div>
+      </dl>
+      <div class="print-report-department-comment">
+        <strong>Department comment</strong>
+        <p>${escapeHtml(
+          getReportDisplayValue(signOff.comment, "No department comment."),
+        )}</p>
+      </div>
+      ${signatureMarkup}
+    </article>
+  `;
+}
+
+/**
+ * Builds the complete state-derived print document.
+ *
+ * @param {Object} reportData - Intermediate report data from buildReportData.
+ * @returns {string} Printable report markup.
+ */
+function buildPrintReportMarkup(reportData) {
+  const product = reportData.productInformation;
+  const metadata = reportData.reviewMetadata;
+  const metrics = metadata.metrics;
+  const artworkLayers = product.artworkLayers
+    .map((layer) =>
+      layer.artwork
+        ? `${layer.name} — ${layer.artwork.name}`
+        : `${layer.name} — file not set`,
+    )
+    .join("; ");
+
+  const blockersMarkup = metadata.finalApprovalValid
+    ? `<p class="print-report-ready">Final approval requirements are satisfied.</p>`
+    : `
+      <div class="print-report-blockers">
+        <strong>Outstanding blockers</strong>
+        <ul>
+          ${metadata.blockers
+            .map((blocker) => `<li>${escapeHtml(blocker)}</li>`)
+            .join("")}
+        </ul>
+      </div>
+    `;
+
+  return `
+    <header class="print-report-header">
+      <div class="print-report-branding">
+        <span class="print-report-logo" aria-hidden="true">P</span>
+        <div>
+          <p>Artwork &amp; Pack Copy Checklist</p>
+          <h1>Artwork Approval Report</h1>
+          <span>BRCGS Product Labelling 5.2.1 · Multi-Site Aligned</span>
+        </div>
+      </div>
+      <div class="print-report-overall">
+        <span>Overall approval</span>
+        <strong class="print-report-status" data-status="${escapeHtml(
+          metadata.overallStatus,
+        )}">${escapeHtml(getReviewStatusLabel(metadata.overallStatus))}</strong>
+      </div>
+    </header>
+
+    <section class="print-report-summary" aria-labelledby="print-report-product-title">
+      <div class="print-report-summary-heading">
+        <div>
+          <p class="print-report-eyebrow">Product identification</p>
+          <h2 id="print-report-product-title">${escapeHtml(
+            getReportDisplayValue(product.productName, "Unnamed product"),
+          )}</h2>
+        </div>
+        <div class="print-report-dates">
+          <span><strong>Review date</strong> ${escapeHtml(
+            formatReportDate(reportData.reviewDate),
+          )}</span>
+          <span><strong>Generated</strong> ${escapeHtml(
+            formatReportDate(reportData.generatedAt),
+          )}</span>
+        </div>
+      </div>
+
+      <dl class="print-report-product-grid">
+        ${buildPrintReportFieldMarkup("Brand", product.brand)}
+        ${buildPrintReportFieldMarkup("Product name", product.productName)}
+        ${buildPrintReportFieldMarkup("Weight", product.weight)}
+        ${buildPrintReportFieldMarkup("SKU", product.sku)}
+        ${buildPrintReportFieldMarkup("Production code", product.productionCode)}
+        ${buildPrintReportFieldMarkup("Site", product.site)}
+        ${buildPrintReportFieldMarkup("Artwork revision", product.artworkVersion)}
+        ${buildPrintReportFieldMarkup("Artwork layers", artworkLayers)}
+      </dl>
+
+      <div class="print-report-metrics" aria-label="Review metrics">
+        <div><strong>${metrics.total}</strong><span>Total items</span></div>
+        <div data-status="approved"><strong>${metrics.approved}</strong><span>Approved</span></div>
+        <div data-status="rejected"><strong>${metrics.rejected}</strong><span>Rejected</span></div>
+        <div data-status="pending"><strong>${metrics.pending}</strong><span>Pending</span></div>
+        <div><strong>${Math.round(metrics.reviewProgress)}%</strong><span>Reviewed</span></div>
+        <div><strong>${Math.round(metrics.approvalRate)}%</strong><span>Approved rate</span></div>
+      </div>
+
+      <p class="print-report-reviewer">
+        <strong>Current reviewer:</strong>
+        ${escapeHtml(
+          getReportDisplayValue(
+            [reportData.reviewer.name, reportData.reviewer.role]
+              .filter((value) => value.trim() !== "")
+              .join(" · "),
+            "Not recorded",
+          ),
+        )}
+      </p>
+
+      ${blockersMarkup}
+    </section>
+
+    <section class="print-report-checklist" aria-label="Checklist review by category">
+      ${reportData.sections.map(buildPrintReportSectionMarkup).join("")}
+    </section>
+
+    <section class="print-report-signoffs" aria-labelledby="print-report-signoffs-title">
+      <header class="print-report-signoffs-header">
+        <p class="print-report-eyebrow">Cross-functional review</p>
+        <h2 id="print-report-signoffs-title">Department Sign-Off</h2>
+        <p>Decisions and signatures apply to the artwork revision shown above.</p>
+      </header>
+      <div class="print-report-signoff-grid">
+        ${reportData.signOffs.map(buildPrintReportSignOffMarkup).join("")}
+      </div>
+    </section>
+
+    <footer class="print-report-footer">
+      <span>Product ID: ${escapeHtml(product.id)}</span>
+      <span>Schema v${metadata.schemaVersion}</span>
+      <span>Generated ${escapeHtml(formatReportDate(reportData.generatedAt))}</span>
+    </footer>
+  `;
+}
+
+/**
+ * Projects a product into the screen-hidden print report container.
+ *
+ * @param {Product|null} [product=getActiveProduct()] - Product to render.
+ * @returns {Object|null} Report data used for rendering, or null on failure.
+ */
+function renderPrintReport(product = getActiveProduct()) {
+  const container = document.getElementById("print-report");
+  const reportData = buildReportData(product);
+
+  if (!container || !reportData) {
+    return null;
+  }
+
+  container.innerHTML = buildPrintReportMarkup(reportData);
+  container.dataset.productId = product.id;
+  container.dataset.overallStatus = reportData.reviewMetadata.overallStatus;
+
+  return reportData;
+}
+
+/**
+ * Renders the active approval report and opens the browser print dialog.
+ *
+ * The native print dialog supplies the MVP's Save as PDF capability, keeping
+ * the application dependency-free as required by J3.
+ *
+ * @param {Function} [printFunction=window.print] - Injectable print boundary.
+ * @returns {boolean} True when the print workflow was started.
+ */
+function printApprovalReport(printFunction = window.print) {
+  const reportData = renderPrintReport(getActiveProduct());
+
+  if (!reportData || typeof printFunction !== "function") {
+    showToast("Unable to generate the approval report.");
+    return false;
+  }
+
+  printFunction.call(window);
+
+  return true;
+}
+
+/**
+ * Keeps the native Ctrl/Cmd+P path aligned with the active product.
+ *
+ * @returns {void}
+ */
+function bindPrintReport() {
+  window.addEventListener("beforeprint", () => {
+    renderPrintReport(getActiveProduct());
+  });
+}
+
+// ============================================================
 // COMPLETE STATE RENDER
 // ============================================================
 
@@ -11532,7 +12121,10 @@ window.addEventListener("beforeunload", () => {
  * 6. renderProductTabs()
  *    Builds the multi-product workspace navigation.
  *
- * 7. renderAppState()
+ * 7. bindPrintReport()
+ *    Keeps native browser printing synchronized with the active review.
+ *
+ * 8. renderAppState()
  *    Synchronizes the remaining interface with the active product.
  *
  * If no valid persisted state exists, the application continues using the
@@ -11555,6 +12147,8 @@ function initializeApp() {
   bindAppDialog();
 
   bindSignOffUi();
+
+  bindPrintReport();
 
   initializeContextMenus();
 

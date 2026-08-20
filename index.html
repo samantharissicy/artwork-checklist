@@ -76,6 +76,18 @@
           <span id="signoff-button-status" class="signoff-button-status">Pending</span>
         </button>
 
+        <button type="button" id="print-report-button" class="btn-report" onclick="printApprovalReport()"
+          title="Generate the approval report and open Save as PDF" aria-controls="print-report">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9V2h12v7" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect width="12" height="8" x="6" y="14" />
+          </svg>
+
+          <span>Print Report</span>
+        </button>
+
         <button type="button" class="btn-open" onclick="openCheck()" title="Open a saved review">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -406,6 +418,12 @@
       </div>
     </div>
   </div>
+
+  <!-- ========================================================
+     PRINTABLE APPROVAL REPORT — J1–J3
+     Screen-hidden; populated from appState immediately before printing.
+     ======================================================== -->
+  <section id="print-report" class="print-report" aria-label="Printable artwork approval report"></section>
 
   <!-- ========================================================
      PRODUCT TAB CONTEXT MENU

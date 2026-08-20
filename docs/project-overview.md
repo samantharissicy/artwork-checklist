@@ -44,6 +44,7 @@ There is no authentication and no multi-user model in the current MVP: the tool 
 - Normalized pins (`xRatio`/`yRatio` in 0..1) with zoom independence, drag-and-drop from checklist, pin↔item navigation, Clear Pins.
 - Persistence: schema-v5 versioned `localStorage`, legacy key migration (v1/v2/v3/v4), Save Check JSON export, Open Check import with validation.
 - Cross-functional approval: reviewer identity, three independent required department decisions, optional signatures and derived final status.
+- Printable approval report: detached state-derived model, A4 print layout grouped by category and native browser Save as PDF.
 - Legacy `pantoneColors` metadata preserved read-only for backwards compatibility (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
 
 ## Explicitly Excluded Scope (current MVP)
@@ -51,7 +52,6 @@ There is no authentication and no multi-user model in the current MVP: the tool 
 | Excluded | Reason / status |
 | --- | --- |
 | Backend, database, authentication, multi-user | No real multi-user need yet; future layer M |
-| Report generation / PDF | Future layer J |
 | High-resolution artwork strategies | Future layer I |
 | Responsive/touch alternatives to HTML drag-and-drop | Future layer K3 |
 | Automatic colour reading, RGB/HEX conversion, eyedropper, OCR, pack-copy upload | Explicitly not part of the Pantone compliance workflow |
@@ -77,7 +77,7 @@ The project follows a specification-driven methodology: incremental, specificati
 
 Development is guided by an external development plan (previously `planning.md`, removed from this repository in commit `48ff58c`). Layers are developed in sequence (A0 baseline → B state → C workflow → D persistence → E geometry → F metrics → G multi-product/multi-layer/Pantone → H sign-off → I high-res → J report → K quality → L refactor → M backend). Each completed layer must leave the system functional and pass its acceptance criteria.
 
-Implemented layers as of today: **A0, B1, C1, C2, C3, D1–D4, E1, E2, F1, G1–G5** (F1 metrics: counters, review/approval percentages and progress bar). See [future/layer-planning.md](future/layer-planning.md).
+Implemented layers as of today: **A0, B1, C1, C2, C3, D1–D4, E1, E2, F1, G1–G5, H1–H4 and J1–J3** (Layer I remains planned independently). See [future/layer-planning.md](future/layer-planning.md).
 
 ## CURRENT vs PLANNED vs FUTURE
 

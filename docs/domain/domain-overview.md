@@ -25,6 +25,9 @@ flowchart LR
   Product --> SignOffs[Required Department Sign-Offs]
   SignOffs --> Overall[Derived Overall Approval]
   SignOffs --> Signatures[Optional Signatures]
+  Product --> Report[Printable Approval Report]
+  Items --> Report
+  SignOffs --> Report
 ```
 
 ## Concepts (implemented)
@@ -47,12 +50,12 @@ flowchart LR
 | **Department Sign-Off** | Independent revision-bound decision by Quality, Production or Product Development | H2, `product.signOffs[]` |
 | **Visual Signature** | Optional bounded PNG signature attached to one completed department decision | H3, `DepartmentSignature` |
 | **Overall Approval** | Derived status: any rejection → Rejected; all valid required approvals → Approved; otherwise Pending | H4, `computeOverallApproval` |
+| **Approval Report** | Detached state-derived summary of product, checklist, comments, corrections, reviewer, sign-offs/signatures and dates; printable to PDF through the browser | J1–J3, [reporting.md](../architecture/reporting.md) |
 
 ## Concepts (planned — not implemented)
 
 | Concept | Status | Planned layer |
 | --- | --- | --- |
-| **Report / PDF** | Printable report and print view | J1–J3 |
 | **Artwork Revision history** | Versioned revisions with per-revision checklists | M3 |
 | **Audit trail** | Who did what, when | M4 |
 

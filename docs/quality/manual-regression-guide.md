@@ -128,6 +128,19 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 - [ ] Save Check downloads a `.json` file with `schemaVersion: 5`, product, items (50), layers, pins and all sign-offs/signatures.
 - [ ] Saved file opens without errors.
 
+## Printable Approval Report (J1–J3)
+
+- [ ] Header **Print Report** opens the browser print dialog for the active product.
+- [ ] The normal screen remains unchanged before/after printing; the toolbar, workspace controls, modals and progress footer do not appear in print preview.
+- [ ] The report header shows product identity, artwork revision, overall status, review/generated dates and all six review metrics.
+- [ ] All 6 categories and all 50 items appear even when checklist sections are collapsed on screen.
+- [ ] Item statuses, non-empty comments and original/current copy corrections appear under the correct item.
+- [ ] Reviewer identity, Quality/Production/Product Development decisions, comments, timestamps and saved signatures appear in the sign-off pages.
+- [ ] A Pending or Rejected review can still be printed and its final-approval blockers are visible.
+- [ ] Page breaks do not cut checklist rows or sign-off cards in the tested browser; table headers repeat on continued pages where supported.
+- [ ] Choose **Save as PDF**, save a local file and open it to confirm readable A4 pages. Browser-provided headers/footers are optional user settings.
+- [ ] Ctrl/Cmd+P prints current active-product data even if **Print Report** was not clicked first.
+
 ## Open Check
 
 - [ ] Open Check imports a valid v5 file as a **new** product and activates it.
@@ -153,8 +166,8 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 
 ## Final
 
-- [ ] Full test suite: `await runArtworkTests()` → `449/449 tests passed` (expected count is time-sensitive).
-- [ ] Automation URL: `http://localhost:5500/?run-tests=1` shows `449/449 automated tests passed`.
+- [ ] Full test suite: `await runArtworkTests()` → `487/487 tests passed` (expected count is time-sensitive).
+- [ ] Automation URL: `http://localhost:5500/?run-tests=1` shows `487/487 automated tests passed`.
 - [ ] No application-generated console errors (except the known `blob:` fixture warning from `G4UX-028`).
 - [ ] `git diff` shows only intended files.
 

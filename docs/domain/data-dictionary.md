@@ -105,6 +105,26 @@ Field-by-field reference for all persisted data. Models and factories: [data-mod
 | `width` | signature | number | yes | `900` | Positive intrinsic canvas width |
 | `height` | signature | number | yes | `260` | Positive intrinsic canvas height |
 
+## ReportData (derived, not persisted)
+
+`buildReportData(product)` creates this detached projection only when a report is requested. It is not part of schema v5, `appState`, localStorage or Save Check JSON.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `generatedAt` | string | ISO report-generation timestamp |
+| `reviewDate` | string\|null | Latest valid reviewer/sign-off/product-update timestamp |
+| `productInformation` | object | Detached product fields and artwork-layer metadata |
+| `reviewMetadata` | object | Schema/timestamps, derived overall/final status, blockers, metrics and summary counts |
+| `sections` | array | Six canonical categories with metrics and detached review items |
+| `approvedItems` | array | Items whose status is `approved` |
+| `rejectedItems` | array | Items whose status is `rejected` |
+| `pendingItems` | array | Items whose status is `pending` |
+| `comments` | array | Non-empty item comments with item/category context |
+| `copyCorrections` | array | Edited items with original and current copy |
+| `reviewer` | object | Current reviewer snapshot |
+| `signOffs` | array | Detached department decisions and optional signatures |
+| `signatures` | array | Signed-department summary |
+
 ## Legacy PantoneColour (backwards compatibility only)
 
 | Field | Owner | Type | Required | Default | Meaning |
@@ -133,3 +153,4 @@ Limits: `PANTONE_LIMITS = { CODE: 120, NAME: 120, NOTES: 500 }`.
 - [glossary.md](glossary.md)
 - [persistence/serialization.md](../persistence/serialization.md)
 - [cross-functional-signoff.md](cross-functional-signoff.md)
+- [architecture/reporting.md](../architecture/reporting.md)

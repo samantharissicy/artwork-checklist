@@ -22,6 +22,8 @@ flowchart TD
   J --> K[Optional department signatures]
   K --> L[Derived overall approval]
   L --> M[Save Check<br/>export JSON]
+  M --> N[Print Report<br/>state-derived A4 view]
+  N --> O[Save as PDF<br/>browser print dialog]
 ```
 
 ## Status Transitions
@@ -114,9 +116,18 @@ Quality, Production and Product Development are all required. Any rejection make
 
 See [cross-functional-signoff.md](cross-functional-signoff.md) for the full decision, signature and persistence rules.
 
+## Printable Approval Report — J1–J3
+
+Use **Print Report** in the header after or during review. The application builds a fresh report from the active product state, groups all items by category and includes statuses, comments, copy corrections, reviewer data, department decisions, signatures, dates, metrics and final blockers.
+
+The report can be printed while approval is Pending or Rejected; blockers remain visible so it is also useful as a review-progress record. Printing does not mark the review complete or change any state.
+
+In the browser dialog, choose **Save as PDF** for a PDF copy. Ctrl/Cmd+P is also supported because the report refreshes on `beforeprint`. See [architecture/reporting.md](../architecture/reporting.md).
+
 ## Related Documents
 
 - [domain-overview.md](domain-overview.md)
 - [business-rules.md](business-rules.md)
 - [cross-functional-signoff.md](cross-functional-signoff.md)
+- [architecture/reporting.md](../architecture/reporting.md)
 - [quality/manual-regression-guide.md](../quality/manual-regression-guide.md)

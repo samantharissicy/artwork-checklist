@@ -102,6 +102,18 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 | BR-IMPORT-002 | Unsupported or invalid import files shall be rejected with a friendly message and leave current state untouched. | `validateImportData` → toast |
 | BR-IMPORT-003 | Imported reviews become new products in the workspace (never overwrite). | `applyImportedReview` — new product inserted, activated |
 
+## BR-REPORT — Approval reporting
+
+| ID | Rule | Enforced by |
+| --- | --- | --- |
+| BR-REPORT-001 | Report data shall be derived from product state and canonical checklist definitions, never scraped from the interactive DOM. | `buildReportData`; J tests |
+| BR-REPORT-002 | The report shall contain all six categories and all 50 items regardless of section expansion state. | `buildReportData`; `buildPrintReportMarkup` |
+| BR-REPORT-003 | Approved, Rejected and Pending collections/counts shall derive from each item's single canonical status. | `buildReportData`; `computeReviewMetricsForItems` |
+| BR-REPORT-004 | Overall report approval and blockers shall reuse cross-functional final-validation rules. | `computeOverallApproval`; `validateFinalSignOff` |
+| BR-REPORT-005 | Report generation shall not mutate or persist product state. | detached cloning in `buildReportData`; J non-mutation tests |
+| BR-REPORT-006 | User-entered report content shall be escaped before insertion into print markup. | `escapeHtml` in print builders |
+| BR-REPORT-007 | The first PDF workflow shall use native browser printing without a PDF dependency. | `printApprovalReport` → `window.print` |
+
 ## BR-ARTWORK — Artwork metadata
 
 | ID | Rule | Enforced by |
@@ -116,3 +128,4 @@ Formal rule catalog derived from the actual implementation (`js/app.js` + tests)
 - [review-workflow.md](review-workflow.md)
 - [data-dictionary.md](data-dictionary.md)
 - [cross-functional-signoff.md](cross-functional-signoff.md)
+- [architecture/reporting.md](../architecture/reporting.md)

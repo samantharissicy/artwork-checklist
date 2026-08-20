@@ -11,6 +11,7 @@
  * - logo;
  * - title and subtitle;
  * - environment/version badges;
+ * - Print Report action;
  * - Open Check action;
  * - Save Check action.
  */
@@ -120,6 +121,7 @@
 }
 /* Header actions */
 
+.btn-report,
 .btn-open,
 .btn-save {
   min-height: 32px;
@@ -148,8 +150,9 @@
     transform 0.1s ease;
 }
 
-/* Open Check = secondary action */
+/* Print Report / Open Check = secondary actions */
 
+.btn-report,
 .btn-open {
   background: #1e293b;
   border: 1px solid #475569;
@@ -157,6 +160,7 @@
   color: #e2e8f0;
 }
 
+.btn-report:hover,
 .btn-open:hover {
   background: #334155;
   border-color: #64748b;
@@ -166,6 +170,7 @@
   transform: translateY(-1px);
 }
 
+.btn-report:active,
 .btn-open:active {
   transform: translateY(0);
 }
@@ -192,6 +197,7 @@
 
 /* Keyboard accessibility */
 
+.btn-report:focus-visible,
 .btn-open:focus-visible,
 .btn-save:focus-visible {
   outline: none;
@@ -203,6 +209,7 @@
 
 /* Icon */
 
+.btn-report svg,
 .btn-open svg,
 .btn-save svg {
   flex-shrink: 0;

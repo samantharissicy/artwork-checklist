@@ -12,8 +12,7 @@
 | Cross-machine reviews | Backend API |
 | Audit requirements | Immutable audit trail, revision history |
 | Shared artwork storage | Object storage |
-| Cross-functional approvals | Department sign-off workflow (planned H) |
-| Reporting needs | Report model + print/PDF (planned J) |
+| Deterministic server PDF/archive | Server-side report rendering only if native browser printing proves insufficient |
 | Large product/team scale | Module separation, search/filter, dashboards |
 
 ## Possible Future Shape
@@ -33,19 +32,20 @@ This shape is **illustrative only**: concrete technologies (framework, language,
 - The domain model (products, layers, items, pins) is storage-agnostic and would survive a backend transition.
 - The review workflow (Pending/Approved/Rejected, comments, pins, 6I) is the product's core value and stays.
 - The checklist content (6 sections, 50 items) is the regulatory representation and stays.
+- The detached `ReportData` boundary can feed a future server renderer without scraping the UI.
 
 ## Architectural Debt That Constrains the Future
 
 | Constraint | Implication |
 | --- | --- |
-| `js/app.js` is one classic script (~9,860 lines) | Module split (planned L1) should precede large future features |
+| `js/app.js` is one classic script (~12,160 lines) | Module split (planned L1) should precede large future features |
 | State discipline is by convention | A backend client layer must respect the same mutation/validation boundaries |
-| No report model | planned J must introduce `buildReportData(product)` before any print/PDF |
 | No revision model | planned M3 must introduce Product → Artwork → Revision before audit history |
 
 ## Related Documents
 
 - [backend-transition.md](backend-transition.md) — the concrete migration map if a backend appears.
 - [layer-planning.md](layer-planning.md) — layer dependencies.
+- [architecture/reporting.md](../architecture/reporting.md) — current state-derived native-print implementation.
 - [quality/security-considerations.md](../quality/security-considerations.md) — future security requirements.
 - [docs/README.md](../README.md) — CURRENT vs FUTURE labeling policy.

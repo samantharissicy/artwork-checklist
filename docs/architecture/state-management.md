@@ -41,6 +41,7 @@ Reads go through small helpers instead of ad-hoc traversal:
 | `layerPinCount(productId, layerId)` | Number of pins on a layer |
 | `getDepartmentSignOff(product, departmentId)` | Canonical department decision for a product |
 | `computeOverallApproval(product)` | Derived overall department/final-validation state |
+| `buildReportData(product)` | Detached reporting projection; does not mutate or persist the product |
 
 ## Domain Mutations (authorized writers)
 
@@ -86,6 +87,8 @@ These are module-level variables, intentionally **not** part of `appState`:
 | `signOffUiState` | `{isOpen, previousFocus}` | Department modal lifecycle | UI/focus state |
 | `signaturePadState` | drawing target, ink and pointer state | Signature modal/canvas draft | UI gesture state; confirmed PNG moves into `appState` |
 
+The generated `ReportData` object and `#print-report` markup are also transient projections. They are rebuilt from the active product for printing and are deliberately excluded from `appState`, serialization and JSON review files.
+
 `resetTransientReviewUiState()` clears comments/title editing and closes the legacy editor, sign-off panel and signature pad on product switches — but deliberately **keeps `currentZoom`** (zoom is shared across products by design).
 
 ## Why Transient State Is Not Persisted
@@ -101,5 +104,6 @@ See [decisions/ADR-008-transient-ui-state.md](../decisions/ADR-008-transient-ui-
 
 - [data-model.md](data-model.md)
 - [rendering-model.md](rendering-model.md)
+- [reporting.md](reporting.md)
 - [persistence/serialization.md](../persistence/serialization.md)
 - [decisions/ADR-002-appstate-single-source-of-truth.md](../decisions/ADR-002-appstate-single-source-of-truth.md)

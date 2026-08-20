@@ -1,10 +1,10 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20H-success" alt="MVP H">
+  <img src="https://img.shields.io/badge/status-MVP%20J-success" alt="MVP J">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-436%2F436%20passing-success" alt="436/436 testes passando">
+  <img src="https://img.shields.io/badge/tests-487%2F487%20passing-success" alt="487/487 testes passando">
   <img src="https://img.shields.io/badge/schema-v5-blue" alt="Schema v5">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -15,8 +15,8 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um planned orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5 e H1–H4** estão concluídas.
-> A **Camada H — Cross-Functional Sign-Off está completa.**
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5, H1–H4 e J1–J3** estão concluídas.
+> A **Camada J — Relatório de Aprovação Imprimível está completa.** A Camada I continua planejada e não é dependência do relatório.
 
 ## Documentação de engenharia
 
@@ -95,6 +95,8 @@ salvar a revisão localmente
 exportar a revisão completa em JSON
 reabrir uma revisão exportada
 carregar uma artwork real
+gerar um relatório de aprovação imprimível
+salvar o relatório como PDF pelo navegador
 ```
 
 O projeto continua propositalmente simples durante o MVP:
@@ -146,6 +148,9 @@ sem banco de dados
 | ✅ Aprovação geral derivada          | Rejected tem precedência; todas as áreas são obrigatórias |
 | ✅ Assinaturas visuais               | Canvas opcional por departamento com mouse/pen/touch |
 | ✅ Validação do sign-off final       | Bloqueios de dados, checklist e departamentos visíveis |
+| ✅ Modelo de relatório derivado      | Produto, revisão, comentários, correções e sign-offs sem ler o DOM |
+| ✅ Relatório pronto para impressão   | Layout A4 exclusivo e agrupado por categoria |
+| ✅ Exportação PDF nativa             | Save as PDF pelo diálogo do navegador, sem dependências |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -161,7 +166,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 436 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 487 testes de regressão no navegador           |
 | ✅ Menu de contexto da tab           | Clique direito na tab: Renomear/Duplicar/Novo/Excluir |
 | ✅ Menu de contexto da camada        | Clique direito na tab da camada: Renomear/Adicionar/Excluir |
 
@@ -865,6 +870,14 @@ O revisor verifica que a artwork utiliza as cores Pantone especificadas na pack 
 
 Revisões salvas por versões anteriores podem conter o registro legado `pantoneColors`. Essa metadata permanece integralmente preservada e sobrevive a reload, Save/Open Check e duplicação, mas nunca influencia o status do item 6I. O editor Colour Specification do MVP anterior foi descontinuado.
 
+### 13. Conclua o sign-off cross-functional
+
+Abra **Sign-Off**, informe nome e função do reviewer e registre decisões independentes para Quality, Production e Product Development. Rejeições exigem comentários; assinaturas visuais opcionais podem ser adicionadas quando o checklist e o departamento estiverem válidos.
+
+### 14. Imprima ou salve o relatório de aprovação
+
+Clique em **Print Report** no cabeçalho. A prévia contém o produto ativo, as seis categorias, o status de todos os itens, comentários, correções de copy, reviewer, decisões departamentais, assinaturas e datas. No diálogo do navegador, escolha **Salvar como PDF** para criar o arquivo.
+
 ---
 
 ## Estrutura do projeto
@@ -922,6 +935,7 @@ estado de arquivo ausente
 pins
 progresso
 toolbar
+relatório de aprovação A4 exclusivo de impressão
 ```
 
 ### `js/app.js`
@@ -930,6 +944,7 @@ Contém:
 
 ```text
 definições do checklist
+modelo de relatório derivado do estado e fluxo nativo de impressão
 modelo de domínio
 appState centralizado
 factory de produtos
@@ -1184,7 +1199,7 @@ await runArtworkTests();
 Checkpoint atual:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 testes passando
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 → 449 / 449 → 487 / 487 testes passando
 ```
 
 A suíte cobre:
@@ -1204,6 +1219,7 @@ Camada G4A
 Camada G4B
 Camada G5
 Camada H1–H4
+Camada J1–J3
 ```
 
 Entre os comportamentos testados:
@@ -1296,6 +1312,11 @@ migração schema v4 → v5
 import de arquivos v1/v2/v3/v4 → v5
 roundtrip de sign-offs em storage/export/import/duplicação
 
+dados de relatório derivados do estado e snapshots independentes
+DOM exclusivo de impressão e agrupamento por categoria
+comentários, correções de copy, reviewer e assinaturas departamentais na impressão
+fronteira nativa window.print e atualização via beforeprint
+
 regressão do DOM
 regressão do zoom
 ```
@@ -1324,25 +1345,13 @@ importar uma revisão
 
 Metadata e posições dos pins permanecem preservadas.
 
-### 2. Sem reviewer e assinatura final
+### 2. Sem autenticação ou assinatura criptográfica
 
-Identificação do revisor e assinatura pertencem à Camada H.
+As identidades de reviewer e assinaturas visuais são registros da revisão; elas não autenticam nem verificam criptograficamente a identidade da pessoa.
 
-### 3. Sem relatório e PDF
+### 3. Geração de PDF pelo diálogo do navegador
 
-O domínio já preserva:
-
-```text
-originalTitle
-currentTitle
-status
-comentário
-pins
-dados do produto
-metadata da artwork
-```
-
-mas relatório imprimível e PDF pertencem à Camada J.
+O relatório imprimível está implementado, mas o PDF é criado pelo fluxo nativo **Imprimir → Salvar como PDF**. Tamanho de papel, margens, cabeçalhos/rodapés e a interface de destino podem variar conforme o navegador; não há PDF binário gerado no servidor nem download em um clique.
 
 ### 4. Interface orientada a desktop
 
@@ -1396,14 +1405,14 @@ O desenvolvimento é guiado por um planned separado, mantido fora deste reposit�
 |   ✅   | **G5**    | Conformidade Pantone com a pack copy (item 6I) |
 |   ✅   | **H1–H4** | Sign-off cross-functional + assinatura + validação final |
 |   📋   | **I1–I2** | Alta resolução + responsividade                  |
-|   📋   | **J1–J3** | Relatório imprimível + PDF                       |
+|   ✅   | **J1–J3** | Relatório derivado do estado + PDF nativo        |
 |   📋   | **K1–K4** | UX, acessibilidade, touch e regressão            |
 |   📋   | **L1**    | Separação em módulos                             |
 |   ⏳   | **M1–M4** | Backend, autenticação, revisões e auditoria      |
 
-O fluxo de produto único está estável desde a Camada E; tabs, artwork layers, conformidade Pantone e sign-off cross-functional estão implementados até a Camada H.
+O fluxo de produto único está estável desde a Camada E; tabs, artwork layers, conformidade Pantone, sign-off cross-functional e relatório imprimível estão implementados até a Camada J. A Camada I continua planejada de forma independente.
 
-As camadas F1, G e H foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
+As camadas F1, G, H e J foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
 
 ### UX Polish — Menu de Contexto da Tab de Camada de Artwork
 

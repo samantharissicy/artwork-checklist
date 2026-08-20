@@ -20,7 +20,7 @@
 | --- | --- |
 | HTML5 | `index.html` — single-page markup |
 | CSS | Modular stylesheets under `css/` (see [css-architecture.md](../architecture/css-architecture.md)) |
-| JavaScript | Vanilla ES2020+ classless script style; `js/app.js` (~9,860 lines, 205 `function` declarations), `js/tests.js` + `js/tests/**` |
+| JavaScript | Vanilla ES2020+ classless script style; `js/app.js` (~12,160 lines, 252 `function` declarations), `js/tests.js` + `js/tests/**` |
 
 ## Persistence
 
@@ -46,17 +46,19 @@
 | `crypto.randomUUID` | ID generation (with `Date.now()`/`Math.random()` fallback) |
 | Drag and Drop API | Checklist → artwork pinning |
 | Pointer/mouse events | `pointerdown` stopPropagation, `mouseenter`/`mouseleave` pin highlight |
+| Canvas 2D + Pointer Events | Optional department signature capture |
 | DOM events | `click`, `input`, `change`, `contextmenu`, `blur`, `keydown` |
+| `beforeprint` / `window.print` | Refresh the active report and open browser printing / Save as PDF |
 | `JSON` / `Date` | Serialization, timestamps |
 | `requestAnimationFrame` | Dialog focus |
 | `scrollIntoView` | Tab and item scrolling |
 | `window.confirm` | Only as a default dependency-injection parameter (`deleteProduct`, `applyArtworkIdentity`) — the UI uses the custom dialog |
 
-**Not used** (do not document as part of the stack): `FileReader`, `canvas`, `ResizeObserver`, `IntersectionObserver`, `CustomEvent`, Web Workers, IndexedDB.
+**Not used** (do not document as part of the stack): `FileReader`, `ResizeObserver`, `IntersectionObserver`, `CustomEvent`, Web Workers, IndexedDB.
 
 ## Styling
 
-Modular CSS with a single entry point (`css/style.css`, 18 `@import`s): base → layout → components → utilities. No CSS framework, no preprocessor, no CSS custom properties. See [css-architecture.md](../architecture/css-architecture.md).
+Modular CSS with a single entry point (`css/style.css`, 20 `@import`s): base → layout → components → utilities. No CSS framework, no preprocessor, no CSS custom properties. See [css-architecture.md](../architecture/css-architecture.md).
 
 ## Testing
 
@@ -66,8 +68,8 @@ Custom, dependency-free browser test framework built into the app:
 | --- | --- |
 | `js/tests/core/framework.js` | `test(name, fn)` + assertions (`assert`, `assertEqual`, `assertDeepEqual`, `assertClose`, …) |
 | `js/tests/core/helpers.js` | Fixtures (`createTestArtworkMetadata`), snapshot/restore, DOM lookup helpers |
-| `js/tests/core/runner.js` | Snapshot → run 449 tests → restore, console/query reporting |
-| `js/tests/layers/*.test.js` | 14 test modules (baseline, B1–H and checklist UX) |
+| `js/tests/core/runner.js` | Snapshot → run 487 tests → restore, console/query reporting |
+| `js/tests/layers/*.test.js` | 15 test modules (baseline, B1–J and checklist UX) |
 
 Entry point: `runArtworkTests()` from DevTools. See [testing-strategy.md](testing-strategy.md).
 
@@ -106,6 +108,6 @@ Only if real needs appear (documented as future layers, not commitments):
 - Multi-user / shared reviews / audit trail / auth → backend (layer M; [backend-transition.md](../future/backend-transition.md)).
 - Module separation → ES modules (layer L1).
 - High-resolution artwork persistence → IndexedDB or object storage (layer I1).
-- Print/PDF report → `window.print()` first, libraries only if proven necessary (layer J3).
+- Automated/server PDF generation → revisit only if the current native `window.print()` / Save as PDF workflow proves insufficient.
 
-See [future/layer-planning.md](../future/layer-planning.md) and [decisions/ADR-001-vanilla-web-stack.md](../decisions/ADR-001-vanilla-web-stack.md).
+See [architecture/reporting.md](../architecture/reporting.md), [future/layer-planning.md](../future/layer-planning.md) and [decisions/ADR-001-vanilla-web-stack.md](../decisions/ADR-001-vanilla-web-stack.md).
