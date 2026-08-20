@@ -1,10 +1,10 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20H-success" alt="MVP H">
+  <img src="https://img.shields.io/badge/status-MVP%20J-success" alt="MVP J">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-449%2F449%20passing-success" alt="449/449 tests passing">
+  <img src="https://img.shields.io/badge/tests-487%2F487%20passing-success" alt="487/487 tests passing">
   <img src="https://img.shields.io/badge/schema-v5-blue" alt="Schema v5">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -15,8 +15,8 @@ A web tool to support the review of **artworks and pack copy for food products**
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
 > **Current stage:** functional MVP developed incrementally through a specification-driven development plan.  
-> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5 and H1–H4** are complete.
-> **Layer H — Cross-Functional Sign-Off is complete.**
+> Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5, H1–H4 and J1–J3** are complete.
+> **Layer J — Printable Approval Report is complete.** Layer I remains planned and is not a dependency of the report.
 
 ## Engineering Documentation
 
@@ -95,6 +95,8 @@ save the review locally
 export the complete review as JSON
 reopen an exported review
 load a real artwork image
+generate a printable approval report
+save the report as PDF through the browser
 ```
 
 The project deliberately remains lightweight during the MVP:
@@ -148,6 +150,9 @@ no database
 | ✅ Derived overall approval       | Rejected precedence; all required approvals needed |
 | ✅ Visual signatures              | Optional per-department Pointer Event canvas for mouse/pen/touch |
 | ✅ Final sign-off validation      | Required data, checklist and department blockers shown explicitly |
+| ✅ State-derived report model     | Product, review, comments, corrections and sign-offs collected without reading the DOM |
+| ✅ Print-ready approval report    | Dedicated A4 layout grouped by checklist category |
+| ✅ Native PDF export              | Browser print dialog supports Save as PDF without dependencies |
 | ✅ Versioned JSON export          | Save Check exports complete review data     |
 | ✅ JSON import                    | Open Check restores compatible reviews      |
 | ✅ Demo artwork                   | Built-in Front & Back HTML/CSS artwork      |
@@ -163,7 +168,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 449 browser-based tests                     |
+| ✅ Automated regression suite     | 487 browser-based tests                     |
 | ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 | ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
@@ -869,6 +874,14 @@ The reviewer verifies that the artwork uses the Pantone colours specified in the
 
 Reviews saved by earlier versions may still contain the legacy `pantoneColors` colour registry. That metadata remains fully preserved and round-trips through reload, Save/Open Check and product duplication, but it never influences the status of item 6I. The Colour Specification editor UI of the previous MVP is retired.
 
+### 13. Complete cross-functional sign-off
+
+Open **Sign-Off**, enter reviewer name and role, and record independent decisions for Quality, Production and Product Development. Rejections require comments; optional visual signatures can be added after the checklist and department are valid.
+
+### 14. Print or save the approval report
+
+Select **Print Report** in the header. The print preview contains the active product, all six checklist categories, every item status, comments, copy corrections, reviewer, department decisions, signatures and dates. Select **Save as PDF** in the browser print dialog to create a PDF.
+
 ---
 
 ## Project structure
@@ -926,6 +939,7 @@ missing-artwork state
 pins
 progress
 toolbar
+print-only A4 approval report
 ```
 
 ### `js/app.js`
@@ -934,6 +948,7 @@ Contains:
 
 ```text
 static checklist definitions
+state-derived report model and native print workflow
 domain model
 central appState
 product factory
@@ -1190,7 +1205,7 @@ await runArtworkTests();
 Current checkpoint:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 → 449 / 449 tests passing
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 → 449 / 449 → 487 / 487 tests passing
 ```
 
 The suite covers:
@@ -1210,6 +1225,7 @@ Layer G4A
 Layer G4B
 Layer G5
 Layer H1–H4
+Layer J1–J3
 ```
 
 Coverage includes:
@@ -1302,6 +1318,11 @@ schema v4 → v5 migration
 v1/v2/v3/v4 review-file import to v5
 sign-off storage/export/import/duplication roundtrips
 
+state-derived report data and detached snapshots
+print-only report DOM and category grouping
+comments, copy corrections, reviewer and department signatures in print
+native window.print boundary and beforeprint refresh
+
 baseline DOM regression
 zoom regression
 ```
@@ -1330,25 +1351,13 @@ the reviewer must select the same artwork file again.
 
 Persisted metadata and normalized pin positions remain available.
 
-### 2. No reviewer/signature workflow yet
+### 2. No authentication or cryptographic signatures
 
-Reviewer identity and final signature belong to Layer H.
+Reviewer identities and visual signatures are review records, not authenticated or cryptographically verified identities.
 
-### 3. No printable report or PDF yet
+### 3. PDF generation uses the browser print dialog
 
-The domain already preserves the data needed for future reports:
-
-```text
-originalTitle
-currentTitle
-status
-comment
-pins
-product data
-artwork metadata
-```
-
-Report and PDF generation belong to Layer J.
+The printable report is implemented, but PDF creation uses the browser-native **Print → Save as PDF** workflow. Paper size, margins, headers/footers and the destination UI can vary by browser; there is no server-generated or one-click binary PDF export.
 
 ### 4. Desktop-oriented interface
 
@@ -1402,14 +1411,14 @@ Development is guided by a separate development planned maintained outside this 
 |   ✅   | **G5**    | Pantone pack-copy compliance (checklist 6I) |
 |   ✅   | **H1–H4** | Cross-functional sign-off + signature + final validation |
 |   📋   | **I1–I2** | High-resolution artwork + responsiveness          |
-|   📋   | **J1–J3** | Printable report + PDF                            |
+|   ✅   | **J1–J3** | State-derived printable report + native PDF       |
 |   📋   | **K1–K4** | UX, accessibility, touch and regression hardening |
 |   📋   | **L1**    | Module separation                                 |
 |   ⏳   | **M1–M4** | Backend, auth, revisions and audit trail          |
 
-The single-product workflow is stable since Layer E; multi-product tabs, artwork layers, Pantone compliance and cross-functional sign-off are implemented through Layer H.
+The single-product workflow is stable since Layer E; multi-product tabs, artwork layers, Pantone compliance, cross-functional sign-off and printable reporting are implemented through Layer J. Layer I remains planned independently.
 
-Layers F1, G and H were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
+Layers F1, G, H and J were developed incrementally; remaining layers should stay isolated in dedicated branches if developed in parallel.
 
 ### UX Polish — Artwork Layer Context Menu
 

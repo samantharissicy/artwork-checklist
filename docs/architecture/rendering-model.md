@@ -26,6 +26,9 @@ flowchart TD
   RenderApp --> UpdateProgress[updateProgress]
   RenderApp --> RenderSignOff[renderSignOffState]
   RenderItem --> RenderComment[renderCommentState]
+  ProductState[Active product] --> BuildReport[buildReportData]
+  BuildReport --> RenderPrint[renderPrintReport]
+  RenderPrint --> PrintDOM[#print-report]
 ```
 
 ## Renderer Inventory
@@ -103,6 +106,14 @@ flowchart TD
 - `renderSignOffOverview` intentionally avoids rebuilding department textareas while typing; `renderDepartmentSignOffs` rebuilds cards after decision-level changes.
 - Signature canvas pixels are transient until Confirm; the persisted `DepartmentSignature` then drives the `Signed` preview.
 
+### `renderPrintReport(product)` / `buildPrintReportMarkup(reportData)`
+
+- **Reads:** a detached result from `buildReportData(product)`, including canonical section order, checklist outcomes, comments, copy corrections, reviewer and department sign-offs/signatures.
+- **Writes:** the screen-hidden `#print-report` semantic document and its `data-product-id` / `data-overall-status` diagnostics.
+- **Called by:** `printApprovalReport()` and the `beforeprint` listener bound during initialization.
+- **Does not do:** read interactive checklist DOM, mutate `appState`, persist data or open the print dialog itself.
+- Print CSS exposes this document and hides the interactive application only inside `@media print`; see [reporting.md](reporting.md).
+
 ### Legacy renderers (unused by current UI)
 
 - `renderPantoneColours()` and `renderPantoneColourEditorLayers()` rebuild the retired Colour Specification UI. They are retained for historical compatibility but **nothing calls them** — the G5 test suite asserts the component element does not exist (`document.getElementById("colour-specification") === null`).
@@ -117,4 +128,5 @@ flowchart TD
 
 - [state-management.md](state-management.md)
 - [architecture-overview.md](architecture-overview.md)
+- [reporting.md](reporting.md)
 - [quality/performance-considerations.md](../quality/performance-considerations.md)

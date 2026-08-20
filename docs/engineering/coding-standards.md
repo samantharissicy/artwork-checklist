@@ -52,7 +52,7 @@ See [css-architecture.md](../architecture/css-architecture.md).
 | Convention | Evidence |
 | --- | --- |
 | Test names identify layer | `G5R-001 …` (Pantone compliance), `G4A-…`, `G4UX-…`, `E1 …`, `D2 …`, `B1 …` |
-| Regression tests preserved across features | suite grows: 312 → 357 → 373 → 378 → 436 → 449 |
+| Regression tests preserved across features | suite grows: 312 → 357 → 373 → 378 → 436 → 449 → 487 |
 | Tests self-reset their own state | `resetItem1A()`, `resetWorkspaceForMultiProductTest()`, `resetArtworkForTest()` |
 | Test files are IIFEs over `window.ArtworkTests` | destructure `test`, `assertEqual`, helpers at load time |
 
@@ -65,7 +65,7 @@ See [testing-strategy.md](testing-strategy.md).
 | JavaScript | Add `"use strict"` to `js/app.js` (currently only tests use it) | K4 / L1 |
 | JavaScript | Migrate inline `onclick` attributes to `addEventListener` bindings | L1 |
 | JavaScript | Split `js/app.js` into modules (`state.js`, `storage.js`, `checklist.js`, `artwork.js`, `pins.js`, `products.js`, …) | L1 |
-| HTML/CSS | Media queries, `@media print`, responsive layout | I2 / J2 |
+| HTML/CSS | Broader responsive/touch layout hardening | I2 / K3 |
 | HTML | Full keyboard navigation review and focus-visible polish | K2 |
 | CSS | Introduce CSS custom properties for colors | K1 |
 

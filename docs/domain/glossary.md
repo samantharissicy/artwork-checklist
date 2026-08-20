@@ -26,6 +26,7 @@ Define the project terminology as used in code, tests and documentation. Definit
 | **Reviewer** | Current name/role entered in the sign-off panel and copied into a completed department decision. |
 | **Sign-Off** | Independent revision-bound decision by a required department; optionally owns a visual signature. |
 | **Overall Approval** | Derived product-review state: Rejected if any required department rejects, Approved only when all required departments approve and final validation passes, otherwise Pending. |
+| **Approval Report** | Detached projection of the active review used by the dedicated A4 print view; saved as PDF through the browser print dialog. |
 | **Schema** | The versioned shape of persisted state; currently **v5**. |
 | **Rehydration** | Rebuilding a fresh object graph from parsed/migrated JSON, restoring canonical (immutable) fields. |
 | **Migration** | Converting persisted state from an older schema to the current one (v1→v2→v3→v4→v5) without data loss. |
@@ -39,6 +40,7 @@ Define the project terminology as used in code, tests and documentation. Definit
 | **Checklist** | The 50 canonical items in 6 sections rendered in the left panel. |
 | **Save Check** | Export of the active product's review as schema-v5 JSON, including sign-offs/signatures (`exportReviewAsJson`). |
 | **Open Check** | Import of a review JSON file as a new product (`openCheck`). |
+| **Print Report** | Header action that refreshes the active approval report and calls native `window.print()`. |
 | **Legacy `pantoneColors`** | The retired Pantone colour registry, preserved for backwards compatibility with schema-v3 review files only. |
 | **Edited** | Indicator shown when `currentTitle` differs from `originalTitle`. |
 | **Demo Artwork** | Built-in HTML/CSS pack mock (Front/Back) shown when no image is loaded. |

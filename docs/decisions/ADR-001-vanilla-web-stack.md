@@ -51,7 +51,7 @@ Implementation: `index.html`, modular CSS under `css/`, classic scripts `js/app.
 ## Revisit When
 
 - Multi-user reviews, shared persistence, auth or audit trail become real requirements (planned M).
-- The single file `js/app.js` (~9,860 lines) makes maintenance impractical (planned L1).
+- The single file `js/app.js` (~12,160 lines) makes maintenance impractical (planned L1).
 
 ## Related Files
 

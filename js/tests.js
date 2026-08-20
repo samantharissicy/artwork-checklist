@@ -53,6 +53,8 @@
 
     "layers/ux-section-status-summary.test.js",
 
+    "layers/j-printable-report.test.js",
+
     "layers/baseline-smoke.test.js",
 
     "core/runner.js",

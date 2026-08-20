@@ -15,7 +15,10 @@ flowchart TD
   Domain --> State[appState<br/>single source of truth]
   State --> Persistence[Persistence<br/>serialize/validate/migrate/localStorage]
   State --> Render[Rendering<br/>renderAppState + coordinators]
+  State --> Report[Reporting<br/>buildReportData]
   Render --> DOM[DOM projection]
+  Report --> PrintDOM[Print-only DOM projection]
+  PrintDOM --> NativePrint[window.print / Save as PDF]
 ```
 
 ## Concepts
@@ -27,6 +30,7 @@ flowchart TD
 | **Session Resources** | `artworkSessions` | `Map<productId, Map<layerId, {metadata, objectUrl}>>` — binary artwork + Object URLs, runtime only |
 | **Persistence Layer** | functions in js/app.js | `serializeState`, `validateState`, `migrateState`, `saveStateToStorage`, `loadStateFromStorage`, `buildExportData`, `applyImportedReview` |
 | **Rendering Layer** | named `render*` coordinators | Project `appState` into the DOM; see [rendering-model.md](rendering-model.md) |
+| **Reporting Layer** | `buildReportData`, print builders | Projects product state into a detached report model and screen-hidden A4 print document; see [reporting.md](reporting.md) |
 | **Validation** | `validate*` functions | Storage, import and business-rule validation before any mutation |
 | **Migration** | `migrate*` functions | v1→v2→v3→v4→v5 chains for storage and import files; see [persistence-and-schema.md](persistence-and-schema.md) |
 | **File Handling** | `handleArtworkFileChange`, `handleCheckFileChange` | Image upload (session-only) and JSON import (validated) |
@@ -66,6 +70,8 @@ Almost every user action resolves to a small named domain function:
 - Import/export: `exportReviewAsJson`, `openCheck`, `applyImportedReview`.
 - Sign-off: `updateActiveReviewer`, `setDepartmentSignOffStatus`, `setDepartmentSignOffComment`, `setDepartmentSignature`, `computeOverallApproval`.
 
+Reporting is read-only: `buildReportData`, `renderPrintReport` and `printApprovalReport` do not mutate or persist product state.
+
 ## Validation and Migration Boundaries
 
 - **localStorage read path**: `getStoredStateRecord` → `deserializeState` → `migrateState` → `validateState` → `rehydrateState`. Any failure leaves the in-memory state untouched.
@@ -79,6 +85,7 @@ See [persistence/import-export.md](../persistence/import-export.md) and [persist
 - No backend, no database, no network calls (the app never transmits review data).
 - No framework, no module system (classic scripts; `js/app.js` + `js/tests.js` loaded via `<script>`).
 - No build step: the repository is served as-is.
+- No PDF service or PDF dependency: the print-ready report uses the browser's native Save as PDF destination.
 
 ## Why This Architecture Works for the MVP
 
@@ -92,6 +99,8 @@ See [persistence/import-export.md](../persistence/import-export.md) and [persist
 - [data-model.md](data-model.md) — exact models.
 - [state-management.md](state-management.md) — what lives in state and what does not.
 - [rendering-model.md](rendering-model.md) — render coordinator responsibilities.
+- [reporting.md](reporting.md) — detached report data, print projection and native PDF workflow.
 - [persistence-and-schema.md](persistence-and-schema.md) — storage and schema history.
 - [engineering/tech-stack.md](../engineering/tech-stack.md) — stack decisions.
 - [decisions/ADR-002-appstate-single-source-of-truth.md](../decisions/ADR-002-appstate-single-source-of-truth.md)
+- [decisions/ADR-011-state-derived-print-report.md](../decisions/ADR-011-state-derived-print-report.md)

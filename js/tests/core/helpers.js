@@ -46,6 +46,15 @@
       signaturePadOpen: signaturePadState.isOpen,
 
       signatureDepartmentId: signaturePadState.departmentId,
+
+      printReportHtml:
+        document.getElementById("print-report")?.innerHTML ?? "",
+
+      printReportProductId:
+        document.getElementById("print-report")?.dataset.productId ?? "",
+
+      printReportOverallStatus:
+        document.getElementById("print-report")?.dataset.overallStatus ?? "",
     };
   }
 
@@ -122,6 +131,24 @@
       snapshot.signatureDepartmentId
     ) {
       openSignaturePad(snapshot.signatureDepartmentId);
+    }
+
+    const printReport = document.getElementById("print-report");
+
+    if (printReport) {
+      printReport.innerHTML = snapshot.printReportHtml;
+
+      if (snapshot.printReportProductId) {
+        printReport.dataset.productId = snapshot.printReportProductId;
+      } else {
+        delete printReport.dataset.productId;
+      }
+
+      if (snapshot.printReportOverallStatus) {
+        printReport.dataset.overallStatus = snapshot.printReportOverallStatus;
+      } else {
+        delete printReport.dataset.overallStatus;
+      }
     }
   }
 

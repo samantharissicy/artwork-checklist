@@ -1,6 +1,6 @@
 # Artwork & Pack Copy Checklist — Engineering Documentation
 
-**Status: Current** — this documentation describes the repository as it exists today (schema v5, 50 checklist items, 449 tests).
+**Status: Current** — this documentation describes the repository as it exists today (schema v5, 50 checklist items, 487 tests).
 
 ## Purpose
 
@@ -42,8 +42,9 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 - **50 checklist items** in **6 collapsible sections**, each with a compact state-derived Approved / Rejected / Pending summary; item **6I — "Pantone Colours Match Approved Pack Copy?"** is the canonical Pantone compliance item (see [domain/domain-overview.md](domain/domain-overview.md)).
 - Multi-product workspace with tabs and per-product context menus; multi-layer artwork with per-layer pins and layer tabs.
 - Cross-functional sign-off for Quality, Production and Product Development, with reviewer snapshots, derived overall approval and optional Pointer Event signatures.
+- State-derived approval reporting with an A4 print view and native browser Save as PDF workflow (see [architecture/reporting.md](architecture/reporting.md)).
 - Legacy `pantoneColors` metadata is preserved for backwards compatibility only (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
-- Test suite: **449 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
+- Test suite: **487 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
 
 ## Current Technical Status
 
@@ -57,7 +58,7 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 | Review statuses | `pending` / `approved` / `rejected` |
 | Allowed sites | `OH1`, `OH2`, `BL` |
 | Required sign-off departments | Quality, Production, Product Development |
-| Tests | 449 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest verification: 449/449 passing) |
+| Tests | 487 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest verification: 487/487 passing) |
 | App source | `js/app.js` (single classic-script application module) |
 
 ## Navigation Groups
@@ -66,13 +67,13 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 | --- | --- |
 | [Overview](project-overview.md) | Business purpose, MVP scope, development methodology |
 | [Documentation Audit](documentation-audit.md) | Historical pre-H schema-v4 documentation audit checkpoint |
-| [Architecture](architecture/architecture-overview.md) | Architecture, data model, state, rendering, persistence, artwork, pins, context menus, CSS |
+| [Architecture](architecture/architecture-overview.md) | Architecture, data model, state, rendering, persistence, artwork, pins, reporting, context menus, CSS |
 | [Engineering](engineering/tech-stack.md) | Stack, development workflow, coding standards, testing, error handling, browser runtime |
 | [Domain](domain/domain-overview.md) | Domain concepts, review workflow, business rules, data dictionary, glossary |
 | [Persistence](persistence/serialization.md) | Serialization, migrations, import/export, legacy compatibility |
 | [Quality](quality/quality-strategy.md) | Quality strategy, security, accessibility, performance, manual regression |
 | [Operations](operations/local-development.md) | Local development, troubleshooting, recovery and backup |
-| [Architecture Decisions](decisions/README.md) | ADR-001 … ADR-010 |
+| [Architecture Decisions](decisions/README.md) | ADR-001 … ADR-011 |
 | [Future Architecture](future/future-architecture.md) | **FUTURE / NOT CURRENT IMPLEMENTATION** |
 
 ## Start Here

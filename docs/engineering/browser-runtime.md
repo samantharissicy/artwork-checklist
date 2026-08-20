@@ -26,6 +26,8 @@ See [tech-stack.md](tech-stack.md) for the verified API list. Highlights for run
 | `Image` + `onload` | Natural artwork dimensions for metadata |
 | Drag and Drop API | Checklist → artwork pinning |
 | `crypto.randomUUID` | Permanent product/layer/colour IDs (fallback included) |
+| Canvas 2D + Pointer Events | Optional department signature drawing |
+| `beforeprint` / `window.print` | Current-state report refresh and browser Save as PDF workflow |
 
 ## Why a Local HTTP Server Is Recommended
 
@@ -66,7 +68,7 @@ Why not just double-click `index.html` (file://)?
 | --- | --- |
 | Image persistence across reload | Not available (session-only by design, ADR-004) |
 | Offline/multi-device sync | Not available (no backend, ADR-003) |
-| Print stylesheets | Not implemented (future layer J2) |
+| PDF generation | Native browser Print → Save as PDF; destination/options vary by browser |
 | Touch/mobile interactions | Not implemented (future layer K3) |
 
 ## Related Documents
@@ -75,3 +77,4 @@ Why not just double-click `index.html` (file://)?
 - [operations/local-development.md](../operations/local-development.md)
 - [operations/troubleshooting.md](../operations/troubleshooting.md)
 - [operations/recovery-and-backup.md](../operations/recovery-and-backup.md)
+- [architecture/reporting.md](../architecture/reporting.md)

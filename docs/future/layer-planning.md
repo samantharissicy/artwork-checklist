@@ -19,7 +19,7 @@ Technical dependencies between planned layers. The external development plan is 
 | G1–G5 products/layers/Pantone | ✅ Current | multi-product, multi-layer, 6I compliance |
 | H1–H4 sign-off | ✅ Current | reviewer identity, independent required departments, Pointer Event signatures, derived final validation |
 | I1–I2 high-res/responsive | 📋 Planned | storage strategy, viewports/touch |
-| J1–J3 report/PDF | 📋 Planned | report model, print view, PDF |
+| J1–J3 report/PDF | ✅ Current | detached report model, A4 print view, native Save as PDF |
 | K1–K4 UX/a11y/touch/regression | 📋 Planned | confirmation/empty states, accessibility, touch, regression hardening |
 | L1 module separation | 📋 Planned | split `js/app.js` into modules |
 | M1–M4 backend/auth/revisions/audit | ⏳ Future | conditional on real usage |
@@ -28,9 +28,6 @@ Technical dependencies between planned layers. The external development plan is 
 
 | Planned work | Depends on | Why |
 | --- | --- | --- |
-| **J1 report model** | A report must consume **state**, not the DOM (`buildReportData(product)`) | Rendering model is projection-based ([rendering-model.md](../architecture/rendering-model.md)); scraping the DOM would violate ADR-002 |
-| **J2 print view** | CSS `@media print` (none exists today — [css-architecture.md](../architecture/css-architecture.md)) | New print stylesheet layer |
-| **J3 PDF** | J1/J2 | Print-first, libraries only if proven necessary |
 | **K2 accessibility** | Keyboard paths for sections, dialog focus trap, `aria-live` toast | Audit in [accessibility-status.md](../quality/accessibility-status.md) |
 | **K3 touch** | Alternative to HTML drag-and-drop for pins ("Select item → click artwork") | Drag-and-drop is desktop-only |
 | **L1 modules** | ES modules or classic split; `"use strict"` adoption | [coding-standards.md](../engineering/coding-standards.md) future recommendations |
@@ -41,9 +38,9 @@ Technical dependencies between planned layers. The external development plan is 
 ## Sequencing Implications
 
 1. **F1 (metrics)** is implemented; it had no dependencies and could land at any time after the progress bar existed.
-2. **H (sign-off)** is implemented on schema v5 and provides revision-bound decisions for future report/audit layers.
-3. **J (report)** should be built against a report model, never the DOM.
-4. **L1 (modules)** should precede or accompany any large layer (H/J) to keep `js/app.js` manageable.
+2. **H (sign-off)** is implemented on schema v5 and provides revision-bound decisions for the current report and future audit layers.
+3. **J (report)** is implemented against a detached state-derived model and native browser printing; it does not depend on Layer I.
+4. **L1 (modules)** should precede or accompany any future large layer to keep `js/app.js` manageable.
 5. **M (backend)** is conditional on real usage and depends on L1 discipline.
 
 ## Implementation Order Principle
@@ -55,4 +52,5 @@ Layers are developed sequentially with acceptance gates per layer (see [developm
 - [project-overview.md](../project-overview.md) — CURRENT/PLANNED/FUTURE split.
 - [future-architecture.md](future-architecture.md)
 - [backend-transition.md](backend-transition.md)
+- [architecture/reporting.md](../architecture/reporting.md)
 - external development plan (scheduling authority; maintained outside this repository since commit `48ff58c`).

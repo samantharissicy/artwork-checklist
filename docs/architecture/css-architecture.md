@@ -28,18 +28,19 @@ Document the actual, modular CSS architecture of the project.
 @import url("./components/pins.css");
 @import url("./components/feedback.css");
 @import url("./components/signoff.css");
+@import url("./components/report.css");
 @import url("./components/dialog.css");
 @import url("./utilities/scrollbar.css");
 @import url("./utilities/visibility.css");
 ```
 
-(19 imports; dependency order is documented in the file header.)
+(20 imports; dependency order is documented in the file header.)
 
 ## Current CSS Tree
 
 ```text
 css/
-├── style.css                      → single entry point (19 @imports, no rules)
+├── style.css                      → single entry point (20 @imports, no rules)
 ├── style.legacy.css               → orphaned historical stylesheet (not linked/imported)
 ├── base/
 │   ├── reset.css                  → box-sizing + margin/padding zeroing
@@ -60,6 +61,7 @@ css/
 │   ├── pins.css                   → pins layer, pins, tooltips, pulse animation
 │   ├── feedback.css               → hint bar + toast
 │   ├── signoff.css                → Layer H panel, department cards, signature pad, responsive breakpoints
+│   ├── report.css                 → Layer J screen-hidden A4 report and print pagination
 │   ├── dialog.css                 → custom modal dialog (tones, prompt)
 │   └── artwork-colours.css        → LEGACY (Pantone UI, not imported)
 └── utilities/
@@ -72,7 +74,7 @@ css/
 | Rule | Evidence |
 | --- | --- |
 | Component files do not import one another | No `@import` outside `style.css` |
-| Dependency order centralized in the entry point | 19 ordered `@import`s in `style.css` |
+| Dependency order centralized in the entry point | 20 ordered `@import`s in `style.css` |
 | Component responsibility | One file per UI component |
 | No CSS framework | Vanilla CSS only |
 | No inline `style=""` in HTML | Zero matches in `index.html` |
@@ -82,8 +84,9 @@ css/
 ## Notable Facts
 
 - **No CSS custom properties** (`:root` variables): colors are flat hex values.
-- Layer H adds targeted `@media (max-width: 980px)` / `680px` rules for the sign-off/signature modals. The main application workspace remains desktop-first, and there is still no `@media print` (I2/J2 remain broader future work).
-- `!important` appears exactly once in the active tree: `.hidden { display: none !important; }` in `utilities/visibility.css` — intentionally loaded last so it overrides component display rules.
+- Layer H adds targeted `@media (max-width: 980px)` / `680px` rules for the sign-off/signature modals. The main application workspace remains desktop-first.
+- Layer J owns the first print media layer: `report.css` hides `.print-report` on screen and uses `@page` plus `@media print` to expose only the A4 approval report, repeat table headers and avoid splitting review rows/sign-off cards where practical.
+- `!important` remains restricted to two boundary concerns: the generic `.hidden` utility and the print-media isolation/reset rules in `report.css` (including centered status cells). Print rules require precedence over the fixed-height application shell and screen-only display rules.
 - Status colors are driven by `[data-status]` attributes on `.check-item` (pending/approved/rejected), set by JS from state.
 
 ## Legacy Files
@@ -100,4 +103,5 @@ Carries a LEGACY banner: "LEGACY PANTONE SPECIFICATION METADATA — CSS / Backwa
 
 - [engineering/tech-stack.md](../engineering/tech-stack.md) — styling section.
 - [engineering/coding-standards.md](../engineering/coding-standards.md) — CSS conventions.
+- [reporting.md](reporting.md) — print projection and PDF workflow.
 - [future/layer-planning.md](../future/layer-planning.md) — K2 (accessibility) and I2 (responsive) impact CSS.
