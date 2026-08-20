@@ -23,11 +23,12 @@ Define the project terminology as used in code, tests and documentation. Definit
 | **Artwork Revision** | Version label of the artwork being reviewed (textual; distinct from app version). |
 | **Pantone** | Colour reference system used in the legacy registry as free text. The current compliance flow treats the approved pack copy as the Pantone authority. |
 | **Compliance** | In this project: whether the artwork matches the approved pack copy, recorded via checklist item 6I. |
-| **Reviewer** | Planned identity of the person deciding an item (model present, UI future — planned H1). |
-| **Sign-Off** | Planned independent department approval (planned H2/H3); `product.signature` exists but is never populated. |
-| **Schema** | The versioned shape of persisted state; currently **v4**. |
+| **Reviewer** | Current name/role entered in the sign-off panel and copied into a completed department decision. |
+| **Sign-Off** | Independent revision-bound decision by a required department; optionally owns a visual signature. |
+| **Overall Approval** | Derived product-review state: Rejected if any required department rejects, Approved only when all required departments approve and final validation passes, otherwise Pending. |
+| **Schema** | The versioned shape of persisted state; currently **v5**. |
 | **Rehydration** | Rebuilding a fresh object graph from parsed/migrated JSON, restoring canonical (immutable) fields. |
-| **Migration** | Converting persisted state from an older schema to the current one (v1→v2→v3→v4) without data loss. |
+| **Migration** | Converting persisted state from an older schema to the current one (v1→v2→v3→v4→v5) without data loss. |
 | **Session Artwork** | The binary image and its Object URL, kept only for the current page session (`artworkSessions`). |
 | **Object URL** | `URL.createObjectURL` handle to an in-memory binary; runtime-only, revoked on release. |
 | **Baseline** | The frozen original prototype behaviour, recorded in `baseline.en.md` / `baseline.pt-BR.md` (historical snapshots, never edited). |
@@ -36,7 +37,7 @@ Define the project terminology as used in code, tests and documentation. Definit
 | **appState** | The single source of truth: `{schemaVersion, activeProductId, products}`. |
 | **Single Source of Truth** | Principle P-004: domain state lives in `appState`; the DOM only represents it. |
 | **Checklist** | The 50 canonical items in 6 sections rendered in the left panel. |
-| **Save Check** | Export of the active product's review as schema-v4 JSON (`exportReviewAsJson`). |
+| **Save Check** | Export of the active product's review as schema-v5 JSON, including sign-offs/signatures (`exportReviewAsJson`). |
 | **Open Check** | Import of a review JSON file as a new product (`openCheck`). |
 | **Legacy `pantoneColors`** | The retired Pantone colour registry, preserved for backwards compatibility with schema-v3 review files only. |
 | **Edited** | Indicator shown when `currentTitle` differs from `originalTitle`. |
@@ -50,7 +51,7 @@ Define the project terminology as used in code, tests and documentation. Definit
 
 - **BRCGS clauses** beyond the standard reference in the checklist content are **not** defined here; the checklist is the project's representation of the standard.
 - **Pantone specifications** (official RGB/HEX) are **not** part of the project.
-- **Company-specific policies, departments or approval chains** beyond the planned sign-off departments (Quality / Production / Product Development) are **not** defined.
+- **Company-specific policies, departments or approval chains** beyond the implemented required sign-off departments (Quality / Production / Product Development) are **not** defined.
 
 ## Related Documents
 

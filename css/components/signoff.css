@@ -1,0 +1,554 @@
+/* ==========================================================
+   CROSS-FUNCTIONAL SIGN-OFF — H1–H4
+   ========================================================== */
+
+.btn-signoff {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid #475569;
+  border-radius: 7px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font: 600 11px/1 inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-signoff:hover {
+  background: #334155;
+  border-color: #64748b;
+  transform: translateY(-1px);
+}
+
+.btn-signoff:active {
+  transform: translateY(0);
+}
+
+.btn-signoff:focus-visible,
+.signoff-close:focus-visible,
+.department-decision-btn:focus-visible,
+.department-signature-btn:focus-visible,
+.signature-btn:focus-visible,
+.signoff-reviewer input:focus-visible,
+.department-comment:focus-visible,
+#signature-canvas:focus-visible {
+  outline: 3px solid rgba(96, 165, 250, 0.55);
+  outline-offset: 2px;
+}
+
+.signoff-button-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.btn-signoff[data-status="approved"] .signoff-button-dot {
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+}
+
+.btn-signoff[data-status="rejected"] .signoff-button-dot {
+  background: #fb7185;
+  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.15);
+}
+
+.signoff-button-status {
+  padding-left: 7px;
+  border-left: 1px solid #475569;
+  color: #94a3b8;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.signoff-overlay,
+.signature-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(3px);
+}
+
+.signoff-overlay {
+  z-index: 1800;
+}
+
+.signature-overlay {
+  z-index: 1900;
+}
+
+.signoff-panel,
+.signature-dialog {
+  width: min(900px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+}
+
+.signoff-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.signoff-panel-header,
+.signature-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.signoff-panel-header h2,
+.signature-dialog-header h2 {
+  margin: 2px 0 4px;
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.signoff-panel-header p:last-child,
+.signature-dialog-header p:last-child {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.signoff-eyebrow,
+.signoff-section-label {
+  margin: 0;
+  color: #2563eb;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.65px;
+  text-transform: uppercase;
+}
+
+.signoff-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.signoff-close:hover {
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.signoff-panel-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px 22px 24px;
+  overflow-y: auto;
+}
+
+.signoff-overall,
+.signoff-reviewer,
+.signoff-blockers,
+.signoff-departments {
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.signoff-overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+}
+
+.signoff-overall > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.signoff-overall p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  text-align: right;
+}
+
+.signoff-overall-status,
+.department-status,
+.department-signed-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+}
+
+.signoff-overall-status[data-status="approved"],
+.department-status[data-status="approved"],
+.department-signed-state {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.signoff-overall-status[data-status="rejected"],
+.department-status[data-status="rejected"] {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.signoff-reviewer,
+.signoff-blockers,
+.signoff-departments {
+  padding: 16px;
+}
+
+.signoff-section-heading,
+.department-signoff-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.signoff-section-heading h3,
+.department-signoff-header h4 {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.signoff-required-note,
+.signoff-blocker-count {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.signoff-reviewer-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.signoff-reviewer label {
+  display: grid;
+  gap: 5px;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.signoff-reviewer input,
+.department-comment {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f172a;
+  font: 400 12px/1.45 inherit;
+}
+
+.signoff-reviewer input {
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.signoff-reviewer input[aria-invalid="true"],
+.department-comment[aria-invalid="true"] {
+  border-color: #e11d48;
+  background: #fff7f8;
+}
+
+.signoff-help,
+.department-review-meta,
+.department-validation {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.signoff-blockers[data-ready="true"] {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+
+.signoff-blockers ul {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #9f1239;
+  font-size: 11px;
+}
+
+.signoff-blockers[data-ready="true"] ul {
+  padding-left: 0;
+  color: #047857;
+  list-style: none;
+}
+
+.department-signoff-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.department-signoff-card {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #f59e0b;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.department-signoff-card[data-status="approved"] {
+  border-left-color: #10b981;
+}
+
+.department-signoff-card[data-status="rejected"] {
+  border-left-color: #e11d48;
+}
+
+.department-status-row,
+.department-signature-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.department-decision-btn,
+.department-signature-btn,
+.signature-btn {
+  min-height: 32px;
+  padding: 7px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font: 700 10px/1 inherit;
+  cursor: pointer;
+}
+
+.department-decision-btn:hover,
+.department-signature-btn:hover,
+.signature-btn-secondary:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.department-decision-btn[data-decision="approved"][aria-pressed="true"] {
+  border-color: #10b981;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.department-decision-btn[data-decision="rejected"][aria-pressed="true"] {
+  border-color: #fb7185;
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.department-comment-label {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.department-comment {
+  min-height: 66px;
+  resize: vertical;
+  padding: 8px 10px;
+}
+
+.department-signature-btn:disabled,
+.signature-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.department-signature-preview {
+  width: 116px;
+  height: 38px;
+  object-fit: contain;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.department-validation {
+  color: #b45309;
+}
+
+.department-validation[data-valid="true"] {
+  color: #047857;
+}
+
+.signature-dialog {
+  width: min(760px, 100%);
+  padding-bottom: 18px;
+  background: #fff;
+}
+
+.signature-department,
+.signature-validation,
+.signature-actions {
+  margin-right: 22px;
+  margin-left: 22px;
+}
+
+.signature-department {
+  margin-top: 16px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.signature-canvas-shell {
+  position: relative;
+  margin: 12px 22px 0;
+  overflow: hidden;
+  border: 1px solid #94a3b8;
+  border-radius: 9px;
+  background: #fff;
+}
+
+#signature-canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  background: transparent;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.signature-baseline {
+  position: absolute;
+  right: 7%;
+  bottom: 24%;
+  left: 7%;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.signature-validation {
+  min-height: 16px;
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 10px;
+}
+
+.signature-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.signature-action-spacer {
+  flex: 1;
+}
+
+.signature-btn-primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.signature-btn-primary:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.signature-btn-danger {
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.signature-btn-danger:hover {
+  border-color: #fb7185;
+  background: #fff1f2;
+}
+
+@media (max-width: 980px) {
+  .header-right .badge {
+    display: none;
+  }
+
+  .header-context {
+    gap: 9px;
+    padding: 0 10px;
+  }
+
+  .signoff-button-status {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .signoff-overlay,
+  .signature-overlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .signoff-panel,
+  .signature-dialog {
+    width: 100%;
+    max-height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .signoff-reviewer-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .signoff-overall {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .signoff-overall p {
+    text-align: left;
+  }
+
+  .signature-dialog {
+    overflow-y: auto;
+  }
+}

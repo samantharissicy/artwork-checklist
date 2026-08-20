@@ -13,7 +13,7 @@
 //   "Pantone Colours Match Approved Pack Copy?";
 // - standard review workflow (Pending / Approved / Rejected),
 //   comment requirement and multi-layer pins;
-// - schema v4 persistence and v3 → v4 migration;
+// - schema-v4 feature compatibility inside the current persistence schema;
 // - UI retirement of the Colour Specification component.
 //
 // G5 LEGACY (G5-*, G5P-*)
@@ -769,12 +769,12 @@
     assertEqual(data.pantoneColors[0].pantoneCode, "PANTONE 186 C");
   });
 
-  test("G5-045 JSON export remains schema version 4", () => {
+  test("G5-045 JSON export uses the current schema version", () => {
     freshWorkspace();
 
     const data = buildExportData();
 
-    assertEqual(data.schemaVersion, 4);
+    assertEqual(data.schemaVersion, 5);
 
     assertEqual(data.schemaVersion, CURRENT_SCHEMA_VERSION);
   });
@@ -1316,7 +1316,7 @@
 
     const parsed = JSON.parse(snapshot);
 
-    assertEqual(parsed.schemaVersion, 4);
+    assertEqual(parsed.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertEqual(
       parsed.products[parsed.activeProductId].items["6i"].comment,
@@ -1521,10 +1521,12 @@
     assertEqual(pin.yRatio, 0.7);
   });
 
-  test("G5R-021 schema v4 uses the v4 storage key", () => {
-    assertEqual(CURRENT_SCHEMA_VERSION, 4);
+  test("G5R-021 current schema uses the v5 storage key", () => {
+    assertEqual(CURRENT_SCHEMA_VERSION, 5);
 
-    assertEqual(STORAGE_KEY, "artworkChecklist:v4");
+    assertEqual(STORAGE_KEY, "artworkChecklist:v5");
+
+    assertEqual(LEGACY_STORAGE_KEYS.includes("artworkChecklist:v4"), true);
 
     assertEqual(LEGACY_STORAGE_KEYS.includes("artworkChecklist:v3"), true);
 
@@ -1568,7 +1570,7 @@
     );
   });
 
-  test("G5R-023 v3 state migrates to v4 through migrateState", () => {
+  test("G5R-023 v3 state migrates to current schema through migrateState", () => {
     freshWorkspace();
 
     const state = JSON.parse(serializeState());
@@ -1579,12 +1581,12 @@
 
     const migrated = migrateState(state);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(migrated.products[migrated.activeProductId].items["6i"]);
   });
 
-  test("G5R-024 v2 state migrates to v4 through migrateState", () => {
+  test("G5R-024 v2 state migrates to current schema through migrateState", () => {
     freshWorkspace();
 
     const state = JSON.parse(serializeState());
@@ -1607,7 +1609,7 @@
 
     const migrated = migrateState(state);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     const migratedProduct = migrated.products[migrated.activeProductId];
 
@@ -1618,7 +1620,7 @@
     assertExists(migratedProduct.items["6i"]);
   });
 
-  test("G5R-025 v1 state migrates to v4 through migrateState", () => {
+  test("G5R-025 v1 state migrates to current schema through migrateState", () => {
     const dimensions = getArtworkBaseDimensions();
 
     assertExists(dimensions);
@@ -1652,7 +1654,7 @@
 
     const migrated = migrateState(state);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(migrated.products[migrated.activeProductId].items["6i"]);
   });
@@ -1735,7 +1737,7 @@
     assertExists(migrated.products[migrated.activeProductId].items["6i"]);
   });
 
-  test("G5R-029 v3 legacy storage is loaded and migrated to v4", () => {
+  test("G5R-029 v3 legacy storage is loaded and migrated to current schema", () => {
     resetWorkspaceForMultiProductTest();
 
     const product = getActiveProduct();
@@ -1754,7 +1756,7 @@
 
     assertEqual(result, true);
 
-    assertEqual(appState.schemaVersion, 4);
+    assertEqual(appState.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(appState.products[appState.activeProductId].items["6i"]);
 
@@ -1762,7 +1764,7 @@
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    assertEqual(stored.schemaVersion, 4);
+    assertEqual(stored.schemaVersion, CURRENT_SCHEMA_VERSION);
   });
 
   test("G5R-030 v3 Open Check import gains 6i", () => {
@@ -1776,7 +1778,7 @@
 
     const migrated = migrateImportData(exported);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(migrated.items["6i"]);
 
@@ -1789,10 +1791,14 @@
     assertExists(getActiveProduct().items["6i"]);
   });
 
-  test("G5R-031 v4 Open Check import is accepted directly", () => {
+  test("G5R-031 v4 Open Check import migrates to current schema", () => {
     freshWorkspace();
 
     const exported = JSON.parse(JSON.stringify(buildExportData()));
+
+    exported.schemaVersion = 4;
+
+    delete exported.signOffs;
 
     const result = applyImportedReview(exported);
 
@@ -1801,7 +1807,7 @@
     assertExists(getActiveProduct().items["6i"]);
   });
 
-  test("G5R-032 v2 Open Check import migrates to v4 with 6i", () => {
+  test("G5R-032 v2 Open Check import migrates to current schema with 6i", () => {
     freshWorkspace();
 
     const exported = JSON.parse(JSON.stringify(buildExportData()));
@@ -1824,7 +1830,7 @@
 
     const migrated = migrateImportData(exported);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(migrated.items["6i"]);
 
@@ -1835,7 +1841,7 @@
     assertExists(getActiveProduct().items["6i"]);
   });
 
-  test("G5R-033 v1 Open Check import migrates to v4 with 6i", () => {
+  test("G5R-033 v1 Open Check import migrates to current schema with 6i", () => {
     const dimensions = getArtworkBaseDimensions();
 
     assertExists(dimensions);
@@ -1867,7 +1873,7 @@
 
     const migrated = migrateImportData(exported);
 
-    assertEqual(migrated.schemaVersion, 4);
+    assertEqual(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(migrated.items["6i"]);
 
@@ -2001,7 +2007,7 @@
     assertEqual(product.pantoneColors[0].name, "Brand Red");
   });
 
-  test("G5R-039 JSON export v4 contains 6i and legacy pantoneColors", () => {
+  test("G5R-039 current JSON export contains 6i and legacy pantoneColors", () => {
     const product = freshWorkspace();
 
     product.pantoneColors.push(
@@ -2018,7 +2024,7 @@
 
     const data = buildExportData();
 
-    assertEqual(data.schemaVersion, 4);
+    assertEqual(data.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertExists(data.items["6i"]);
 
@@ -2180,7 +2186,7 @@
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    assertEqual(stored.schemaVersion, 4);
+    assertEqual(stored.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     assertEqual(
       stored.products[stored.activeProductId].pantoneColors.length,

@@ -42,7 +42,8 @@ There is no authentication and no multi-user model in the current MVP: the tool 
 - Multi-layer artwork workspace: layer tabs, add/rename/delete layers, per-layer artwork metadata and session images, per-layer pins.
 - **Pantone pack-copy compliance** via canonical checklist item **6I — "Pantone Colours Match Approved Pack Copy?"**, which follows the standard review workflow (see [domain/review-workflow.md](domain/review-workflow.md)).
 - Normalized pins (`xRatio`/`yRatio` in 0..1) with zoom independence, drag-and-drop from checklist, pin↔item navigation, Clear Pins.
-- Persistence: schema-v4 versioned `localStorage`, legacy key migration (v1/v2/v3), Save Check JSON export, Open Check import with validation.
+- Persistence: schema-v5 versioned `localStorage`, legacy key migration (v1/v2/v3/v4), Save Check JSON export, Open Check import with validation.
+- Cross-functional approval: reviewer identity, three independent required department decisions, optional signatures and derived final status.
 - Legacy `pantoneColors` metadata preserved read-only for backwards compatibility (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
 
 ## Explicitly Excluded Scope (current MVP)
@@ -51,8 +52,6 @@ There is no authentication and no multi-user model in the current MVP: the tool 
 | --- | --- |
 | Backend, database, authentication, multi-user | No real multi-user need yet; future layer M |
 | Report generation / PDF | Future layer J |
-| Per-status counters and approval percentage | layer F1 (only "X / Y reviewed" is implemented) |
-| Reviewer identity / signature / department sign-off | Future layers H1–H4; fields exist in the data model but are never populated |
 | High-resolution artwork strategies | Future layer I |
 | Responsive/touch alternatives to HTML drag-and-drop | Future layer K3 |
 | Automatic colour reading, RGB/HEX conversion, eyedropper, OCR, pack-copy upload | Explicitly not part of the Pantone compliance workflow |

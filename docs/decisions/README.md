@@ -38,6 +38,7 @@ Related Layers — layers connected to the decision
 | [ADR-007 — Multi-Layer Artwork](ADR-007-multi-layer-artwork.md) | `artworkLayers[]` + `activeArtworkLayerId` + layer-scoped pins |
 | [ADR-008 — Transient UI State Outside appState](ADR-008-transient-ui-state.md) | Zoom, editors, menu targets, Object URLs stay out of domain state |
 | [ADR-009 — Pantone Pack-Copy Compliance](ADR-009-pantone-pack-copy-compliance.md) | Pantone review moved from a colour registry to checklist item 6I; legacy data preserved |
+| [ADR-010 — Revision-Bound Cross-Functional Sign-Off](ADR-010-cross-functional-signoff.md) | Canonical department decisions, reviewer snapshots, derived overall status and optional Pointer Event signatures |
 
 ## When to Write an ADR
 

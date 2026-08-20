@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Document the operational review workflow as implemented, including status transitions, rejection rules, and the Pantone compliance item 6I.
+Document the operational review workflow as implemented, including checklist decisions, Pantone compliance and cross-functional sign-off.
 
 ## End-to-End Flow
 
@@ -17,7 +17,11 @@ flowchart TD
   E --> F[Approve / Reject items]
   F --> G[Add comments<br/>required on rejection]
   G --> H[Add pins<br/>drag item to artwork location]
-  H --> I[Save Check<br/>export JSON] 
+  H --> I[Enter reviewer identity]
+  I --> J[Quality / Production / Product Development<br/>Approve or Reject independently]
+  J --> K[Optional department signatures]
+  K --> L[Derived overall approval]
+  L --> M[Save Check<br/>export JSON]
 ```
 
 ## Status Transitions
@@ -91,13 +95,28 @@ Operational meaning:
 
 | Step | Action | Behaviour |
 | --- | --- | --- |
-| Save Check | `exportReviewAsJson()` | Downloads schema-v4 JSON of the active product via `buildExportData` |
+| Save Check | `exportReviewAsJson()` | Downloads schema-v5 JSON of the active product, including all sign-offs/signatures, via `buildExportData` |
 | Open Check | `openCheck()` → `handleCheckFileChange` | Reads `.json`, `migrateImportData`, `validateImportData`, imports as a **new product**, activates it |
 
 See [persistence/import-export.md](../persistence/import-export.md).
+
+## Cross-Functional Sign-Off — H1–H4
+
+After checklist review, open **Sign-Off** in the header:
+
+1. Enter the current reviewer's Name and Role.
+2. Record an independent Approve or Reject for each required department.
+3. Add a mandatory comment to every rejected department.
+4. Optionally add a visual signature once that department and the checklist are ready.
+5. Read the derived overall status and blocker list; there is no separate stored overall-status field.
+
+Quality, Production and Product Development are all required. Any rejection makes overall status Rejected. Overall Approved requires all three Approved plus valid product context and checklist completion. Changing Artwork Revision resets the decisions/signatures because they belong to the previous revision.
+
+See [cross-functional-signoff.md](cross-functional-signoff.md) for the full decision, signature and persistence rules.
 
 ## Related Documents
 
 - [domain-overview.md](domain-overview.md)
 - [business-rules.md](business-rules.md)
+- [cross-functional-signoff.md](cross-functional-signoff.md)
 - [quality/manual-regression-guide.md](../quality/manual-regression-guide.md)

@@ -91,6 +91,38 @@
  */
 
 /**
+ * Identity of a reviewer responsible for a decision.
+ *
+ * @typedef {Object} ReviewerIdentity
+ * @property {string} name - Reviewer's display name.
+ * @property {string} role - Reviewer's job title or responsibility.
+ */
+
+/**
+ * Persisted visual signature captured from the sign-off canvas.
+ *
+ * @typedef {Object} DepartmentSignature
+ * @property {string} dataUrl - PNG data URL containing the signature strokes.
+ * @property {string} signedAt - ISO timestamp of signature confirmation.
+ * @property {number} width - Canvas width used when the signature was captured.
+ * @property {number} height - Canvas height used when the signature was captured.
+ */
+
+/**
+ * Independent approval decision owned by one required department.
+ *
+ * @typedef {Object} DepartmentSignOff
+ * @property {string} departmentId - Canonical permanent department identifier.
+ * @property {string} departmentName - Human-readable department name.
+ * @property {ReviewerIdentity} reviewer - Snapshot of the decision maker.
+ * @property {ReviewStatus} status - Pending, approved or rejected.
+ * @property {string} comment - Department decision comment or rejection reason.
+ * @property {string|null} reviewedAt - ISO decision timestamp.
+ * @property {string} artworkVersion - Artwork revision captured with the decision.
+ * @property {DepartmentSignature|null} signature - Optional visual signature.
+ */
+
+/**
  * Runtime review state for one checklist requirement.
  *
  * @typedef {Object} ReviewItem
@@ -121,12 +153,13 @@
  * @property {PantoneColour[]} pantoneColors - Colour specifications registered for the product.
  * @property {Object.<string, ReviewItem>} items
  * @property {Object} reviewer
+ * @property {DepartmentSignOff[]} signOffs - Required cross-functional decisions.
  * @property {Object|null} signature
  * @property {string} createdAt - ISO creation timestamp.
  * @property {string} updatedAt - ISO last-modification timestamp.
  */
 
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 const ARTWORK_REPLACEMENT_MESSAGE =
   "Replacing this artwork will invalidate existing pins.\nContinue?";
@@ -160,6 +193,28 @@ function getReviewStatusLabel(status) {
 const VALID_REVIEW_STATUSES = new Set(Object.values(REVIEW_STATUSES));
 
 const ALLOWED_SITES = Object.freeze(["OH1", "OH2", "BL"]);
+
+const SIGN_OFF_DEPARTMENTS = Object.freeze([
+  Object.freeze({ id: "quality", name: "Quality" }),
+  Object.freeze({ id: "production", name: "Production" }),
+  Object.freeze({
+    id: "product-development",
+    name: "Product Development",
+  }),
+]);
+
+const SIGNATURE_LIMITS = Object.freeze({
+  MAX_DATA_URL_LENGTH: 250000,
+  CANVAS_WIDTH: 900,
+  CANVAS_HEIGHT: 260,
+});
+
+const FINAL_SIGNOFF_REQUIRED_FIELDS = Object.freeze([
+  Object.freeze({ key: "productName", label: "Product Name" }),
+  Object.freeze({ key: "productionCode", label: "Production Code" }),
+  Object.freeze({ key: "site", label: "Site" }),
+  Object.freeze({ key: "artworkVersion", label: "Artwork Revision" }),
+]);
 
 /**
  * Determines whether a value is an allowed production site.
@@ -567,6 +622,31 @@ function createArtworkLayer(id, name, artwork = null) {
 }
 
 /**
+ * Creates the canonical empty cross-functional sign-off set.
+ *
+ * Department definitions are application-owned and cannot be supplied by
+ * persisted data. Every product receives a fresh object graph so decisions,
+ * comments and signatures are never shared between products.
+ *
+ * @returns {DepartmentSignOff[]} Fresh sign-offs in canonical display order.
+ */
+function createInitialSignOffs() {
+  return SIGN_OFF_DEPARTMENTS.map((department) => ({
+    departmentId: department.id,
+    departmentName: department.name,
+    reviewer: {
+      name: "",
+      role: "",
+    },
+    status: REVIEW_STATUSES.PENDING,
+    comment: "",
+    reviewedAt: null,
+    artworkVersion: "",
+    signature: null,
+  }));
+}
+
+/**
  * Creates a new product review with empty product information and a fresh
  * copy of the complete checklist.
  *
@@ -613,6 +693,8 @@ function createProduct(id) {
       role: "",
       reviewedAt: null,
     },
+
+    signOffs: createInitialSignOffs(),
 
     signature: null,
 
@@ -2017,6 +2099,439 @@ function touchActiveProduct() {
   return touchProduct(appState.activeProductId);
 }
 
+// ============================================================
+// CROSS-FUNCTIONAL SIGN-OFF DOMAIN — H1–H4
+// ============================================================
+
+function getSignOffDepartmentDefinition(departmentId) {
+  return (
+    SIGN_OFF_DEPARTMENTS.find(
+      (department) => department.id === departmentId,
+    ) || null
+  );
+}
+
+function getDepartmentSignOff(
+  product,
+  departmentId,
+) {
+  if (!product || !Array.isArray(product.signOffs)) {
+    return null;
+  }
+
+  return (
+    product.signOffs.find(
+      (signOff) => signOff.departmentId === departmentId,
+    ) || null
+  );
+}
+
+function isReviewerIdentityComplete(reviewer) {
+  return (
+    isPlainObject(reviewer) &&
+    typeof reviewer.name === "string" &&
+    reviewer.name.trim() !== "" &&
+    typeof reviewer.role === "string" &&
+    reviewer.role.trim() !== ""
+  );
+}
+
+function cloneReviewerIdentity(reviewer) {
+  return {
+    name: String(reviewer?.name ?? "").trim(),
+    role: String(reviewer?.role ?? "").trim(),
+  };
+}
+
+function isValidDepartmentSignature(signature) {
+  if (!isPlainObject(signature)) {
+    return false;
+  }
+
+  return (
+    typeof signature.dataUrl === "string" &&
+    signature.dataUrl.startsWith("data:image/png;base64,") &&
+    signature.dataUrl.length <= SIGNATURE_LIMITS.MAX_DATA_URL_LENGTH &&
+    typeof signature.signedAt === "string" &&
+    signature.signedAt.trim() !== "" &&
+    Number.isFinite(signature.width) &&
+    signature.width > 0 &&
+    Number.isFinite(signature.height) &&
+    signature.height > 0
+  );
+}
+
+function cloneDepartmentSignature(signature) {
+  if (!signature) {
+    return null;
+  }
+
+  return {
+    dataUrl: signature.dataUrl,
+    signedAt: signature.signedAt,
+    width: signature.width,
+    height: signature.height,
+  };
+}
+
+function updateActiveReviewer(field, value) {
+  const product = getActiveProduct();
+
+  if (!product || !["name", "role"].includes(field)) {
+    return false;
+  }
+
+  product.reviewer[field] = String(value);
+
+  touchActiveProduct();
+
+  return true;
+}
+
+function signOffHasReviewData(signOff) {
+  return Boolean(
+    signOff &&
+      (signOff.status !== REVIEW_STATUSES.PENDING ||
+        signOff.comment.trim() !== "" ||
+        signOff.reviewedAt !== null ||
+        signOff.artworkVersion !== "" ||
+        signOff.signature !== null),
+  );
+}
+
+function resetProductSignOffs(product) {
+  if (!product) {
+    return 0;
+  }
+
+  const resetCount = Array.isArray(product.signOffs)
+    ? product.signOffs.filter(signOffHasReviewData).length
+    : 0;
+
+  product.signOffs = createInitialSignOffs();
+  product.signature = null;
+
+  return resetCount;
+}
+
+function setActiveProductArtworkVersion(value) {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return {
+      changed: false,
+      signOffsReset: 0,
+    };
+  }
+
+  const artworkVersion = String(value);
+
+  if (product.artworkVersion === artworkVersion) {
+    return {
+      changed: false,
+      signOffsReset: 0,
+    };
+  }
+
+  const signOffsReset = resetProductSignOffs(product);
+
+  product.artworkVersion = artworkVersion;
+
+  touchActiveProduct();
+
+  return {
+    changed: true,
+    signOffsReset,
+  };
+}
+
+function setDepartmentSignOffStatus(departmentId, status) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+
+  if (!signOff || !isValidReviewStatus(status)) {
+    return {
+      changed: false,
+      reason: "invalid-sign-off",
+    };
+  }
+
+  if (status !== REVIEW_STATUSES.PENDING) {
+    if (!isReviewerIdentityComplete(product.reviewer)) {
+      return {
+        changed: false,
+        reason: "reviewer-required",
+      };
+    }
+
+    if (product.artworkVersion.trim() === "") {
+      return {
+        changed: false,
+        reason: "artwork-version-required",
+      };
+    }
+  }
+
+  const now = new Date().toISOString();
+
+  signOff.status = status;
+  signOff.signature = null;
+
+  if (status === REVIEW_STATUSES.PENDING) {
+    signOff.reviewer = {
+      name: "",
+      role: "",
+    };
+    signOff.reviewedAt = null;
+    signOff.artworkVersion = "";
+  } else {
+    signOff.reviewer = cloneReviewerIdentity(product.reviewer);
+    signOff.reviewedAt = now;
+    signOff.artworkVersion = product.artworkVersion.trim();
+    product.reviewer.reviewedAt = now;
+  }
+
+  product.updatedAt = now;
+
+  return {
+    changed: true,
+    reason: "",
+  };
+}
+
+function setDepartmentSignOffComment(departmentId, comment) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+
+  if (!signOff) {
+    return false;
+  }
+
+  signOff.comment = String(comment);
+
+  touchActiveProduct();
+
+  return true;
+}
+
+function validateDepartmentSignOff(signOff, product) {
+  const errors = [];
+  const department = getSignOffDepartmentDefinition(signOff?.departmentId);
+
+  if (!department || signOff.departmentName !== department.name) {
+    errors.push("Invalid department sign-off definition.");
+  }
+
+  if (!isValidReviewStatus(signOff?.status)) {
+    errors.push("Invalid department status.");
+  }
+
+  if (
+    signOff?.status === REVIEW_STATUSES.REJECTED &&
+    signOff.comment.trim() === ""
+  ) {
+    errors.push("Rejected department sign-offs require a comment.");
+  }
+
+  if (signOff?.status !== REVIEW_STATUSES.PENDING) {
+    if (!isReviewerIdentityComplete(signOff.reviewer)) {
+      errors.push("Completed department sign-offs require reviewer identity.");
+    }
+
+    if (typeof signOff.reviewedAt !== "string" || signOff.reviewedAt === "") {
+      errors.push("Completed department sign-offs require reviewedAt.");
+    }
+
+    if (
+      typeof signOff.artworkVersion !== "string" ||
+      signOff.artworkVersion.trim() === "" ||
+      signOff.artworkVersion !== product?.artworkVersion.trim()
+    ) {
+      errors.push("Department sign-off belongs to another artwork revision.");
+    }
+  }
+
+  if (signOff?.status === REVIEW_STATUSES.PENDING) {
+    if (
+      signOff.reviewedAt !== null ||
+      signOff.signature !== null ||
+      signOff.artworkVersion.trim() !== "" ||
+      signOff.reviewer.name.trim() !== "" ||
+      signOff.reviewer.role.trim() !== ""
+    ) {
+      errors.push(
+        "Pending department sign-offs cannot contain decision metadata.",
+      );
+    }
+  }
+
+  if (
+    signOff?.signature !== null &&
+    !isValidDepartmentSignature(signOff.signature)
+  ) {
+    errors.push("Invalid department signature.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+function getProductContextBlockers(product) {
+  if (!product) {
+    return ["No active product."];
+  }
+
+  return FINAL_SIGNOFF_REQUIRED_FIELDS.filter(({ key }) => {
+    const value = product[key];
+
+    return typeof value !== "string" || value.trim() === "";
+  }).map(({ label }) => `${label} is required.`);
+}
+
+function getChecklistSignOffBlockers(product) {
+  if (!product || !isPlainObject(product.items)) {
+    return ["Checklist items are unavailable."];
+  }
+
+  const items = Object.values(product.items);
+  const pendingItems = items.filter(
+    (item) => item.status === REVIEW_STATUSES.PENDING,
+  );
+  const invalidRejectedItems = items.filter((item) => {
+    const validation = validateItemState(item);
+
+    return (
+      item.status === REVIEW_STATUSES.REJECTED && !validation.valid
+    );
+  });
+  const blockers = [];
+
+  if (pendingItems.length > 0) {
+    blockers.push(
+      `${pendingItems.length} checklist item${
+        pendingItems.length === 1 ? " is" : "s are"
+      } still Pending.`,
+    );
+  }
+
+  if (invalidRejectedItems.length > 0) {
+    blockers.push(
+      `Rejected checklist items without comments: ${invalidRejectedItems
+        .map((item) => item.id.toUpperCase())
+        .join(", ")}.`,
+    );
+  }
+
+  return blockers;
+}
+
+function validateDepartmentSignatureReadiness(product, signOff) {
+  const blockers = [
+    ...getProductContextBlockers(product),
+    ...getChecklistSignOffBlockers(product),
+  ];
+
+  if (!signOff || signOff.status === REVIEW_STATUSES.PENDING) {
+    blockers.push("Complete the department decision before signing.");
+  } else {
+    const validation = validateDepartmentSignOff(signOff, product);
+
+    validation.errors.forEach((error) => blockers.push(error));
+  }
+
+  return {
+    valid: blockers.length === 0,
+    blockers,
+  };
+}
+
+function setDepartmentSignature(departmentId, signature) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+  const readiness = validateDepartmentSignatureReadiness(product, signOff);
+
+  if (!signOff || !readiness.valid || !isValidDepartmentSignature(signature)) {
+    return false;
+  }
+
+  signOff.signature = cloneDepartmentSignature(signature);
+
+  touchActiveProduct();
+
+  return true;
+}
+
+function removeDepartmentSignature(departmentId) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+
+  if (!signOff || signOff.signature === null) {
+    return false;
+  }
+
+  signOff.signature = null;
+
+  touchActiveProduct();
+
+  return true;
+}
+
+function validateFinalSignOff(product = getActiveProduct()) {
+  const blockers = [
+    ...getProductContextBlockers(product),
+    ...getChecklistSignOffBlockers(product),
+  ];
+
+  if (!product || !Array.isArray(product.signOffs)) {
+    blockers.push("Department sign-offs are unavailable.");
+  } else {
+    product.signOffs.forEach((signOff) => {
+      const validation = validateDepartmentSignOff(signOff, product);
+
+      if (signOff.status === REVIEW_STATUSES.PENDING) {
+        blockers.push(`${signOff.departmentName} is still Pending.`);
+      } else if (signOff.status === REVIEW_STATUSES.REJECTED) {
+        blockers.push(`${signOff.departmentName} rejected the artwork.`);
+      }
+
+      validation.errors.forEach((error) => {
+        blockers.push(`${signOff.departmentName}: ${error}`);
+      });
+    });
+  }
+
+  return {
+    valid: blockers.length === 0,
+    blockers: [...new Set(blockers)],
+  };
+}
+
+function computeOverallApproval(product = getActiveProduct()) {
+  if (!product || !Array.isArray(product.signOffs)) {
+    return REVIEW_STATUSES.PENDING;
+  }
+
+  if (
+    product.signOffs.some(
+      (signOff) => signOff.status === REVIEW_STATUSES.REJECTED,
+    )
+  ) {
+    return REVIEW_STATUSES.REJECTED;
+  }
+
+  const allApproved = product.signOffs.every(
+    (signOff) => signOff.status === REVIEW_STATUSES.APPROVED,
+  );
+
+  if (allApproved && validateFinalSignOff(product).valid) {
+    return REVIEW_STATUSES.APPROVED;
+  }
+
+  return REVIEW_STATUSES.PENDING;
+}
+
 /**
  * Checks whether a value is one of the review statuses supported by the domain.
  *
@@ -2546,6 +3061,8 @@ function bindChecklistItemEvents(itemElement, item) {
     saveStateToStorage();
 
     renderCommentState(item.id);
+
+    renderSignOffOverview();
   });
 
   commentTextarea.addEventListener("pointerdown", (event) => {
@@ -2728,6 +3245,19 @@ const openCommentItemIds = new Set();
 
 let editingTitleItemId = null;
 
+const signOffUiState = {
+  isOpen: false,
+  previousFocus: null,
+};
+
+const signaturePadState = {
+  isOpen: false,
+  departmentId: null,
+  isDrawing: false,
+  hasInk: false,
+  previousFocus: null,
+};
+
 /**
  * Clears temporary checklist UI state that must not leak between products.
  *
@@ -2756,6 +3286,10 @@ function resetTransientReviewUiState() {
   editingTitleItemId = null;
 
   closePantoneColourEditor();
+
+  closeSignaturePad({ restoreFocus: false });
+
+  closeSignOffPanel({ restoreFocus: false });
 }
 
 let currentZoom = 1;
@@ -3322,6 +3856,8 @@ function handleReviewAction(itemId, requestedStatus) {
 
   updateProgress();
 
+  renderSignOffState();
+
   if (nextStatus === REVIEW_STATUSES.REJECTED) {
     const itemElement = document.querySelector(
       `.check-item[data-id="${itemId}"]`,
@@ -3455,7 +3991,7 @@ function updateProgress() {
  *
  * The new product receives:
  * - a permanent unique ID;
- * - a fresh 49-item checklist;
+ * - a fresh 50-item checklist;
  * - empty product fields;
  * - no artwork;
  * - no comments, review decisions or pins.
@@ -4102,6 +4638,8 @@ function bindProductInputs() {
       renderProductTabs();
 
       renderProductContext();
+
+      renderSignOffState();
     });
   }
 
@@ -4152,6 +4690,8 @@ function bindProductInputs() {
       saveStateToStorage();
 
       renderProductContext();
+
+      renderSignOffState();
     });
   }
 
@@ -4170,24 +4710,30 @@ function bindProductInputs() {
       saveStateToStorage();
 
       renderProductContext();
+
+      renderSignOffState();
     });
   }
 
   if (artworkVersionInput) {
     artworkVersionInput.addEventListener("input", (event) => {
-      const product = getActiveProduct();
+      const result = setActiveProductArtworkVersion(event.target.value);
 
-      if (!product) {
+      if (!result.changed) {
         return;
       }
-
-      product.artworkVersion = event.target.value;
-
-      touchActiveProduct();
 
       saveStateToStorage();
 
       renderProductContext();
+
+      renderSignOffState();
+
+      if (result.signOffsReset > 0) {
+        showToast(
+          "Artwork revision changed. Department sign-offs were reset.",
+        );
+      }
     });
   }
 }
@@ -5446,6 +5992,7 @@ function clearPins() {
 const STORAGE_KEY = `artworkChecklist:v${CURRENT_SCHEMA_VERSION}`;
 
 const LEGACY_STORAGE_KEYS = [
+  "artworkChecklist:v4",
   "artworkChecklist:v3",
   "artworkChecklist:v2",
   "artworkChecklist:v1",
@@ -5755,6 +6302,69 @@ function validateSerializedItem(item, expectedItemId) {
 }
 
 /**
+ * Validates the complete canonical department sign-off collection.
+ *
+ * Department identity and ordering are owned by SIGN_OFF_DEPARTMENTS. Saved
+ * data may provide only the mutable decision fields for those departments;
+ * missing, duplicate, reordered or renamed departments are rejected.
+ *
+ * @param {*} signOffs - Persisted sign-off collection.
+ * @param {Product} product - Product that owns the decisions.
+ * @returns {boolean} True when every sign-off is structurally and
+ *   semantically consistent with the current artwork revision.
+ */
+function validateSerializedSignOffs(signOffs, product) {
+  if (
+    !Array.isArray(signOffs) ||
+    signOffs.length !== SIGN_OFF_DEPARTMENTS.length
+  ) {
+    return false;
+  }
+
+  return SIGN_OFF_DEPARTMENTS.every((department, index) => {
+    const signOff = signOffs[index];
+
+    if (
+      !isPlainObject(signOff) ||
+      signOff.departmentId !== department.id ||
+      signOff.departmentName !== department.name ||
+      !isPlainObject(signOff.reviewer) ||
+      typeof signOff.reviewer.name !== "string" ||
+      typeof signOff.reviewer.role !== "string" ||
+      typeof signOff.comment !== "string" ||
+      typeof signOff.artworkVersion !== "string" ||
+      (signOff.reviewedAt !== null &&
+        typeof signOff.reviewedAt !== "string") ||
+      (signOff.signature !== null &&
+        !isValidDepartmentSignature(signOff.signature))
+    ) {
+      return false;
+    }
+
+    if (!isValidReviewStatus(signOff.status)) {
+      return false;
+    }
+
+    if (signOff.status === REVIEW_STATUSES.PENDING) {
+      return (
+        signOff.reviewer.name.trim() === "" &&
+        signOff.reviewer.role.trim() === "" &&
+        signOff.reviewedAt === null &&
+        signOff.artworkVersion.trim() === "" &&
+        signOff.signature === null
+      );
+    }
+
+    return (
+      isReviewerIdentityComplete(signOff.reviewer) &&
+      typeof signOff.reviewedAt === "string" &&
+      signOff.reviewedAt.trim() !== "" &&
+      signOff.artworkVersion === product.artworkVersion.trim()
+    );
+  });
+}
+
+/**
  * Validates the persisted structure of a complete product review.
  *
  * A valid persisted product must contain:
@@ -5860,7 +6470,17 @@ function validateSerializedProduct(product) {
     return false;
   }
 
-  if (!isPlainObject(product.reviewer)) {
+  if (
+    !isPlainObject(product.reviewer) ||
+    typeof product.reviewer.name !== "string" ||
+    typeof product.reviewer.role !== "string" ||
+    (product.reviewer.reviewedAt !== null &&
+      typeof product.reviewer.reviewedAt !== "string")
+  ) {
+    return false;
+  }
+
+  if (!validateSerializedSignOffs(product.signOffs, product)) {
     return false;
   }
 
@@ -5988,6 +6608,33 @@ function rehydrateItems(savedItems) {
 }
 
 /**
+ * Reconstructs canonical sign-off entries from validated persisted data.
+ *
+ * Department identifiers and names always come from the application-owned
+ * definitions. Mutable reviewer, decision, comment and signature values are
+ * deeply copied so imported or parsed JSON objects are never reused directly.
+ *
+ * @param {DepartmentSignOff[]} savedSignOffs - Validated saved decisions.
+ * @returns {DepartmentSignOff[]} Canonical independent sign-off objects.
+ */
+function rehydrateSignOffs(savedSignOffs) {
+  return SIGN_OFF_DEPARTMENTS.map((department, index) => {
+    const savedSignOff = savedSignOffs[index];
+
+    return {
+      departmentId: department.id,
+      departmentName: department.name,
+      reviewer: cloneReviewerIdentity(savedSignOff.reviewer),
+      status: savedSignOff.status,
+      comment: savedSignOff.comment,
+      reviewedAt: savedSignOff.reviewedAt,
+      artworkVersion: savedSignOff.artworkVersion,
+      signature: cloneDepartmentSignature(savedSignOff.signature),
+    };
+  });
+}
+
+/**
  * Reconstructs a canonical Product instance from validated persisted data.
  *
  * A fresh product is created first through createProduct() so default domain
@@ -6000,8 +6647,9 @@ function rehydrateItems(savedItems) {
  * - deeply cloned pantoneColors (products saved before G5 serialized
  *   without a pantoneColors key are rehydrated with an empty registry);
  * - canonical checklist-item reconstruction;
- * - reviewer data merged over reviewer defaults;
- * - signature data;
+ * - current reviewer data merged over reviewer defaults;
+ * - canonical department sign-offs and optional signatures;
+ * - legacy product-level signature data;
  * - preserved creation and update timestamps when valid.
  *
  * The function intentionally creates new nested objects instead of reusing
@@ -6044,6 +6692,8 @@ function rehydrateProduct(savedProduct) {
     ...product.reviewer,
     ...savedProduct.reviewer,
   };
+
+  product.signOffs = rehydrateSignOffs(savedProduct.signOffs);
 
   product.signature = savedProduct.signature ?? null;
 
@@ -6330,15 +6980,70 @@ function migrateStateV3ToV4(state) {
 }
 
 /**
+ * Assigns the canonical cross-functional department decisions.
+ *
+ * Schema-v4 data did not contain department sign-offs. Existing reviewer and
+ * legacy signature fields remain untouched; the new departments deliberately
+ * start Pending because an old review cannot imply cross-functional approval.
+ *
+ * @param {Object} productLike - Product or single-review import data object.
+ * Existing signOffs on a legacy-version object are deliberately replaced:
+ * schema v4 had no valid department decisions, so legacy data must never be
+ * able to fabricate an approval during migration.
+ *
+ * @returns {Object} The supplied object with a fresh sign-off collection.
+ */
+function addCrossFunctionalSignOffs(productLike) {
+  if (isPlainObject(productLike)) {
+    productLike.signOffs = createInitialSignOffs();
+  }
+
+  return productLike;
+}
+
+/**
+ * Converts a compatible schema-v4 persisted workspace into schema v5.
+ *
+ * Every product receives the three canonical required department sign-offs as
+ * Pending. This conservative migration preserves all completed checklist work
+ * without fabricating approvals that did not exist in schema v4.
+ *
+ * @param {*} state - Parsed schema-v4 persisted state.
+ * @returns {Object|null} Schema-v5 state, or null when migration is impossible.
+ */
+function migrateStateV4ToV5(state) {
+  if (!isPlainObject(state) || state.schemaVersion !== 4) {
+    return null;
+  }
+
+  try {
+    const migratedState = JSON.parse(JSON.stringify(state));
+
+    Object.values(migratedState.products).forEach((product) => {
+      addCrossFunctionalSignOffs(product);
+    });
+
+    migratedState.schemaVersion = 5;
+
+    return migratedState;
+  } catch (error) {
+    console.error("Failed to migrate state:", error);
+
+    return null;
+  }
+}
+
+/**
  * Converts compatible persisted workspace versions into the current schema.
  *
  * Migration is performed before validateState().
  *
  * Behavior:
  * - current-schema state is returned unchanged;
- * - schema-v3 state is migrated to schema v4;
- * - schema-v2 state is migrated through the v2 → v3 → v4 chain;
- * - schema-v1 state is migrated through the full v1 → v2 → v3 → v4 chain;
+ * - schema-v4 state is migrated to schema v5;
+ * - schema-v3 state is migrated through the v3 → v4 → v5 chain;
+ * - schema-v2 state is migrated through the v2 → v3 → v4 → v5 chain;
+ * - schema-v1 state is migrated through the full v1 → v2 → v3 → v4 → v5 chain;
  * - unsupported schema versions are rejected.
  *
  * The original supplied state is never modified, since every migration step
@@ -6356,12 +7061,18 @@ function migrateState(state) {
     return state;
   }
 
+  if (state.schemaVersion === 4) {
+    return migrateStateV4ToV5(state);
+  }
+
   if (state.schemaVersion === 3) {
-    return migrateStateV3ToV4(state);
+    return migrateStateV4ToV5(migrateStateV3ToV4(state));
   }
 
   if (state.schemaVersion === 2) {
-    return migrateStateV3ToV4(migrateStateV2ToV3(state));
+    return migrateStateV4ToV5(
+      migrateStateV3ToV4(migrateStateV2ToV3(state)),
+    );
   }
 
   if (state.schemaVersion === 1) {
@@ -6371,7 +7082,9 @@ function migrateState(state) {
       return null;
     }
 
-    return migrateStateV3ToV4(migrateStateV2ToV3(v2State));
+    return migrateStateV4ToV5(
+      migrateStateV3ToV4(migrateStateV2ToV3(v2State)),
+    );
   }
 
   console.warn(`Unsupported schema version: ${state.schemaVersion}`);
@@ -6569,7 +7282,8 @@ function saveStateToStorage() {
  * - the complete checklist review items with per-layer pins;
  * - independent artwork layers and the active layer identifier;
  * - the product's pantoneColors colour specifications;
- * - reviewer information.
+ * - reviewer information;
+ * - every cross-functional decision and optional signature.
  *
  * artworkLayers, activeArtworkLayerId and pantoneColors are top-level
  * siblings of the product object in the exported structure.
@@ -6620,7 +7334,15 @@ function buildExportData() {
 
     pantoneColors: clonePantoneColours(product.pantoneColors),
 
-    reviewer: product.reviewer,
+    reviewer: {
+      ...product.reviewer,
+    },
+
+    signOffs: product.signOffs.map((signOff) => ({
+      ...signOff,
+      reviewer: cloneReviewerIdentity(signOff.reviewer),
+      signature: cloneDepartmentSignature(signOff.signature),
+    })),
   };
 }
 
@@ -7755,6 +8477,787 @@ async function confirmDeletePantoneColour(colourId) {
 }
 
 // ============================================================
+// CROSS-FUNCTIONAL SIGN-OFF UI — H1–H4
+// ============================================================
+
+/**
+ * Formats a stored ISO review timestamp for compact display.
+ *
+ * @param {string|null} value - ISO timestamp to format.
+ * @returns {string} Localized timestamp, or an empty string when invalid.
+ */
+function formatSignOffTimestamp(value) {
+  if (typeof value !== "string" || value.trim() === "") {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+/**
+ * Builds the markup for one independent department decision card.
+ *
+ * @param {DepartmentSignOff} signOff - Department decision to render.
+ * @param {Product} product - Product that owns the decision.
+ * @returns {string} Safe department card markup.
+ */
+function buildDepartmentSignOffMarkup(signOff, product) {
+  const statusLabel = getReviewStatusLabel(signOff.status);
+  const reviewerComplete = isReviewerIdentityComplete(signOff.reviewer);
+  const reviewerText = reviewerComplete
+    ? `${signOff.reviewer.name} · ${signOff.reviewer.role}`
+    : "No decision recorded";
+  const reviewedText = formatSignOffTimestamp(signOff.reviewedAt);
+  const commentInvalid =
+    signOff.status === REVIEW_STATUSES.REJECTED &&
+    signOff.comment.trim() === "";
+  const signatureReadiness = validateDepartmentSignatureReadiness(
+    product,
+    signOff,
+  );
+  const hasSignature = signOff.signature !== null;
+  let validationText = "Awaiting department decision.";
+  let validationValid = false;
+
+  if (signOff.status !== REVIEW_STATUSES.PENDING) {
+    if (commentInvalid) {
+      validationText = "A rejection comment is required.";
+    } else if (!signatureReadiness.valid) {
+      validationText = `Decision recorded. Signature locked: ${signatureReadiness.blockers[0]}`;
+    } else {
+      validationText = hasSignature
+        ? "Decision valid and signed."
+        : "Decision valid. Visual signature is optional.";
+      validationValid = true;
+    }
+  }
+
+  const signaturePreview = hasSignature
+    ? `<img class="department-signature-preview" src="${escapeHtml(
+        signOff.signature.dataUrl,
+      )}" alt="Saved ${escapeHtml(signOff.departmentName)} signature" />
+       <span class="department-signed-state">Signed</span>`
+    : "";
+
+  return `
+    <article class="department-signoff-card" data-department-card="${escapeHtml(
+      signOff.departmentId,
+    )}" data-status="${escapeHtml(signOff.status)}">
+      <div class="department-signoff-header">
+        <div>
+          <span class="signoff-section-label">Required department</span>
+          <h4>${escapeHtml(signOff.departmentName)}</h4>
+        </div>
+        <span class="department-status" data-status="${escapeHtml(
+          signOff.status,
+        )}">${escapeHtml(statusLabel)}</span>
+      </div>
+
+      <div class="department-status-row" role="group" aria-label="${escapeHtml(
+        signOff.departmentName,
+      )} decision">
+        <button type="button" class="department-decision-btn" data-department-id="${escapeHtml(
+          signOff.departmentId,
+        )}" data-decision="approved" aria-pressed="${String(
+          signOff.status === REVIEW_STATUSES.APPROVED,
+        )}">Approve</button>
+        <button type="button" class="department-decision-btn" data-department-id="${escapeHtml(
+          signOff.departmentId,
+        )}" data-decision="rejected" aria-pressed="${String(
+          signOff.status === REVIEW_STATUSES.REJECTED,
+        )}">Reject</button>
+      </div>
+
+      <p class="department-review-meta">
+        ${escapeHtml(reviewerText)}${
+          reviewedText ? ` · ${escapeHtml(reviewedText)}` : ""
+        }${
+          signOff.artworkVersion
+            ? ` · Artwork ${escapeHtml(signOff.artworkVersion)}`
+            : ""
+        }
+      </p>
+
+      <label class="department-comment-label">
+        <span>Department comment${
+          signOff.status === REVIEW_STATUSES.REJECTED ? " · Required" : ""
+        }</span>
+        <textarea class="department-comment" data-department-comment="${escapeHtml(
+          signOff.departmentId,
+        )}" aria-invalid="${String(commentInvalid)}" placeholder="Add context for this decision">${escapeHtml(
+          signOff.comment,
+        )}</textarea>
+      </label>
+
+      <div class="department-signature-row">
+        <button type="button" class="department-signature-btn" data-sign-department="${escapeHtml(
+          signOff.departmentId,
+        )}" ${signatureReadiness.valid ? "" : "disabled"}>${
+          hasSignature ? "Replace signature" : "Add signature"
+        }</button>
+        ${signaturePreview}
+      </div>
+
+      <p class="department-validation" data-department-validation="${escapeHtml(
+        signOff.departmentId,
+      )}" data-valid="${String(validationValid)}">${escapeHtml(
+        validationText,
+      )}</p>
+    </article>
+  `;
+}
+
+/**
+ * Synchronizes the header status, reviewer fields and final blockers without
+ * rebuilding department cards. This smaller render is safe during textarea
+ * input because it preserves the user's caret and focus.
+ *
+ * @returns {void}
+ */
+function renderSignOffOverview() {
+  const product = getActiveProduct();
+
+  if (!product) {
+    return;
+  }
+
+  const overallStatus = computeOverallApproval(product);
+  const finalValidation = validateFinalSignOff(product);
+  const statusLabel = getReviewStatusLabel(overallStatus);
+  const button = document.getElementById("signoff-button");
+  const buttonStatus = document.getElementById("signoff-button-status");
+  const overallElement = document.getElementById("signoff-overall-status");
+  const overallMessage = document.getElementById("signoff-overall-message");
+  const blockerSection = document.getElementById("signoff-blocker-section");
+  const blockerCount = document.getElementById("signoff-blocker-count");
+  const blockerList = document.getElementById("signoff-blockers");
+  const reviewerName = document.getElementById("signoff-reviewer-name");
+  const reviewerRole = document.getElementById("signoff-reviewer-role");
+
+  if (button) {
+    button.dataset.status = overallStatus;
+    button.setAttribute(
+      "aria-label",
+      `Open department sign-off. Overall status: ${statusLabel}.`,
+    );
+  }
+
+  if (buttonStatus) {
+    buttonStatus.textContent = statusLabel;
+  }
+
+  if (overallElement) {
+    overallElement.dataset.status = overallStatus;
+    overallElement.textContent = statusLabel;
+  }
+
+  if (overallMessage) {
+    if (overallStatus === REVIEW_STATUSES.APPROVED) {
+      overallMessage.textContent =
+        "All required departments approved this artwork revision.";
+    } else if (overallStatus === REVIEW_STATUSES.REJECTED) {
+      overallMessage.textContent =
+        "At least one required department rejected this artwork revision.";
+    } else {
+      overallMessage.textContent =
+        "Complete the checklist and every required department decision.";
+    }
+  }
+
+  if (reviewerName) {
+    reviewerName.value = product.reviewer.name;
+    reviewerName.setAttribute(
+      "aria-invalid",
+      String(product.reviewer.name.trim() === ""),
+    );
+  }
+
+  if (reviewerRole) {
+    reviewerRole.value = product.reviewer.role;
+    reviewerRole.setAttribute(
+      "aria-invalid",
+      String(product.reviewer.role.trim() === ""),
+    );
+  }
+
+  if (blockerSection) {
+    blockerSection.dataset.ready = String(finalValidation.valid);
+  }
+
+  if (blockerCount) {
+    blockerCount.textContent = finalValidation.valid
+      ? "Ready"
+      : `${finalValidation.blockers.length} blocker${
+          finalValidation.blockers.length === 1 ? "" : "s"
+        }`;
+  }
+
+  if (blockerList) {
+    blockerList.innerHTML = finalValidation.valid
+      ? "<li>Final approval requirements are satisfied.</li>"
+      : finalValidation.blockers
+          .map((blocker) => `<li>${escapeHtml(blocker)}</li>`)
+          .join("");
+  }
+}
+
+/**
+ * Rebuilds the three canonical department decision cards.
+ *
+ * @returns {void}
+ */
+function renderDepartmentSignOffs() {
+  const product = getActiveProduct();
+  const container = document.getElementById("department-signoffs");
+
+  if (!product || !container) {
+    return;
+  }
+
+  container.innerHTML = product.signOffs
+    .map((signOff) => buildDepartmentSignOffMarkup(signOff, product))
+    .join("");
+}
+
+/**
+ * Synchronizes all visible sign-off UI with the active product.
+ *
+ * The compact header state is always updated. Department cards are rebuilt
+ * only while the panel is open because the closed overlay has no visible
+ * consumer and should not add work to normal checklist interactions.
+ *
+ * @returns {void}
+ */
+function renderSignOffState() {
+  renderSignOffOverview();
+
+  if (signOffUiState.isOpen) {
+    renderDepartmentSignOffs();
+  }
+}
+
+/**
+ * Opens the sign-off panel for the active product.
+ *
+ * @returns {void}
+ */
+function openSignOffPanel() {
+  const overlay = document.getElementById("signoff-overlay");
+  const panel = document.getElementById("signoff-panel");
+
+  if (!overlay || !panel || !getActiveProduct()) {
+    return;
+  }
+
+  signOffUiState.isOpen = true;
+  signOffUiState.previousFocus = document.activeElement;
+
+  renderSignOffState();
+
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
+
+  const body = panel.querySelector(".signoff-panel-body");
+
+  if (body) {
+    body.scrollTop = 0;
+  }
+
+  panel.focus();
+}
+
+/**
+ * Closes the sign-off panel and optionally restores focus to its trigger.
+ *
+ * @param {{restoreFocus?: boolean}} [options] - Focus behavior.
+ * @returns {void}
+ */
+function closeSignOffPanel({ restoreFocus = true } = {}) {
+  const overlay = document.getElementById("signoff-overlay");
+
+  if (signaturePadState.isOpen) {
+    closeSignaturePad({ restoreFocus: false });
+  }
+
+  signOffUiState.isOpen = false;
+
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  if (restoreFocus && signOffUiState.previousFocus?.focus) {
+    signOffUiState.previousFocus.focus();
+  }
+
+  signOffUiState.previousFocus = null;
+}
+
+/**
+ * Applies a department decision requested by the UI.
+ *
+ * Selecting an already active decision returns that department to Pending.
+ * Changing any decision clears its previous signature by domain rule.
+ *
+ * @param {string} departmentId - Target department identifier.
+ * @param {ReviewStatus} requestedStatus - Approved or Rejected.
+ * @returns {void}
+ */
+function handleDepartmentDecision(departmentId, requestedStatus) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+
+  if (!signOff) {
+    return;
+  }
+
+  const nextStatus =
+    signOff.status === requestedStatus
+      ? REVIEW_STATUSES.PENDING
+      : requestedStatus;
+  const result = setDepartmentSignOffStatus(departmentId, nextStatus);
+
+  if (!result.changed) {
+    const messages = {
+      "reviewer-required":
+        "Enter the reviewer name and role before recording a decision.",
+      "artwork-version-required":
+        "Enter the Artwork Revision before recording a decision.",
+    };
+
+    showToast(messages[result.reason] || "Unable to update department decision.");
+    return;
+  }
+
+  saveStateToStorage();
+  renderSignOffState();
+
+  if (nextStatus === REVIEW_STATUSES.REJECTED) {
+    document
+      .querySelector(`[data-department-comment="${departmentId}"]`)
+      ?.focus();
+  }
+
+  showToast(
+    nextStatus === REVIEW_STATUSES.PENDING
+      ? `${signOff.departmentName} returned to Pending.`
+      : `${signOff.departmentName} marked ${getReviewStatusLabel(
+          nextStatus,
+        )}.`,
+  );
+}
+
+/**
+ * Clears the signature canvas and resets its ink state.
+ *
+ * @returns {void}
+ */
+function clearSignatureCanvas() {
+  const canvas = document.getElementById("signature-canvas");
+  const context = canvas?.getContext("2d");
+
+  if (!canvas || !context) {
+    return;
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  signaturePadState.hasInk = false;
+
+  const validation = document.getElementById("signature-validation");
+
+  if (validation) {
+    validation.textContent = "Draw a signature before confirming.";
+  }
+}
+
+/**
+ * Prepares the canvas for a new or replacement department signature.
+ *
+ * @param {DepartmentSignOff} signOff - Department being signed.
+ * @returns {void}
+ */
+function prepareSignatureCanvas(signOff) {
+  const canvas = document.getElementById("signature-canvas");
+  const context = canvas?.getContext("2d");
+
+  if (!canvas || !context) {
+    return;
+  }
+
+  canvas.width = SIGNATURE_LIMITS.CANVAS_WIDTH;
+  canvas.height = SIGNATURE_LIMITS.CANVAS_HEIGHT;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = "#0f172a";
+  context.lineWidth = 4;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  signaturePadState.hasInk = false;
+
+  const validation = document.getElementById("signature-validation");
+
+  if (validation) {
+    validation.textContent = "Draw a signature before confirming.";
+  }
+
+  if (signOff.signature) {
+    const image = new Image();
+
+    image.addEventListener("load", () => {
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      signaturePadState.hasInk = true;
+
+      if (validation) {
+        validation.textContent = "Saved signature loaded. Draw to replace or confirm it.";
+      }
+    });
+
+    image.src = signOff.signature.dataUrl;
+  }
+}
+
+/**
+ * Opens the pointer-enabled signature pad for a completed department decision.
+ *
+ * @param {string} departmentId - Department identifier.
+ * @returns {void}
+ */
+function openSignaturePad(departmentId) {
+  const product = getActiveProduct();
+  const signOff = getDepartmentSignOff(product, departmentId);
+  const readiness = validateDepartmentSignatureReadiness(product, signOff);
+  const overlay = document.getElementById("signature-overlay");
+
+  if (!signOff || !overlay) {
+    return;
+  }
+
+  if (!readiness.valid) {
+    showToast(readiness.blockers[0] || "This decision cannot be signed yet.");
+    return;
+  }
+
+  signaturePadState.isOpen = true;
+  signaturePadState.departmentId = departmentId;
+  signaturePadState.previousFocus = document.activeElement;
+  signaturePadState.isDrawing = false;
+
+  const department = document.getElementById("signature-department");
+  const removeButton = document.getElementById("signature-remove");
+
+  if (department) {
+    department.textContent = `${signOff.departmentName} · ${getReviewStatusLabel(
+      signOff.status,
+    )} by ${signOff.reviewer.name}`;
+  }
+
+  if (removeButton) {
+    removeButton.classList.toggle("hidden", signOff.signature === null);
+  }
+
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden", "false");
+
+  prepareSignatureCanvas(signOff);
+  document.getElementById("signature-canvas")?.focus();
+}
+
+/**
+ * Closes the signature pad and clears its transient drawing state.
+ *
+ * @param {{restoreFocus?: boolean}} [options] - Focus behavior.
+ * @returns {void}
+ */
+function closeSignaturePad({ restoreFocus = true } = {}) {
+  const overlay = document.getElementById("signature-overlay");
+
+  signaturePadState.isOpen = false;
+  signaturePadState.departmentId = null;
+  signaturePadState.isDrawing = false;
+  signaturePadState.hasInk = false;
+
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  if (restoreFocus && signaturePadState.previousFocus?.focus) {
+    signaturePadState.previousFocus.focus();
+  }
+
+  signaturePadState.previousFocus = null;
+}
+
+/**
+ * Converts a pointer event into intrinsic canvas coordinates.
+ *
+ * @param {HTMLCanvasElement} canvas - Signature canvas.
+ * @param {PointerEvent} event - Pointer event to translate.
+ * @returns {{x: number, y: number}} Canvas-space coordinates.
+ */
+function getSignaturePointerPosition(canvas, event) {
+  const bounds = canvas.getBoundingClientRect();
+
+  return {
+    x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+    y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
+  };
+}
+
+/**
+ * Persists the current canvas as a PNG data URL for the active department.
+ *
+ * @returns {void}
+ */
+function confirmDepartmentSignature() {
+  const canvas = document.getElementById("signature-canvas");
+  const departmentId = signaturePadState.departmentId;
+
+  if (!canvas || !departmentId || !signaturePadState.hasInk) {
+    showToast("Draw a signature before confirming.");
+    return;
+  }
+
+  const signature = {
+    dataUrl: canvas.toDataURL("image/png"),
+    signedAt: new Date().toISOString(),
+    width: canvas.width,
+    height: canvas.height,
+  };
+
+  if (!isValidDepartmentSignature(signature)) {
+    showToast("The signature is too large or could not be saved.");
+    return;
+  }
+
+  if (!setDepartmentSignature(departmentId, signature)) {
+    showToast("The department decision is not ready for signature.");
+    return;
+  }
+
+  saveStateToStorage();
+  closeSignaturePad();
+  renderSignOffState();
+  showToast("Department signature saved.");
+}
+
+/**
+ * Removes the currently stored department signature.
+ *
+ * @returns {void}
+ */
+function removeCurrentDepartmentSignature() {
+  const departmentId = signaturePadState.departmentId;
+
+  if (!departmentId || !removeDepartmentSignature(departmentId)) {
+    return;
+  }
+
+  saveStateToStorage();
+  closeSignaturePad();
+  renderSignOffState();
+  showToast("Department signature removed.");
+}
+
+/**
+ * Registers the static sign-off panel and Pointer Events handlers.
+ *
+ * Pointer Events provide one input path for mouse, pen and touchscreen. The
+ * department list uses event delegation because cards are rebuilt from state.
+ *
+ * @returns {void}
+ */
+function bindSignOffUi() {
+  const overlay = document.getElementById("signoff-overlay");
+  const closeButton = document.getElementById("signoff-close");
+  const reviewerName = document.getElementById("signoff-reviewer-name");
+  const reviewerRole = document.getElementById("signoff-reviewer-role");
+  const departments = document.getElementById("department-signoffs");
+  const signatureOverlay = document.getElementById("signature-overlay");
+  const signatureClose = document.getElementById("signature-close");
+  const signatureCancel = document.getElementById("signature-cancel");
+  const signatureClear = document.getElementById("signature-clear");
+  const signatureConfirm = document.getElementById("signature-confirm");
+  const signatureRemove = document.getElementById("signature-remove");
+  const canvas = document.getElementById("signature-canvas");
+
+  closeButton?.addEventListener("click", () => closeSignOffPanel());
+
+  overlay?.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      closeSignOffPanel();
+    }
+  });
+
+  reviewerName?.addEventListener("input", (event) => {
+    if (updateActiveReviewer("name", event.target.value)) {
+      saveStateToStorage();
+      renderSignOffOverview();
+    }
+  });
+
+  reviewerRole?.addEventListener("input", (event) => {
+    if (updateActiveReviewer("role", event.target.value)) {
+      saveStateToStorage();
+      renderSignOffOverview();
+    }
+  });
+
+  departments?.addEventListener("click", (event) => {
+    const decisionButton = event.target.closest("[data-decision]");
+    const signatureButton = event.target.closest("[data-sign-department]");
+
+    if (decisionButton) {
+      handleDepartmentDecision(
+        decisionButton.dataset.departmentId,
+        decisionButton.dataset.decision,
+      );
+      return;
+    }
+
+    if (signatureButton) {
+      openSignaturePad(signatureButton.dataset.signDepartment);
+    }
+  });
+
+  departments?.addEventListener("input", (event) => {
+    const comment = event.target.closest("[data-department-comment]");
+
+    if (!comment) {
+      return;
+    }
+
+    if (
+      setDepartmentSignOffComment(
+        comment.dataset.departmentComment,
+        comment.value,
+      )
+    ) {
+      saveStateToStorage();
+      comment.setAttribute(
+        "aria-invalid",
+        String(
+          getDepartmentSignOff(
+            getActiveProduct(),
+            comment.dataset.departmentComment,
+          )?.status === REVIEW_STATUSES.REJECTED &&
+            comment.value.trim() === "",
+        ),
+      );
+      renderSignOffOverview();
+    }
+  });
+
+  departments?.addEventListener("change", () => {
+    renderDepartmentSignOffs();
+  });
+
+  signatureClose?.addEventListener("click", () => closeSignaturePad());
+  signatureCancel?.addEventListener("click", () => closeSignaturePad());
+  signatureClear?.addEventListener("click", clearSignatureCanvas);
+  signatureConfirm?.addEventListener("click", confirmDepartmentSignature);
+  signatureRemove?.addEventListener(
+    "click",
+    removeCurrentDepartmentSignature,
+  );
+
+  signatureOverlay?.addEventListener("click", (event) => {
+    if (event.target === signatureOverlay) {
+      closeSignaturePad();
+    }
+  });
+
+  canvas?.addEventListener("pointerdown", (event) => {
+    if (!signaturePadState.isOpen) {
+      return;
+    }
+
+    event.preventDefault();
+    const context = canvas.getContext("2d");
+    const point = getSignaturePointerPosition(canvas, event);
+
+    signaturePadState.isDrawing = true;
+    signaturePadState.hasInk = true;
+
+    try {
+      canvas.setPointerCapture?.(event.pointerId);
+    } catch (error) {
+      /*
+       * Synthetic PointerEvents used by the browser regression suite do not
+       * belong to the browser's active pointer registry. Drawing remains
+       * valid without capture in that narrow case; real pointer interactions
+       * still receive capture normally.
+       */
+      if (error?.name !== "NotFoundError") {
+        throw error;
+      }
+    }
+
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    context.lineTo(point.x + 0.01, point.y + 0.01);
+    context.stroke();
+
+    const validation = document.getElementById("signature-validation");
+
+    if (validation) {
+      validation.textContent = "Signature ready to confirm.";
+    }
+  });
+
+  canvas?.addEventListener("pointermove", (event) => {
+    if (!signaturePadState.isDrawing) {
+      return;
+    }
+
+    event.preventDefault();
+    const context = canvas.getContext("2d");
+    const point = getSignaturePointerPosition(canvas, event);
+
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  });
+
+  const finishDrawing = (event) => {
+    if (!signaturePadState.isDrawing) {
+      return;
+    }
+
+    signaturePadState.isDrawing = false;
+    canvas?.getContext("2d")?.closePath();
+
+    if (canvas?.hasPointerCapture?.(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  canvas?.addEventListener("pointerup", finishDrawing);
+  canvas?.addEventListener("pointercancel", finishDrawing);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    if (signaturePadState.isOpen) {
+      event.preventDefault();
+      closeSignaturePad();
+    } else if (signOffUiState.isOpen) {
+      event.preventDefault();
+      closeSignOffPanel();
+    }
+  });
+}
+
+// ============================================================
 // COMPLETE STATE RENDER
 // ============================================================
 
@@ -7811,6 +9314,8 @@ function renderAppState() {
   renderPins();
 
   updateProgress();
+
+  renderSignOffState();
 }
 
 /**
@@ -9293,12 +10798,13 @@ function showPromptDialog(options) {
  *
  * Behavior:
  * - current-schema imports are returned unchanged;
+ * - schema-v4 imports gain the canonical Pending department sign-offs;
  * - schema-v3 imports gain the canonical 6i checklist item as Pending;
  * - schema-v2 imports have their single artwork moved into the default
  *   layer and their single item pins moved into per-layer pin arrays, then
- *   receive the canonical 6i checklist item;
+ *   receive the canonical 6i checklist item and department sign-offs;
  * - schema-v1 imports first run the legacy pixel-pin conversion and then the
- *   schema-v2 and schema-v3 conversions;
+ *   remaining schema conversions;
  * - unsupported or malformed versions are rejected.
  *
  * Every migration step deep-clones the imported structure before modifying it
@@ -9323,6 +10829,22 @@ function migrateImportData(data) {
     return data;
   }
 
+  if (data.schemaVersion === 4) {
+    try {
+      const migratedData = JSON.parse(JSON.stringify(data));
+
+      addCrossFunctionalSignOffs(migratedData);
+
+      migratedData.schemaVersion = 5;
+
+      return migratedData;
+    } catch (error) {
+      console.error("Failed to migrate imported review:", error);
+
+      return null;
+    }
+  }
+
   if (data.schemaVersion === 3) {
     try {
       const migratedData = JSON.parse(JSON.stringify(data));
@@ -9331,7 +10853,7 @@ function migrateImportData(data) {
 
       migratedData.schemaVersion = 4;
 
-      return migratedData;
+      return migrateImportData(migratedData);
     } catch (error) {
       console.error("Failed to migrate imported review:", error);
 
@@ -9382,7 +10904,7 @@ function migrateImportData(data) {
 
       migratedData.schemaVersion = 4;
 
-      return migratedData;
+      return migrateImportData(migratedData);
     } catch (error) {
       console.error("Failed to migrate imported review:", error);
 
@@ -9509,6 +11031,8 @@ function validateImportData(data) {
       reviewedAt: null,
     },
 
+    signOffs: data.signOffs,
+
     createdAt: data.product.createdAt,
 
     updatedAt: data.product.updatedAt,
@@ -9595,6 +11119,8 @@ function buildImportedProduct(importedData) {
     ...product.reviewer,
     ...(importedData.reviewer || {}),
   };
+
+  product.signOffs = rehydrateSignOffs(importedData.signOffs);
 
   if (typeof importedData.product.createdAt === "string") {
     product.createdAt = importedData.product.createdAt;
@@ -9847,6 +11373,8 @@ function initializeApp() {
   bindArtworkInput();
 
   bindAppDialog();
+
+  bindSignOffUi();
 
   initializeContextMenus();
 

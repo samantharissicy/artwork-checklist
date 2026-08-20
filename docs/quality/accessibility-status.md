@@ -12,11 +12,11 @@
 | `role="tablist"` | `#product-tabs`, `#artwork-layer-tabs` |
 | `role="tab"` / `aria-selected` | tab elements (aria-selected set via JS: , 8013) |
 | `role="menu"` / `role="menuitem"` / `role="separator"` | both context menus (7 menuitems, 2 separators) |
-| `role="dialog"` / `aria-modal` / `aria-labelledby` / `aria-describedby` | `#app-dialog-overlay` / `.app-dialog` |
+| `role="dialog"` / `aria-modal` / `aria-labelledby` / `aria-describedby` | application dialog, sign-off panel and signature dialog |
 | `aria-hidden` | dialog overlay, decorative SVGs |
 | `aria-pressed` | approve/reject buttons (JS: ) |
 | `aria-expanded` | comment buttons (JS: ) |
-| `aria-invalid` | comment textarea on invalid rejection (JS: ) |
+| `aria-invalid` | checklist rejection comment, department rejection comment and incomplete reviewer inputs |
 | `aria-disabled` | disabled context-menu items (JS: , 8666) |
 | `role="alert"` | checklist item markup (JS template) |
 
@@ -28,13 +28,16 @@
 | Context menus | Escape closes; ArrowUp/ArrowDown move focus  |
 | Custom dialog | Escape dismisses; Enter submits when prompt input focused  |
 | Buttons | All interactive controls are real `<button>` elements (keyboard-focusable by default) |
+| Sign-off dialogs | Escape/backdrop/close button dismiss; focus returns to trigger |
+| Signature pad | Pointer Events unify mouse, pen and touch; canvas has an accessible label |
 
 ### Focus management
 
 - Comment textarea focused after reject.
 - Title-edit input focused + selected on begin.
 - Dialog focus via `requestAnimationFrame`.
-- `:focus-visible` styles exist in header.css and context-menu.css.
+- Sign-off panel/signature canvas focus on open and restore the prior trigger on close.
+- `:focus-visible` styles exist in header, context-menu and sign-off controls.
 
 ## Status Table
 
@@ -46,9 +49,9 @@
 | Focus trap in dialog | Partial | Escape/Enter handled; no explicit focus trap | K2 |
 | `aria-live` announcements | Not implemented | Toast is visual only | K2 |
 | Full keyboard alternative for drag-and-drop | Not implemented | Pin creation is drag-only (planned K3 proposes "Select item → click artwork") | K3 |
-| Touch targets adequate | Not assessed | No touch-specific testing | K3 |
-| Responsive layout / small viewports | Not implemented | No media queries in CSS (see [css-architecture.md](../architecture/css-architecture.md)) | I2 |
-| Visible focus everywhere | Partial | `:focus-visible` on header buttons and context menus only | K2 |
+| Touch targets adequate | Partial | Signature Pointer Events tested; whole-app touch audit remains | K3 |
+| Responsive layout / small viewports | Partial | Layer H modals have 980px/680px breakpoints; main workspace remains desktop-first | I2 |
+| Visible focus everywhere | Partial | Header, context menus and Layer H controls covered; full-app audit remains | K2 |
 
 ## Recommendations (future, planned K2)
 

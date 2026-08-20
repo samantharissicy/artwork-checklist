@@ -1,12 +1,12 @@
 # Artwork & Pack Copy Checklist — Engineering Documentation
 
-**Status: Current** — this documentation describes the repository as it exists today (schema v4, 50 checklist items, 378 tests).
+**Status: Current** — this documentation describes the repository as it exists today (schema v5, 50 checklist items, 436 tests).
 
 ## Purpose
 
 This `docs/` tree is the technical knowledge base for the **Artwork & Pack Copy Checklist** application. It exists so that:
 
-1. a new developer can understand the project without reading all ~9,860 lines of `js/app.js` first;
+1. a new developer can understand the project without reading the complete `js/app.js` first;
 2. an AI coding agent can receive `docs/` as context and correctly understand the current architecture;
 3. important technical decisions do not have to be re-discussed repeatedly;
 4. future changes can identify architecture, domain rules, data model, persistence, migrations, responsibilities, tests, limitations and historical decisions;
@@ -38,39 +38,41 @@ CODE > TESTS > planned > README > HISTORICAL BASELINE
 
 - **Status: Current.** Vanilla HTML5 + CSS + JavaScript; no framework, no npm, no build, no backend, no database, no runtime dependencies.
 - `appState` is the single source of truth; the DOM is a projection (see [architecture/architecture-overview.md](architecture/architecture-overview.md)).
-- Canonical schema **v4**, versioned `localStorage` key `artworkChecklist:v4` (see [architecture/persistence-and-schema.md](architecture/persistence-and-schema.md)).
+- Canonical schema **v5**, versioned `localStorage` key `artworkChecklist:v5` (see [architecture/persistence-and-schema.md](architecture/persistence-and-schema.md)).
 - **50 checklist items** in **6 sections**; item **6I — "Pantone Colours Match Approved Pack Copy?"** is the canonical Pantone compliance item (see [domain/domain-overview.md](domain/domain-overview.md)).
 - Multi-product workspace with tabs and per-product context menus; multi-layer artwork with per-layer pins and layer tabs.
+- Cross-functional sign-off for Quality, Production and Product Development, with reviewer snapshots, derived overall approval and optional Pointer Event signatures.
 - Legacy `pantoneColors` metadata is preserved for backwards compatibility only (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
-- Test suite: **378 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
+- Test suite: **436 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
 
 ## Current Technical Status
 
 | Area | Value |
 | --- | --- |
-| Schema | v4 (`CURRENT_SCHEMA_VERSION = 4`) |
-| Storage key | `artworkChecklist:v4` |
-| Legacy keys | `artworkChecklist:v3`, `artworkChecklist:v2`, `artworkChecklist:v1` |
+| Schema | v5 (`CURRENT_SCHEMA_VERSION = 5`) |
+| Storage key | `artworkChecklist:v5` |
+| Legacy keys | `artworkChecklist:v4`, `artworkChecklist:v3`, `artworkChecklist:v2`, `artworkChecklist:v1` |
 | Checklist items | 50 |
 | Sections | 6 |
 | Review statuses | `pending` / `approved` / `rejected` |
 | Allowed sites | `OH1`, `OH2`, `BL` |
-| Tests | 378 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest audit: 378/378 passing) |
-| App source | `js/app.js` (~9,860 lines, 205 function declarations) |
+| Required sign-off departments | Quality, Production, Product Development |
+| Tests | 436 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest Layer H verification: 436/436 passing) |
+| App source | `js/app.js` (single classic-script application module) |
 
 ## Navigation Groups
 
 | Group | Contents |
 | --- | --- |
 | [Overview](project-overview.md) | Business purpose, MVP scope, development methodology |
-| [Documentation Audit](documentation-audit.md) | Deep docs-vs-code compatibility audit, verified facts, test-suite results |
+| [Documentation Audit](documentation-audit.md) | Historical pre-H schema-v4 documentation audit checkpoint |
 | [Architecture](architecture/architecture-overview.md) | Architecture, data model, state, rendering, persistence, artwork, pins, context menus, CSS |
 | [Engineering](engineering/tech-stack.md) | Stack, development workflow, coding standards, testing, error handling, browser runtime |
 | [Domain](domain/domain-overview.md) | Domain concepts, review workflow, business rules, data dictionary, glossary |
 | [Persistence](persistence/serialization.md) | Serialization, migrations, import/export, legacy compatibility |
 | [Quality](quality/quality-strategy.md) | Quality strategy, security, accessibility, performance, manual regression |
 | [Operations](operations/local-development.md) | Local development, troubleshooting, recovery and backup |
-| [Architecture Decisions](decisions/README.md) | ADR-001 … ADR-009 |
+| [Architecture Decisions](decisions/README.md) | ADR-001 … ADR-010 |
 | [Future Architecture](future/future-architecture.md) | **FUTURE / NOT CURRENT IMPLEMENTATION** |
 
 ## Start Here

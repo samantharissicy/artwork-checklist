@@ -1,11 +1,11 @@
 # Artwork & Pack Copy Checklist
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
+  <img src="https://img.shields.io/badge/status-MVP%20H-success" alt="MVP H">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-378%2F378%20passing-success" alt="378/378 testes passando">
-  <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
+  <img src="https://img.shields.io/badge/tests-436%2F436%20passing-success" alt="436/436 testes passando">
+  <img src="https://img.shields.io/badge/schema-v5-blue" alt="Schema v5">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
 </p>
@@ -15,8 +15,8 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
 > **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um planned orientado por especificação.  
-> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** estão concluídas.  
-> A **Camada G5 — Conformidade Pantone com a Pack Copy está completa.**
+> As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, F1, G1–G5 e H1–H4** estão concluídas.
+> A **Camada H — Cross-Functional Sign-Off está completa.**
 
 ## Documentação de engenharia
 
@@ -134,13 +134,18 @@ sem banco de dados
 | ✅ Autosave                          | Estado salvo automaticamente no `localStorage` |
 | ✅ Restauração após reload           | Estado salvo é restaurado ao abrir a página    |
 | ✅ Proteção contra estado corrompido | Storage inválido não derruba a aplicação       |
-| ✅ Serialização versionada           | Estado canônico usa schema versão 4            |
-| ✅ Migração de estado                | Dados legados de schema v1/v2/v3 migram para v4 |
-| ✅ Domínio multi-layer               | Layers, active layer e pins por layer (schema v4) |
+| ✅ Serialização versionada           | Estado canônico usa schema versão 5            |
+| ✅ Migração de estado                | Dados legados de schema v1/v2/v3/v4 migram para v5 |
+| ✅ Domínio multi-layer               | Layers, active layer e pins por layer no schema v5 |
 | ✅ Workspace multi-layer             | Tabs de layer com fluxos Add / Rename / Delete    |
 | ✅ Conformidade Pantone              | Item 6I "Pantone Colours Match Approved Pack Copy?" |
 | ✅ Workflow padrão para 6I           | Pending / Approved / Rejected + comentário + pins  |
 | ✅ Registro Pantone legado           | `pantoneColors` preservado na migração v3 → v4     |
+| ✅ Sign-off cross-functional         | Decisões independentes de Quality, Production e Product Development |
+| ✅ Snapshot do reviewer              | Nome, função, timestamp e revisão da artwork por decisão |
+| ✅ Aprovação geral derivada          | Rejected tem precedência; todas as áreas são obrigatórias |
+| ✅ Assinaturas visuais               | Canvas opcional por departamento com mouse/pen/touch |
+| ✅ Validação do sign-off final       | Bloqueios de dados, checklist e departamentos visíveis |
 | ✅ Export JSON versionado            | Save Check exporta o estado completo           |
 | ✅ Import JSON                       | Open Check restaura revisões compatíveis       |
 | ✅ Artwork demonstrativa             | Mock Front & Back em HTML/CSS                  |
@@ -156,7 +161,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 378 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 436 testes de regressão no navegador           |
 | ✅ Menu de contexto da tab           | Clique direito na tab: Renomear/Duplicar/Novo/Excluir |
 | ✅ Menu de contexto da camada        | Clique direito na tab da camada: Renomear/Adicionar/Excluir |
 
@@ -571,12 +576,14 @@ Um JSON inválido no navegador nunca deve impedir a aplicação de abrir.
 ### Schema atual
 
 ```js
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 ```
 
-Existe suporte à migração compatível do schema v1, no qual pins ainda podiam utilizar coordenadas em pixels, do schema v2 de layer única e do schema v3 sem o item de conformidade Pantone.
+Existe suporte à migração do schema v1 com pins em pixels, do schema v2 de layer única, do schema v3 sem o item Pantone e do schema v4 sem sign-offs cross-functional.
 
 Estado do schema v3 migra para v4 adicionando o item canônico 6I ("Pantone Colours Match Approved Pack Copy?") como Pending em cada produto. O registro legado `pantoneColors` é preservado inalterado e nunca influencia o status do item 6I migrado.
+
+Estado do schema v4 migra para v5 adicionando Quality, Production e Product Development como Pending. Nenhuma aprovação histórica é inferida.
 
 ### Save Check
 
@@ -599,6 +606,7 @@ artworkLayers
 activeArtworkLayerId
 pantoneColors
 reviewer
+signOffs
 ```
 
 A estrutura exportada espelha a revisão em `appState`: `artworkLayers`, `activeArtworkLayerId` e `pantoneColors` são irmãos de nível superior do objeto `product`. O registro `pantoneColors` é preservado por compatibilidade com exports do schema v3; revisões criadas nesta versão revisam a conformidade Pantone por meio do item 6I do checklist.
@@ -614,6 +622,8 @@ pins normalizados
 dados do produto
 metadata da artwork
 timestamps
+snapshots do reviewer por departamento
+decisões e assinaturas opcionais dos departamentos
 ```
 
 ### Open Check
@@ -974,7 +984,7 @@ const appState = {
 Schema atual:
 
 ```js
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 ```
 
 O fluxo principal é:
@@ -1174,7 +1184,7 @@ await runArtworkTests();
 Checkpoint atual:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 testes passando
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 → 436 / 436 testes passando
 ```
 
 A suíte cobre:
@@ -1193,6 +1203,7 @@ Camada E2
 Camada G4A
 Camada G4B
 Camada G5
+Camada H1–H4
 ```
 
 Entre os comportamentos testados:
@@ -1260,7 +1271,7 @@ pins por layer (item.pins[])
 sessions por layer
 identidade da artwork por layer
 migração schema v2 → v3
-cadeia schema v1 → v2 → v3 → v4
+cadeia schema v1 → v2 → v3 → v4 → v5
 migração da chave legada de storage
 renderização por active layer
 
@@ -1270,10 +1281,20 @@ workflow do 6I (Pending / Approved / Rejected)
 comentário obrigatório na rejeição do 6I
 pins por layer no 6I
 migração schema v3 → v4
-import de arquivos de revisão v1/v2/v3 → v4
+import de arquivos v1/v2/v3 através da compatibilidade v4
 preservação do pantoneColors legado
 roundtrip serialização / localStorage do registro legado
 roundtrip export / import JSON do registro legado
+
+identidade do reviewer cross-functional
+decisões independentes das áreas obrigatórias
+comentário obrigatório em rejeição departamental
+reset de decisões ao mudar Artwork Revision
+aprovação geral derivada e blockers finais
+assinaturas Pointer Events com mouse/touch
+migração schema v4 → v5
+import de arquivos v1/v2/v3/v4 → v5
+roundtrip de sign-offs em storage/export/import/duplicação
 
 regressão do DOM
 regressão do zoom
@@ -1373,16 +1394,16 @@ O desenvolvimento é guiado por um planned separado, mantido fora deste reposit�
 |   ✅   | **G2**    | Interface de tabs                                |
 |   ✅   | **G3–G4** | Workspace multi-layer de artwork                 |
 |   ✅   | **G5**    | Conformidade Pantone com a pack copy (item 6I) |
-|   📋   | **H1–H2** | Reviewer + assinatura                            |
+|   ✅   | **H1–H4** | Sign-off cross-functional + assinatura + validação final |
 |   📋   | **I1–I2** | Alta resolução + responsividade                  |
 |   📋   | **J1–J3** | Relatório imprimível + PDF                       |
 |   📋   | **K1–K4** | UX, acessibilidade, touch e regressão            |
 |   📋   | **L1**    | Separação em módulos                             |
 |   ⏳   | **M1–M4** | Backend, autenticação, revisões e auditoria      |
 
-O fluxo de produto único está estável desde a Camada E; tabs de múltiplos produtos, artwork layers e a conformidade Pantone com a pack copy já estão implementados até a Camada G5.
+O fluxo de produto único está estável desde a Camada E; tabs, artwork layers, conformidade Pantone e sign-off cross-functional estão implementados até a Camada H.
 
-As camadas F1 e G foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
+As camadas F1, G e H foram desenvolvidas incrementalmente; as camadas restantes devem permanecer isoladas em branches próprias se forem desenvolvidas em paralelo.
 
 ### UX Polish — Menu de Contexto da Tab de Camada de Artwork
 
