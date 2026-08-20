@@ -22,7 +22,7 @@ Alternatives  — options considered and why they were rejected
 Consequences  — Positive / Negative
 Revisit When  — conditions that would justify revisiting the decision
 Related Files — source files that implement the decision
-Related Layers — roadmap layers connected to the decision
+Related Layers — layers connected to the decision
 ```
 
 ## Index
@@ -52,4 +52,4 @@ Write or update an ADR when a change:
 ## Related Documents
 
 - [docs/README.md](../README.md) — documentation index and maintenance policy.
-- [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md) — layer planning.
+- [future/layer-planning.md](../future/layer-planning.md) — layer planning.

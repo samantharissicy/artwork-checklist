@@ -74,16 +74,16 @@ Note: the runner snapshots once before and restores once after the whole suite; 
 | `d-persistence.test.js` | D1–D4 | 10 | serialization, storage corruption, export, import, migration |
 | `e1-pin-geometry.test.js` | E1 | 8 | normalized pins, zoom independence, legacy pixels |
 | `e2-artwork-identity.test.js` | E2 | 11 | identity comparison, replacement confirmation, pin clearing |
-| `f1-review-metrics.test.js` | F1 | 2 | **stubs** (empty bodies, always pass — metrics not implemented yet) |
+| `f1-review-metrics.test.js` | F1 | 7 | counters (approved/rejected/pending/total), review % (approved + rejected), approval % (approved only), progress-bar width, all-pending → 0%, fully-approved → 100%, empty-checklist guard |
 | `g-multiple-products.test.js` | G1–G3 + G2UX | 53 | product domain, tabs, context metadata, product context menu UX |
 | `g4-multi-layer-artwork.test.js` | G4A/G4B/G4UX | 120 | layer domain, layer flows, layer tab UX, v2→v3 migration |
 | `g5-pantone-compliance.test.js` | G5/G5P/G5R | 109 | legacy `pantoneColors` compatibility (G5), Pantone limits/IDs (G5P), **canonical 6I workflow + schema v4 + v3→v4 migration (G5R)** |
 
-**Total: 373 tests.**
+**Total: 378 tests.**
 
 Test ID conventions: `G5R-001…049` (current Pantone compliance), `G5-…` (legacy registry compatibility), `G5P-…` (Pantone limits), `G4A/G4B/G4UX-…`, `G2UX-…`, and layer prefixes (`D2 …`, `E1 …`, `B1 …`) for earlier layers. Baseline tests have no IDs.
 
-> **Time-sensitive metric:** the exact count (373) changes as layers are implemented (history: 312 → 357 → 373). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
+> **Time-sensitive metric:** the exact count (378) changes as layers are implemented (history: 312 → 357 → 373 → 378). Treat it as a checkpoint, not a constant. The authoritative count at any time is the registration count in `js/tests/layers/`.
 
 ## How to Run
 
@@ -99,7 +99,7 @@ The suite snapshots application state before running and restores it afterwards,
 
 ## Known Artifacts
 
-- `F1` stubs register 2 tests that always pass (metrics are roadmap work).
+- `F1` tests cover the review metrics (counters, review/approval percentages, progress bar).
 - Tests that intentionally exercise error paths log `console.error` from application functions (e.g. corrupted-JSON tests) — expected noise.
 - `G4UX-028` uses fake `blob:http://localhost/…` session URLs to assert layer-scoped session revocation; the browser logs `Not allowed to load local resource: blob:…` for these fixture URLs — a known, pre-existing fixture artifact, not an application defect.
 

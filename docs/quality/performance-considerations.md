@@ -31,12 +31,12 @@
 | --- | --- |
 | Many products / larger state | Debounced persistence; selective per-product serialization |
 | Huge checklists | DOM diffing or incremental item rendering |
-| Very large artwork images | Downscale for display; store dimensions; defer decode (roadmap I1) |
+| Very large artwork images | Downscale for display; store dimensions; defer decode (planned I1) |
 | Frequent renders | Batching renders via `requestAnimationFrame` |
-| Module growth | Module split (roadmap L1) improves maintainability, not raw speed |
+| Module growth | Module split (planned L1) improves maintainability, not raw speed |
 
 ## Related Documents
 
 - [architecture/rendering-model.md](../architecture/rendering-model.md)
 - [architecture/state-management.md](../architecture/state-management.md)
-- [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md) — layers I, K4, L1.
+- [future/layer-planning.md](../future/layer-planning.md) — layers I, K4, L1.

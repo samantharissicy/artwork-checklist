@@ -98,4 +98,4 @@ Carries a LEGACY banner: "LEGACY PANTONE SPECIFICATION METADATA — CSS / Backwa
 
 - [engineering/tech-stack.md](../engineering/tech-stack.md) — styling section.
 - [engineering/coding-standards.md](../engineering/coding-standards.md) — CSS conventions.
-- [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md) — K2 (accessibility) and I2 (responsive) impact CSS.
+- [future/layer-planning.md](../future/layer-planning.md) — K2 (accessibility) and I2 (responsive) impact CSS.

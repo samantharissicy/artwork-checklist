@@ -77,7 +77,7 @@ Conventional-commit style, as evidenced by the repository history:
 | --- | --- |
 | `feat: implement G5 Pantone compliance workflow, upgrade to schema v4, ...` | `feat:` |
 | `test: add comprehensive test suite for ...` | `test:` |
-| `docs: remove internal roadmap and master prompt references ...` | `docs:` |
+| `docs: remove internal planned and master prompt references ...` | `docs:` |
 | `baseline: working artwork checklist prototype` (historical) | `baseline:` |
 
 Suggested commit after a documentation task:

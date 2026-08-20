@@ -63,6 +63,6 @@ Why not destructive removal: existing schema-v3 reviews and review files contain
 - [domain/review-workflow.md](../domain/review-workflow.md)
 - [persistence/legacy-compatibility.md](../persistence/legacy-compatibility.md)
 
-## Related Roadmap Layers
+## Related layers
 
 G5 (Pantone compliance), D3 (export), D4 (import).

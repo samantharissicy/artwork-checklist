@@ -2,7 +2,7 @@
 // C1 — TRI-STATE REVIEW WORKFLOW
 // ============================================================
 //
-// Tests owned by this roadmap layer only.
+// Tests owned by this layer only.
 // Shared assertions and fixtures come from window.ArtworkTests.
 // ============================================================
 
@@ -157,8 +157,18 @@
 
     updateProgress();
 
-    const progressText = document.getElementById("progress-text");
+    assertEqual(document.getElementById("progress-total").textContent.trim(), "50");
 
-    assertEqual(progressText.textContent.trim(), "3 / 50 reviewed");
+    assertEqual(document.getElementById("progress-approved").textContent.trim(), "2");
+
+    assertEqual(document.getElementById("progress-rejected").textContent.trim(), "1");
+
+    assertEqual(document.getElementById("progress-pending").textContent.trim(), "47");
+
+    assertEqual(document.getElementById("progress-review-pct").textContent.trim(), "6% reviewed");
+
+    assertEqual(document.getElementById("progress-approval-pct").textContent.trim(), "4% approved");
+
+    assertEqual(document.getElementById("progress-bar").style.width, "6%");
   });
 })();

@@ -51,7 +51,7 @@ There is no authentication and no multi-user model in the current MVP: the tool 
 | --- | --- |
 | Backend, database, authentication, multi-user | No real multi-user need yet; future layer M |
 | Report generation / PDF | Future layer J |
-| Per-status counters and approval percentage | Roadmap layer F1 (only "X / Y reviewed" is implemented) |
+| Per-status counters and approval percentage | layer F1 (only "X / Y reviewed" is implemented) |
 | Reviewer identity / signature / department sign-off | Future layers H1–H4; fields exist in the data model but are never populated |
 | High-resolution artwork strategies | Future layer I |
 | Responsive/touch alternatives to HTML drag-and-drop | Future layer K3 |
@@ -74,16 +74,16 @@ The project follows a specification-driven methodology: incremental, specificati
 - **P-006 Compatibility** — no framework/npm/build/backend in the MVP;
 - **P-007 Phase separation** — future features are documented, not implemented early.
 
-## Roadmap Methodology
+## development methodology
 
-Development is guided by an external roadmap (previously `roadmap.md`, removed from this repository in commit `48ff58c`). Layers are developed in sequence (A0 baseline → B state → C workflow → D persistence → E geometry → F metrics → G multi-product/multi-layer/Pantone → H sign-off → I high-res → J report → K quality → L refactor → M backend). Each completed layer must leave the system functional and pass its acceptance criteria.
+Development is guided by an external development plan (previously `planning.md`, removed from this repository in commit `48ff58c`). Layers are developed in sequence (A0 baseline → B state → C workflow → D persistence → E geometry → F metrics → G multi-product/multi-layer/Pantone → H sign-off → I high-res → J report → K quality → L refactor → M backend). Each completed layer must leave the system functional and pass its acceptance criteria.
 
-Implemented layers as of today: **A0, B1, C1, C2, C3, D1–D4, E1, E2, G1–G5** (F1 partially: only the basic progress bar exists). See [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md).
+Implemented layers as of today: **A0, B1, C1, C2, C3, D1–D4, E1, E2, F1, G1–G5** (F1 metrics: counters, review/approval percentages and progress bar). See [future/layer-planning.md](future/layer-planning.md).
 
 ## CURRENT vs PLANNED vs FUTURE
 
 | Category | Meaning | Where documented |
 | --- | --- | --- |
 | CURRENT | Implemented and tested in this repository | All `docs/` files except `future/` |
-| PLANNED | On the roadmap, not yet implemented | [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md) |
+| PLANNED | Planned, not yet implemented | [future/layer-planning.md](future/layer-planning.md) |
 | FUTURE | Conditional evolution if real needs appear | [future/future-architecture.md](future/future-architecture.md), [future/backend-transition.md](future/backend-transition.md) |

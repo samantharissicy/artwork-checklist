@@ -37,10 +37,10 @@
 
 ## Future Requirements (if backend appears)
 
-- Authentication and authorization (roadmap M2).
+- Authentication and authorization (planned M2).
 - Transport security (HTTPS).
 - Server-side import validation and file-size limits.
-- Immutable audit log (roadmap M4).
+- Immutable audit log (planned M4).
 - Object storage with access control for artwork binaries.
 
 None of these are implemented or promised; see [future/future-architecture.md](../future/future-architecture.md).

@@ -1,10 +1,10 @@
-# Roadmap Technical Notes
+# Layer Planning Notes
 
 **Status: Future / Not Implemented** (except where marked Current)
 
 ## Purpose
 
-Technical dependencies between planned roadmap layers. The external roadmap is the scheduling authority; this file notes *engineering* coupling, not dates. Implemented layers are listed for completeness.
+Technical dependencies between planned layers. The external development plan is the scheduling authority; this file notes *engineering* coupling, not dates. Implemented layers are listed for completeness.
 
 ## Layer Status Summary (current)
 
@@ -15,7 +15,7 @@ Technical dependencies between planned roadmap layers. The external roadmap is t
 | C1/C2/C3 review/comments/copy | ✅ Current | tri-state, comments, copy corrections |
 | D1–D4 persistence/export/import | ✅ Current | schema v1–v4 chain |
 | E1/E2 pins/identity | ✅ Current | normalized pins, replacement safeguards |
-| F1 review metrics | 📋 Partial | progress bar only; per-status counters + approval % pending |
+| F1 review metrics | ✅ Current | counters, review/approval percentages and progress bar |
 | G1–G5 products/layers/Pantone | ✅ Current | multi-product, multi-layer, 6I compliance |
 | H1–H4 sign-off | 📋 Planned | reviewer identity, department sign-off, signature, final validation |
 | I1–I2 high-res/responsive | 📋 Planned | storage strategy, viewports/touch |
@@ -41,7 +41,7 @@ Technical dependencies between planned roadmap layers. The external roadmap is t
 
 ## Sequencing Implications
 
-1. **F1 (metrics)** is the smallest pending item and has no dependencies — it can land any time (the progress bar already exists).
+1. **F1 (metrics)** is implemented; it had no dependencies and could land at any time after the progress bar existed.
 2. **H (sign-off)** benefits from stable validation; the fields it needs already exist in the schema.
 3. **J (report)** should be built against a report model, never the DOM.
 4. **L1 (modules)** should precede or accompany any large layer (H/J) to keep `js/app.js` manageable.
@@ -56,4 +56,4 @@ Layers are developed sequentially with acceptance gates per layer (see [developm
 - [project-overview.md](../project-overview.md) — CURRENT/PLANNED/FUTURE split.
 - [future-architecture.md](future-architecture.md)
 - [backend-transition.md](backend-transition.md)
-- External roadmap (scheduling authority; maintained outside this repository since commit `48ff58c`).
+- external development plan (scheduling authority; maintained outside this repository since commit `48ff58c`).

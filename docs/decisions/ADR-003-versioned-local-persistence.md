@@ -43,8 +43,8 @@ Use **`localStorage` under a versioned key** for textual review state, plus **ve
 
 ## Revisit When
 
-- Multi-user or shared persistence is required (roadmap M1).
-- State outgrows localStorage or needs server-side validation (roadmap M).
+- Multi-user or shared persistence is required (planned M1).
+- State outgrows localStorage or needs server-side validation (planned M).
 
 ## Related Files
 
@@ -52,6 +52,6 @@ Use **`localStorage` under a versioned key** for textual review state, plus **ve
 - [architecture/persistence-and-schema.md](../architecture/persistence-and-schema.md)
 - [persistence/migrations.md](../persistence/migrations.md)
 
-## Related Roadmap Layers
+## Related layers
 
 D1–D4 (serialization/persistence/export/import), M1 (backend).

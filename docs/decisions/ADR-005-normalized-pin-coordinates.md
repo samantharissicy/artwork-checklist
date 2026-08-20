@@ -52,6 +52,6 @@ Browser coordinates are converted with `calculatePinRatios` (clamped to `[0,1]`)
 - [architecture/pins-and-coordinate-system.md](../architecture/pins-and-coordinate-system.md)
 - [persistence/migrations.md](../persistence/migrations.md)
 
-## Related Roadmap Layers
+## Related layers
 
 E1 (pin normalization), E2 (artwork identity).

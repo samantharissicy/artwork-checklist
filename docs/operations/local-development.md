@@ -45,7 +45,7 @@ Windows note: `python -m http.server 5500` works in PowerShell and CMD with Pyth
 3. DevTools Console:
      await runArtworkTests();
 4. Read the summary line, e.g.:
-     %c373/373 tests passed
+     %c378/378 tests passed
 ```
 
 The suite snapshots application state before running and restores it afterwards.

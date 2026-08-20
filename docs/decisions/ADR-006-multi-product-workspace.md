@@ -48,8 +48,8 @@ appState.activeProductId = "product-1";
 
 ## Revisit When
 
-- Product counts reach dozens and tab UI degrades (search/filter, roadmap N ideas).
-- Multi-user shared product libraries appear (roadmap M).
+- Product counts reach dozens and tab UI degrades (search/filter, planned N ideas).
+- Multi-user shared product libraries appear (planned M).
 
 ## Related Files
 
@@ -57,6 +57,6 @@ appState.activeProductId = "product-1";
 - [architecture/state-management.md](../architecture/state-management.md)
 - [architecture/context-menus.md](../architecture/context-menus.md)
 
-## Related Roadmap Layers
+## Related layers
 
 G1 (model), G2 (tabs), G3 (review context metadata), G4 (layers per product).

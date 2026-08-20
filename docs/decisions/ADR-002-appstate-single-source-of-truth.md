@@ -44,7 +44,7 @@ The DOM is a **projection**: renderers rebuild it from `appState`; event handler
 
 ## Revisit When
 
-- The codebase grows enough to justify a state library or module boundary changes (roadmap L1).
+- The codebase grows enough to justify a state library or module boundary changes (planned L1).
 - If two-way data binding were ever needed at scale — not currently the case.
 
 ## Related Files
@@ -53,6 +53,6 @@ The DOM is a **projection**: renderers rebuild it from `appState`; event handler
 - [architecture/state-management.md](../architecture/state-management.md)
 - [architecture/rendering-model.md](../architecture/rendering-model.md)
 
-## Related Roadmap Layers
+## Related layers
 
 B1 (domain foundation), D1 (serialization), L1 (module separation).

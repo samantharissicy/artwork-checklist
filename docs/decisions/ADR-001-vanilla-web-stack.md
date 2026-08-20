@@ -32,7 +32,7 @@ Implementation: `index.html`, modular CSS under `css/`, classic scripts `js/app.
 | --- | --- |
 | Framework SPA (React/Vue) | Unnecessary complexity for 50-item checklist + viewer; violates P-006 |
 | TypeScript | Adds a build step; no runtime benefit at this scale (documented as future consideration only) |
-| ES modules | Not used: classic scripts keep zero-build serving; module split is roadmap L1 |
+| ES modules | Not used: classic scripts keep zero-build serving; module split is planned L1 |
 | Backend (Supabase/Express/Firebase) | No multi-user/remote needs in the MVP; revisit at layer M |
 
 ## Consequences
@@ -50,14 +50,14 @@ Implementation: `index.html`, modular CSS under `css/`, classic scripts `js/app.
 
 ## Revisit When
 
-- Multi-user reviews, shared persistence, auth or audit trail become real requirements (roadmap M).
-- The single file `js/app.js` (~9,800 lines) makes maintenance impractical (roadmap L1).
+- Multi-user reviews, shared persistence, auth or audit trail become real requirements (planned M).
+- The single file `js/app.js` (~9,860 lines) makes maintenance impractical (planned L1).
 
 ## Related Files
 
 - `index.html`, `css/style.css`, `js/app.js`, `js/tests.js`
 - [engineering/tech-stack.md](../engineering/tech-stack.md)
 
-## Related Roadmap Layers
+## Related layers
 
 A0 (baseline), L1 (module separation), M1–M4 (backend/auth/revisions/audit).

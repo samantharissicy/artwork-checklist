@@ -45,12 +45,12 @@
 | Keyboard navigation of checklist sections | Not implemented | Sections expand via click only | K2 |
 | Focus trap in dialog | Partial | Escape/Enter handled; no explicit focus trap | K2 |
 | `aria-live` announcements | Not implemented | Toast is visual only | K2 |
-| Full keyboard alternative for drag-and-drop | Not implemented | Pin creation is drag-only (roadmap K3 proposes "Select item → click artwork") | K3 |
+| Full keyboard alternative for drag-and-drop | Not implemented | Pin creation is drag-only (planned K3 proposes "Select item → click artwork") | K3 |
 | Touch targets adequate | Not assessed | No touch-specific testing | K3 |
 | Responsive layout / small viewports | Not implemented | No media queries in CSS (see [css-architecture.md](../architecture/css-architecture.md)) | I2 |
 | Visible focus everywhere | Partial | `:focus-visible` on header buttons and context menus only | K2 |
 
-## Recommendations (future, roadmap K2)
+## Recommendations (future, planned K2)
 
 - Focus trap + `aria-modal` interplay review in the dialog.
 - `aria-live="polite"` region for toast feedback.
@@ -61,4 +61,4 @@
 
 - [engineering/coding-standards.md](../engineering/coding-standards.md)
 - [architecture/context-menus.md](../architecture/context-menus.md)
-- [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md) — layer K2/K3.
+- [future/layer-planning.md](../future/layer-planning.md) — layer K2/K3.

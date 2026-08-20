@@ -6,7 +6,7 @@
 //
 //   <script src="js/tests.js"></script>
 //
-// This loader imports the test infrastructure and each roadmap-layer
+// This loader imports the test infrastructure and each layer
 // test file in deterministic order.
 //
 // To run the suite from DevTools:

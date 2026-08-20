@@ -8,15 +8,15 @@ Explain the project's quality philosophy and the verification practices in place
 
 ## Quality Philosophy
 
-- **Incremental, specification-driven development**: each roadmap layer must leave the system functional and pass its acceptance criteria ([development-workflow.md](../engineering/development-workflow.md)).
-- **Preservation over rewrite** (principle P-002): features once shipped keep working; regression tests grow with each layer (312 → 357 → 373).
+- **Incremental, specification-driven development**: each layer must leave the system functional and pass its acceptance criteria ([development-workflow.md](../engineering/development-workflow.md)).
+- **Preservation over rewrite** (principle P-002): features once shipped keep working; regression tests grow with each layer (312 → 357 → 373 → 378).
 - **Data integrity**: validation and migration before any mutation; corrupt data never crashes the app.
 
 ## Verification Practices
 
 | Practice | Where | Details |
 | --- | --- | --- |
-| Automated browser tests | `js/tests/**` — 373 tests | Snapshot/run/restore; run via `await runArtworkTests()` ([testing-strategy.md](../engineering/testing-strategy.md)) |
+| Automated browser tests | `js/tests/**` — 378 tests | Snapshot/run/restore; run via `await runArtworkTests()` ([testing-strategy.md](../engineering/testing-strategy.md)) |
 | Manual regression | [manual-regression-guide.md](manual-regression-guide.md) | Pre-PR checklist |
 | Static syntax checks | `node --check` | Applied to `js/app.js` and test files |
 | Browser console checks | DevTools | Suite must produce zero real console errors (one known fixture artifact: `blob:` warning from `G4UX-028` fake URLs) |

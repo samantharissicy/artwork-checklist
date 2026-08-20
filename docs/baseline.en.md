@@ -177,7 +177,7 @@ Four text fields in the left panel (`product-bar`), in a 2×2 grid:
 | Transition | `width 0.3s ease` |
 | Updates | On every checkbox click (`toggleCheck` → `updateProgress`) and on initial load |
 
-> ⚠️ **Current behavior to not confuse:** the bar only measures **checked** items. It does not distinguish approved vs. rejected nor review % from approval % — that distinction is roadmap Layer F.
+> ⚠️ **Current behavior to not confuse:** the bar only measures **checked** items. It does not distinguish approved vs. rejected nor review % from approval % — that distinction is layer F.
 
 ---
 
@@ -200,7 +200,7 @@ Four text fields in the left panel (`product-bar`), in a 2×2 grid:
 1. The viewer displays exclusively the demo artwork (HTML/CSS);
 2. There is no way to replace the image;
 3. There is no real image dimension reading (the width is fixed at 480px);
-4. Expected roadmap consequence (Layer E): when upload arrives, replacing the artwork should require confirmation if pins exist (`"Replacing this artwork will invalidate existing pins. Continue?"`), and the image identity (`name`, `type`, `size`, `width`, `height`) should be recorded.
+4. Expected planned consequence (Layer E): when upload arrives, replacing the artwork should require confirmation if pins exist (`"Replacing this artwork will invalidate existing pins. Continue?"`), and the image identity (`name`, `type`, `size`, `width`, `height`) should be recorded.
 
 ---
 

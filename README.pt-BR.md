@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 itens">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 seções">
-  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="373/373 testes passando">
+  <img src="https://img.shields.io/badge/tests-378%2F378%20passing-success" alt="378/378 testes passando">
   <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="Sem dependências">
   <img src="https://img.shields.io/badge/framework-none-green" alt="Sem framework">
@@ -14,7 +14,7 @@ Ferramenta web de apoio à **revisão de artworks e textos de embalagens de prod
 
 A aplicação combina um checklist regulatório estruturado com um fluxo visual de revisão. É possível classificar requisitos, adicionar comentários, sugerir correções de copy, associar itens a posições exatas da artwork, salvar a revisão localmente, exportar e reabrir arquivos de revisão e trabalhar com imagens reais de artwork.
 
-> **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um roadmap orientado por especificação.  
+> **Estágio atual:** MVP funcional desenvolvido incrementalmente por meio de um planned orientado por especificação.  
 > As camadas **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** estão concluídas.  
 > A **Camada G5 — Conformidade Pantone com a Pack Copy está completa.**
 
@@ -47,7 +47,7 @@ Comece em **[docs/README.md](docs/README.md)** — o hub de documentação, com 
 13. [Arquitetura](#arquitetura)
 14. [Testes automatizados](#testes-automatizados)
 15. [Limitações conhecidas](#limitações-conhecidas)
-16. [Roadmap](#roadmap)
+16. [Status das camadas](#status-das-camadas)
 17. [Workflow de desenvolvimento](#workflow-de-desenvolvimento)
 18. [Como contribuir](#como-contribuir)
 
@@ -156,7 +156,7 @@ sem banco de dados
 | ✅ Sincronização da copy             | Tooltip utiliza `currentTitle`                 |
 | ✅ Clear Pins                        | Remove pins do estado e interface              |
 | ✅ Toasts                            | Feedback visual de ações                       |
-| ✅ Testes automatizados              | 373 testes de regressão no navegador           |
+| ✅ Testes automatizados              | 378 testes de regressão no navegador           |
 | ✅ Menu de contexto da tab           | Clique direito na tab: Renomear/Duplicar/Novo/Excluir |
 | ✅ Menu de contexto da camada        | Clique direito na tab da camada: Renomear/Adicionar/Excluir |
 
@@ -209,9 +209,11 @@ O progresso atual considera:
 
 ```js
 reviewed = status !== REVIEW_STATUSES.PENDING;
+reviewProgress = reviewed / total * 100;
+approvalRate = approved / total * 100;
 ```
 
-Logo, tanto Approved quanto Rejected contam como revisados.
+Logo, tanto Approved quanto Rejected contam como revisados, mas somente Approved conta para o percentual de aprovação.
 
 Exemplo:
 
@@ -220,10 +222,11 @@ Exemplo:
 5 Rejected
 35 Pending
 
-= 15 / 50 reviewed
+= 30% reviewed
+= 20% approved
 ```
 
-Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação fazem parte do trabalho pendente da Camada F1 (métricas da revisão).
+O rodapé de progresso exibe contadores por status (Approved / Rejected / Pending), o percentual de revisão, o percentual separado de aprovação e uma barra de progresso cuja largura acompanha o percentual de revisão.
 
 ---
 
@@ -1171,7 +1174,7 @@ await runArtworkTests();
 Checkpoint atual:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 testes passando
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 testes passando
 ```
 
 A suíte cobre:
@@ -1284,17 +1287,7 @@ Os testes automatizados complementam testes manuais, especialmente para seleçã
 
 ## Limitações conhecidas
 
-### 1. Métricas ainda básicas
-
-A interface exibe:
-
-```text
-X / Y reviewed
-```
-
-Contadores por status (Approved / Rejected / Pending) e um percentual separado de aprovação ainda não foram implementados; pertencem ao trabalho pendente da Camada F1 (métricas da revisão).
-
-### 2. Arquivo da artwork somente em sessão
+### 1. Arquivo da artwork somente em sessão
 
 A metadata da artwork é persistida, mas o arquivo local da imagem não.
 
@@ -1310,11 +1303,11 @@ importar uma revisão
 
 Metadata e posições dos pins permanecem preservadas.
 
-### 3. Sem reviewer e assinatura final
+### 2. Sem reviewer e assinatura final
 
 Identificação do revisor e assinatura pertencem à Camada H.
 
-### 4. Sem relatório e PDF
+### 3. Sem relatório e PDF
 
 O domínio já preserva:
 
@@ -1330,13 +1323,13 @@ metadata da artwork
 
 mas relatório imprimível e PDF pertencem à Camada J.
 
-### 5. Interface orientada a desktop
+### 4. Interface orientada a desktop
 
 A interface ainda é desenvolvida principalmente para desktop.
 
-Responsividade e hardening para touchscreen pertencem às próximas fases do roadmap.
+Responsividade e hardening para touchscreen pertencem às próximas fases do plano de desenvolvimento.
 
-### 6. Sem backend compartilhado
+### 5. Sem backend compartilhado
 
 O MVP é local ao navegador.
 
@@ -1352,15 +1345,15 @@ histórico de revisões
 
 Essas funcionalidades pertencem à Camada M caso o uso real justifique a introdução de backend.
 
-### 7. Referências Pantone são textuais
+### 6. Referências Pantone são textuais
 
 As especificações de cor legadas armazenavam a referência Pantone como texto livre. Nenhuma equivalência oficial de RGB ou HEX é derivada. A revisão de conformidade Pantone atual é feita pelo item 6I do checklist; o registro legado `pantoneColors` é preservado apenas para compatibilidade de dados com exports anteriores.
 
 ---
 
-## Roadmap
+## Status das Camadas
 
-O desenvolvimento é guiado por um roadmap separado, mantido fora deste repositório. O documento histórico de roadmap mantido no repositório (`roadmap.md`) foi removido em um commit anterior; o conteúdo relevante está refletido neste README e nos relatórios de conclusão por camada.
+O desenvolvimento é guiado por um planned separado, mantido fora deste repositório. O documento histórico de planned mantido no repositório (`planning.md`) foi removido em um commit anterior; o conteúdo relevante está refletido neste README e nos relatórios de conclusão por camada.
 
 | Status | Camada    | Entrega                                          |
 | :----: | --------- | ------------------------------------------------ |
@@ -1375,7 +1368,7 @@ O desenvolvimento é guiado por um roadmap separado, mantido fora deste reposit�
 |   ✅   | **D4**    | Import JSON / Open Check                         |
 |   ✅   | **E1**    | Pins proporcionais normalizados                  |
 |   ✅   | **E2**    | Identidade da artwork e proteção na substituição |
-|   📋   | **F1**    | Métricas da revisão (contadores e % de aprovação) |
+|   ✅   | **F1** | Métricas da revisão (contadores e % de revisão/aprovação) |
 |   ✅   | **G1**    | Modelo de múltiplos produtos                     |
 |   ✅   | **G2**    | Interface de tabs                                |
 |   ✅   | **G3–G4** | Workspace multi-layer de artwork                 |
@@ -1473,7 +1466,7 @@ Ao trabalhar no projeto:
 
 1. atualize sua `main`;
 2. crie uma branch específica;
-3. trabalhe em um problema do roadmap por vez;
+3. trabalhe em um problema do planned por vez;
 4. mantenha dados persistíveis em `appState`;
 5. mantenha o DOM como representação do estado;
 6. mantenha dados de sessão fora do domínio;

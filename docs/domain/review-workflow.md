@@ -49,7 +49,7 @@ THEN comment.trim().length > 0
 ## Review Progress
 
 - `updateProgress`: updates the progress footer — counters (total/approved/rejected/pending) and percentages `N% reviewed` / `N% approved`; reviewed = approved + rejected, and the bar always follows reviewed / total.
-- Per-status counters and an approval percentage are **not** implemented (roadmap F1).
+- Per-status counters and the review/approval percentages are implemented (`updateProgress`).
 
 ## Comments
 

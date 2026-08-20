@@ -3,7 +3,7 @@
 // ============================================================
 //
 // Minimal dependency-free browser test framework used by every
-// roadmap-layer test file.
+// layer test file.
 //
 // Responsibilities:
 // - register tests;

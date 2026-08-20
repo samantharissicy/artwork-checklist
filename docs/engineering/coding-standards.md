@@ -51,8 +51,8 @@ See [css-architecture.md](../architecture/css-architecture.md).
 
 | Convention | Evidence |
 | --- | --- |
-| Test names identify roadmap layer | `G5R-001 …` (Pantone compliance), `G4A-…`, `G4UX-…`, `E1 …`, `D2 …`, `B1 …` |
-| Regression tests preserved across features | suite grows: 312 → 357 → 373 |
+| Test names identify layer | `G5R-001 …` (Pantone compliance), `G4A-…`, `G4UX-…`, `E1 …`, `D2 …`, `B1 …` |
+| Regression tests preserved across features | suite grows: 312 → 357 → 373 → 378 |
 | Tests self-reset their own state | `resetItem1A()`, `resetWorkspaceForMultiProductTest()`, `resetArtworkForTest()` |
 | Test files are IIFEs over `window.ArtworkTests` | destructure `test`, `assertEqual`, helpers at load time |
 

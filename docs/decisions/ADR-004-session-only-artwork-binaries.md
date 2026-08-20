@@ -47,8 +47,8 @@ Reload shows a "File Required" state; re-selecting the same file restores the im
 
 ## Revisit When
 
-- Large-image handling becomes a requirement (roadmap I1 — e.g. downscaling for display or IndexedDB persistence).
-- Backend/object storage exists (roadmap M).
+- Large-image handling becomes a requirement (planned I1 — e.g. downscaling for display or IndexedDB persistence).
+- Backend/object storage exists (planned M).
 
 ## Related Files
 
@@ -56,6 +56,6 @@ Reload shows a "File Required" state; re-selecting the same file restores the im
 - [architecture/artwork-workspace.md](../architecture/artwork-workspace.md)
 - [quality/performance-considerations.md](../quality/performance-considerations.md)
 
-## Related Roadmap Layers
+## Related layers
 
 E2 (artwork identity), I1 (high-resolution strategy), M (backend storage).

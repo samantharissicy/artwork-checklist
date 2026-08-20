@@ -51,7 +51,7 @@ Keep transient UI state in module-level variables, **outside** `appState`:
 
 ## Revisit When
 
-- State libraries or a formal store pattern are introduced (roadmap L1).
+- State libraries or a formal store pattern are introduced (planned L1).
 - Persisting view preferences becomes a real product requirement (e.g. per-user zoom).
 
 ## Related Files
@@ -60,6 +60,6 @@ Keep transient UI state in module-level variables, **outside** `appState`:
 - [architecture/state-management.md](../architecture/state-management.md)
 - [architecture/context-menus.md](../architecture/context-menus.md)
 
-## Related Roadmap Layers
+## Related layers
 
 B1 (state foundation), L1 (module separation).

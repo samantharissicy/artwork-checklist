@@ -2,7 +2,7 @@
 // C2 — REVIEW COMMENTS
 // ============================================================
 //
-// Tests owned by this roadmap layer only.
+// Tests owned by this layer only.
 // Shared assertions and fixtures come from window.ArtworkTests.
 // ============================================================
 

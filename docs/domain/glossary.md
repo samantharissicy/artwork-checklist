@@ -23,15 +23,15 @@ Define the project terminology as used in code, tests and documentation. Definit
 | **Artwork Revision** | Version label of the artwork being reviewed (textual; distinct from app version). |
 | **Pantone** | Colour reference system used in the legacy registry as free text. The current compliance flow treats the approved pack copy as the Pantone authority. |
 | **Compliance** | In this project: whether the artwork matches the approved pack copy, recorded via checklist item 6I. |
-| **Reviewer** | Planned identity of the person deciding an item (model present, UI future — roadmap H1). |
-| **Sign-Off** | Planned independent department approval (roadmap H2/H3); `product.signature` exists but is never populated. |
+| **Reviewer** | Planned identity of the person deciding an item (model present, UI future — planned H1). |
+| **Sign-Off** | Planned independent department approval (planned H2/H3); `product.signature` exists but is never populated. |
 | **Schema** | The versioned shape of persisted state; currently **v4**. |
 | **Rehydration** | Rebuilding a fresh object graph from parsed/migrated JSON, restoring canonical (immutable) fields. |
 | **Migration** | Converting persisted state from an older schema to the current one (v1→v2→v3→v4) without data loss. |
 | **Session Artwork** | The binary image and its Object URL, kept only for the current page session (`artworkSessions`). |
 | **Object URL** | `URL.createObjectURL` handle to an in-memory binary; runtime-only, revoked on release. |
 | **Baseline** | The frozen original prototype behaviour, recorded in `baseline.en.md` / `baseline.pt-BR.md` (historical snapshots, never edited). |
-| **Roadmap Layer** | A unit of planned development (A0, B1, …, M4) defined in the external roadmap; see [roadmap-technical-notes.md](../future/roadmap-technical-notes.md). |
+| **layer** | A unit of planned development (A0, B1, …, M4) defined in the external development plan; see [layer-planning.md](../future/layer-planning.md). |
 | **ADR** | Architecture Decision Record — a document in [decisions/](../decisions/README.md) capturing a significant technical decision and its rationale. |
 | **appState** | The single source of truth: `{schemaVersion, activeProductId, products}`. |
 | **Single Source of Truth** | Principle P-004: domain state lives in `appState`; the DOM only represents it. |

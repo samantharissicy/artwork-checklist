@@ -135,7 +135,7 @@ A practical pre-merge regression checklist, organized by functional area. Use it
 
 ## Final
 
-- [ ] Full test suite: `await runArtworkTests()` → `373/373 tests passed` (expected count is time-sensitive).
+- [ ] Full test suite: `await runArtworkTests()` → `378/378 tests passed` (expected count is time-sensitive).
 - [ ] No application-generated console errors (except the known `blob:` fixture warning from `G4UX-028`).
 - [ ] `git diff` shows only intended files.
 

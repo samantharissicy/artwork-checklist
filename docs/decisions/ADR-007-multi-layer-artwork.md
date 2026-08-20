@@ -50,7 +50,7 @@ product.activeArtworkLayerId = "layer-main";
 ## Revisit When
 
 - Multiple simultaneous surfaces per view become a requirement (compare/merge UX).
-- Backend revisioning per layer (roadmap M3).
+- Backend revisioning per layer (planned M3).
 
 ## Related Files
 
@@ -58,6 +58,6 @@ product.activeArtworkLayerId = "layer-main";
 - [architecture/artwork-workspace.md](../architecture/artwork-workspace.md)
 - [architecture/pins-and-coordinate-system.md](../architecture/pins-and-coordinate-system.md)
 
-## Related Roadmap Layers
+## Related layers
 
 G4 (multi-layer workspace), M3 (revisioning).

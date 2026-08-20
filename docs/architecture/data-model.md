@@ -125,7 +125,7 @@ Factory: `createInitialItems()` driven by `sectionDefinitions`.
 { name: "", role: "", reviewedAt: null }
 ```
 
-Persisted and round-tripped, but **no current UI writes it**. Planned for roadmap layers H1/H2.
+Persisted and round-tripped, but **no current UI writes it**. Planned for layers H1/H2.
 
 ## Signature
 

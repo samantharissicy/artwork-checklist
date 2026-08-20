@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-MVP%20G5-success" alt="MVP G5">
   <img src="https://img.shields.io/badge/checklist%20items-50-blue" alt="50 items">
   <img src="https://img.shields.io/badge/sections-6-blue" alt="6 sections">
-  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="373/373 tests passing">
+  <img src="https://img.shields.io/badge/tests-378%2F378%20passing-success" alt="378/378 tests passing">
   <img src="https://img.shields.io/badge/schema-v4-blue" alt="Schema v4">
   <img src="https://img.shields.io/badge/dependencies-none-green" alt="No dependencies">
   <img src="https://img.shields.io/badge/framework-none-green" alt="No framework">
@@ -14,7 +14,7 @@ A web tool to support the review of **artworks and pack copy for food products**
 
 The application combines a structured regulatory checklist with a visual artwork review workflow. Reviewers can classify requirements, add comments, propose copy corrections, attach requirements to exact locations on an artwork, persist reviews locally, export and reopen review files, and work with real artwork images.
 
-> **Current stage:** functional MVP developed incrementally through a specification-driven roadmap.  
+> **Current stage:** functional MVP developed incrementally through a specification-driven development plan.  
 > Layers **A0, B1, C1, C2, C3, D1, D2, D3, D4, E1, E2, G1–G5** are complete.  
 > **Layer G5 — Pantone Pack-Copy Compliance is complete.**
 
@@ -47,7 +47,7 @@ Start at **[docs/README.md](docs/README.md)** — the documentation hub with rec
 13. [Architecture](#architecture)
 14. [Automated tests](#automated-tests)
 15. [Known limitations](#known-limitations)
-16. [Roadmap](#roadmap)
+16. [Layer status](#layer-status)
 17. [Development workflow](#development-workflow)
 18. [Contributing](#contributing)
 
@@ -157,7 +157,7 @@ no database
 | ✅ Pin title synchronization      | Pin tooltip uses `currentTitle`             |
 | ✅ Clear Pins                     | Removes pin data from state and UI          |
 | ✅ Toast notifications            | Feedback for relevant actions               |
-| ✅ Automated regression suite     | 373 browser-based tests                     |
+| ✅ Automated regression suite     | 378 browser-based tests                     |
 | ✅ Product tab context menu       | Right-click a tab for Rename/Duplicate/New/Delete |
 | ✅ Artwork Layer context menu     | Right-click a layer tab for Rename/Add/Delete |
 
@@ -210,9 +210,11 @@ Review progress currently follows:
 
 ```js
 reviewed = status !== REVIEW_STATUSES.PENDING;
+reviewProgress = reviewed / total * 100;
+approvalRate = approved / total * 100;
 ```
 
-Therefore both Approved and Rejected items count as reviewed.
+Therefore both Approved and Rejected items count as reviewed, but only Approved items count toward the approval percentage.
 
 Example:
 
@@ -221,10 +223,11 @@ Example:
 5 Rejected
 35 Pending
 
-= 15 / 50 reviewed
+= 30% reviewed
+= 20% approved
 ```
 
-Per-status counters (Approved / Rejected / Pending) and a separate approval percentage are part of the pending Layer F1 review-metrics work.
+The progress footer renders per-status counters (Approved / Rejected / Pending), the review percentage, the separate approval percentage and a progress bar whose width follows the review percentage.
 
 ---
 
@@ -1176,7 +1179,7 @@ await runArtworkTests();
 Current checkpoint:
 
 ```text
-312 / 312 → 357 / 357 → 373 / 373 tests passing
+312 / 312 → 357 / 357 → 373 / 373 → 378 / 378 tests passing
 ```
 
 The suite covers:
@@ -1289,17 +1292,7 @@ Automated tests complement manual browser testing, especially for actual file se
 
 ## Known limitations
 
-### 1. Basic progress presentation
-
-The interface displays:
-
-```text
-X / Y reviewed
-```
-
-Per-status counters (Approved / Rejected / Pending) and a separate review/approval percentage are not implemented yet; they belong to the pending Layer F1 review-metrics work.
-
-### 2. Artwork binary is session-only
+### 1. Artwork binary is session-only
 
 Artwork metadata is persisted, but the local image file itself is not.
 
@@ -1315,11 +1308,11 @@ the reviewer must select the same artwork file again.
 
 Persisted metadata and normalized pin positions remain available.
 
-### 3. No reviewer/signature workflow yet
+### 2. No reviewer/signature workflow yet
 
 Reviewer identity and final signature belong to Layer H.
 
-### 4. No printable report or PDF yet
+### 3. No printable report or PDF yet
 
 The domain already preserves the data needed for future reports:
 
@@ -1335,13 +1328,13 @@ artwork metadata
 
 Report and PDF generation belong to Layer J.
 
-### 5. Desktop-oriented interface
+### 4. Desktop-oriented interface
 
 The interface is still primarily designed for desktop use.
 
-Responsive and touch hardening belong to later roadmap layers.
+Responsive and touch hardening belong to later layers.
 
-### 6. No shared backend
+### 5. No shared backend
 
 The MVP is browser-local.
 
@@ -1357,15 +1350,15 @@ revision history
 
 These belong to Layer M if real usage justifies a backend.
 
-### 7. Pantone references are textual
+### 6. Pantone references are textual
 
 Legacy colour specifications stored the Pantone reference as free text. No official RGB or HEX equivalence is derived. The current Pantone compliance review is performed through checklist item 6I; the legacy `pantoneColors` registry is preserved only for data compatibility with earlier exports.
 
 ---
 
-## Roadmap
+## Layer Status
 
-Development is guided by a separate development roadmap maintained outside this repository. The historical in-repo roadmap document (`roadmap.md`) was removed in an earlier commit; the roadmap content relevant to this repository is reflected in this README and in the per-layer completion reports.
+Development is guided by a separate development planned maintained outside this repository. The historical in-repo planned document (`planning.md`) was removed in an earlier commit; the planned content relevant to this repository is reflected in this README and in the per-layer completion reports.
 
 | Status | Layer     | Deliverable                                       |
 | :----: | --------- | ------------------------------------------------- |
@@ -1380,7 +1373,7 @@ Development is guided by a separate development roadmap maintained outside this 
 |   ✅   | **D4**    | JSON import / Open Check                          |
 |   ✅   | **E1**    | Normalized proportional pins                      |
 |   ✅   | **E2**    | Artwork identity and replacement safeguards       |
-|   📋   | **F1**    | Review metrics (per-status counters, approval %)  |
+|   ✅   | **F1** | Review metrics (per-status counters, review/approval %) |
 |   ✅   | **G1**    | Multiple-product domain operations                |
 |   ✅   | **G2**    | Product tabs                                      |
 |   ✅   | **G3–G4** | Multi-layer artwork workspace                     |
@@ -1478,7 +1471,7 @@ When contributing:
 
 1. update local `main`;
 2. create a dedicated feature branch;
-3. work on one roadmap concern at a time;
+3. work on one planned concern at a time;
 4. keep persistent domain state in `appState`;
 5. treat DOM as a representation of state;
 6. keep session-only information outside the domain;

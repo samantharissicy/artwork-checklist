@@ -11,7 +11,7 @@
 
 - Read every doc and checked its claims against the code with targeted greps and reads (no AI agents were used; all findings verified directly against files).
 - Ran `node --check` on every JavaScript file.
-- Executed the 373-test browser suite in a headless Chromium via the browser-automation driver against a local static server.
+- Executed the 378-test browser suite in a headless Chromium via the browser-automation driver against a local static server.
 - Re-verified every relative link in every doc plus the two READMEs.
 - Removed stale `js/app.js:NNNN` line-number citations from the docs (144 citations in 24 files) — line numbers drift with every edit and the spec prohibits replicating volatile numbers; stable function names were kept and verified instead.
 - Repaired encoding damage from an earlier bulk edit (`git checkout -- docs/` + clean UTF-8 re-strip) so no file carries BOM, mojibake, or doubled characters.
@@ -19,7 +19,7 @@
 ## Source-of-Truth Hierarchy (as applied)
 
 1. **Code** (`js/app.js`, `js/tests/**`)
-2. **Tests** (`js/tests/**` — 12 layer files, 373 tests)
+2. **Tests** (`js/tests/**` — 12 layer files, 378 tests)
 5. **README.md / README.pt-BR.md**
 6. **docs/** tree
 7. **baseline.en.md / baseline.pt-BR.md** — historical snapshots of the frozen prototype; never edited
@@ -58,10 +58,10 @@
 
 | Fact | Value | Verified by |
 | --- | --- | --- |
-| Registered tests | 373 | runner run |
-| Per-file counts | baseline-smoke 3, B1 27, C1 10, C2 10, C3 10, D 10, E1 8, E2 11, F1 2 (stubs), G 53, G4 120, G5 109 | regex count + runner output |
+| Registered tests | 378 | runner run |
+| Per-file counts | baseline-smoke 3, B1 27, C1 10, C2 10, C3 10, D 10, E1 8, E2 11, F1 7, G 53, G4 120, G5 109 | regex count + runner output |
 | Syntax check | all JS files pass `node --check` | node |
-| Execution result | **370 passed, 3 failed** | headless Chromium run |
+| Execution result | **378 passed, 0 failed** | headless Chromium run |
 
 ## Issues Found and Corrections Made
 
@@ -87,23 +87,15 @@ Every `js/app.js:NNNN` reference was removed across `docs/README.md`, all archit
 
 Run in headless Chromium (patchright driver) against `http://localhost:5500/` (local static server, no file://):
 
-- **Total:** 373 registered tests
-- **Passed:** 370
-- **Failed:** 3
+- **Total:** 378 registered tests
+- **Passed:** 378
+- **Failed:** 0
 
-The 3 failures are all the same defect: tests read a `#progress-text` element that no longer exists in the application.
-
-| Failing test | Error |
-| --- | --- |
-| `progress counts both approved and rejected as reviewed` (`c1-review-status.test.js`) | `Cannot read properties of null (reading 'textContent')` |
-| `G5R-014 6i counts toward review progress` (`g5-pantone-compliance.test.js`) | same |
-| `G5R-015 approving only 6i advances the reviewed counter` (`g5-pantone-compliance.test.js`) | same |
-
-The application's current progress UI writes `#progress-total`, `#progress-approved`, `#progress-rejected`, `#progress-pending`, `#progress-review-pct`, `#progress-approval-pct` and `#progress-bar` (`updateProgress` in `js/app.js`). The tests were written against an earlier progress-format that was replaced without updating the tests. This is a **code/test defect, not a documentation defect** — the docs have been corrected to describe the implemented behaviour. The one console error during the run is the known, pre-existing G4UX-028 blob: fixture artifact, documented in `docs/quality/manual-regression-guide.md` and `docs/engineering/testing-strategy.md`.
+During the audit, 3 tests failed because they read a `#progress-text` element that no longer exists in the application. The application's current progress UI writes `#progress-total`, `#progress-approved`, `#progress-rejected`, `#progress-pending`, `#progress-review-pct`, `#progress-approval-pct` and `#progress-bar` (`updateProgress` in `js/app.js`). The failing tests were updated to assert the implemented progress footer, and the two F1 (review metrics) placeholders in `js/tests/layers/f1-review-metrics.test.js` were replaced with real metric tests (counters, review % = approved + rejected, approval % = approved only, progress-bar width, all-pending → 0%, fully-approved → 100%, empty checklist guard). The suite now passes 378/378. The one console error during the run is the known, pre-existing G4UX-028 blob: fixture artifact, documented in `docs/quality/manual-regression-guide.md` and `docs/engineering/testing-strategy.md`.
 
 ## Links Verified
 
-- 287 relative links checked across all 49 docs plus `README.md` and `README.pt-BR.md` — all resolve. This includes every `docs/README.md` listing.
+- 293 relative links checked across all 49 docs plus `README.md` and `README.pt-BR.md` — all resolve. This includes every `docs/README.md` listing.
 
 ## Legacy and Future Clarifications
 
@@ -112,16 +104,16 @@ The application's current progress UI writes `#progress-total`, `#progress-appro
 
 ## Remaining Uncertainties
 
-- The exact wording of future-layer plans (F1, H1–H3, I1, J1–J3, K3–K4, L1, M) is defined by the external roadmap and could not be cross-checked against a repository copy. Docs that reference future layers state them as plans, not commitments.
+- The exact wording of future-layer plans (H1–H3, I1, J1–J3, K3–K4, L1, M) is defined by the external development plan and could not be cross-checked against a repository copy. Docs that reference future layers state them as plans, not commitments.
 - Browser compatibility is documented as assumptions verified by usage in code, not by a formal matrix.
 
 ## Final Compatibility Assessment
 
-- **Documentation is compatible with the current codebase** on every claim that this audit could verify statically: schema, sections/items, storage keys, function names, CSS architecture, API usage, and all 287 links.
+- **Documentation is compatible with the current codebase** on every claim that this audit could verify statically: schema, sections/items, storage keys, function names, CSS architecture, API usage, and all 293 links.
 - The documentation corrections made in this audit remove the last known inaccuracies (stale line numbers, progress-format descriptions, helper list, function counts).
-- **One blocker remains before the repository can be declared fully green:** the test suite does not pass (370/373) because three progress tests target a removed `#progress-text` element. That is a test/code defect outside the documentation scope; the docs now describe the implemented behaviour, and the failing tests should be updated to assert the current progress footer (or the element restored) in a separate code task.
+- The automated suite passes in full: **378/378** in headless Chromium. The three progress tests that targeted the removed `#progress-text` element were updated to assert the implemented progress footer, and the F1 (review metrics) layer now has real tests instead of placeholders.
 
-**Gate: NOT PASSED** — documentation is accurate; the automated suite is red on 3 tests (`progress counts both approved and rejected as reviewed`, `G5R-014`, `G5R-015`) due to the `#progress-text` mismatch.
+**Gate: PASSED** — documentation is accurate, cross-linked (293/293), free of stale references, and the automated suite is fully green (378/378).
 
 ## Related Documents
 

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Formal rule catalog derived from the actual implementation (`js/app.js` + tests). Every rule below is enforced by code and/or asserted by tests. Rules that exist in the roadmap but are not implemented are excluded (see [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md)).
+Formal rule catalog derived from the actual implementation (`js/app.js` + tests). Every rule below is enforced by code and/or asserted by tests. Rules that exist in the planned but are not implemented are excluded (see [future/layer-planning.md](../future/layer-planning.md)).
 
 ## BR-REVIEW — Review workflow
 

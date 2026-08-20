@@ -1,6 +1,6 @@
 # Artwork & Pack Copy Checklist — Engineering Documentation
 
-**Status: Current** — this documentation describes the repository as it exists today (schema v4, 50 checklist items, 373 tests).
+**Status: Current** — this documentation describes the repository as it exists today (schema v4, 50 checklist items, 378 tests).
 
 ## Purpose
 
@@ -27,12 +27,12 @@ This `docs/` tree is the technical knowledge base for the **Artwork & Pack Copy 
 When documentation conflicts with the repository, resolve in this order:
 
 ```
-CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
+CODE > TESTS > planned > README > HISTORICAL BASELINE
 ```
 
 `baseline.en.md` / `baseline.pt-BR.md` are **historical snapshots** (layer A0) and are never edited.
 
-> Note: `roadmap.md` is maintained **outside** this repository since commit `48ff58c`. The historical layer plan it defined is reflected in [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md); this repo documents the implemented reality.
+> Note: `planning.md` is maintained **outside** this repository since commit `48ff58c`. The historical layer plan it defined is reflected in [future/layer-planning.md](future/layer-planning.md); this repo documents the implemented reality.
 
 ## Current Architecture Summary
 
@@ -42,7 +42,7 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 - **50 checklist items** in **6 sections**; item **6I — "Pantone Colours Match Approved Pack Copy?"** is the canonical Pantone compliance item (see [domain/domain-overview.md](domain/domain-overview.md)).
 - Multi-product workspace with tabs and per-product context menus; multi-layer artwork with per-layer pins and layer tabs.
 - Legacy `pantoneColors` metadata is preserved for backwards compatibility only (see [persistence/legacy-compatibility.md](persistence/legacy-compatibility.md)).
-- Test suite: **373 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
+- Test suite: **378 browser-based tests**, modular (see [engineering/testing-strategy.md](engineering/testing-strategy.md)).
 
 ## Current Technical Status
 
@@ -55,14 +55,14 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 | Sections | 6 |
 | Review statuses | `pending` / `approved` / `rejected` |
 | Allowed sites | `OH1`, `OH2`, `BL` |
-| Tests | 373 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest audit: 370 passing, 3 progress tests fail against the removed `#progress-text` element — see [documentation-audit.md](documentation-audit.md)) |
+| Tests | 378 registered (time-sensitive metric — see [engineering/testing-strategy.md](engineering/testing-strategy.md); latest audit: 378/378 passing) |
 | App source | `js/app.js` (~9,860 lines, 205 function declarations) |
 
 ## Navigation Groups
 
 | Group | Contents |
 | --- | --- |
-| [Overview](project-overview.md) | Business purpose, MVP scope, roadmap methodology |
+| [Overview](project-overview.md) | Business purpose, MVP scope, development methodology |
 | [Documentation Audit](documentation-audit.md) | Deep docs-vs-code compatibility audit, verified facts, test-suite results |
 | [Architecture](architecture/architecture-overview.md) | Architecture, data model, state, rendering, persistence, artwork, pins, context menus, CSS |
 | [Engineering](engineering/tech-stack.md) | Stack, development workflow, coding standards, testing, error handling, browser runtime |
@@ -98,7 +98,7 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 3. [architecture/data-model.md](architecture/data-model.md)
 4. [architecture/persistence-and-schema.md](architecture/persistence-and-schema.md)
 5. [engineering/coding-standards.md](engineering/coding-standards.md)
-6. [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md)
+6. [future/layer-planning.md](future/layer-planning.md)
 
 ### Reviewer / QA
 
@@ -110,7 +110,7 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 
 - Documents under `docs/` describe **current, implemented** behaviour unless explicitly labelled otherwise.
 - Documents under [future/](future/future-architecture.md) are labelled **Status: Future / Not Implemented** and describe possible evolution, not promises.
-- The roadmap layer table lives in [future/roadmap-technical-notes.md](future/roadmap-technical-notes.md); scheduling authority is the external roadmap.
+- The layer table lives in [future/layer-planning.md](future/layer-planning.md); scheduling authority is the external development plan.
 - Historical behaviour of the frozen prototype is in `baseline.en.md` / `baseline.pt-BR.md` (unchanged snapshots).
 
 ## Baseline Explanation
@@ -124,8 +124,8 @@ CODE > TESTS > ROADMAP > README > HISTORICAL BASELINE
 | Domain model change | `architecture/data-model.md`, `domain/data-dictionary.md` |
 | Schema change | `persistence/migrations.md`, `architecture/persistence-and-schema.md` |
 | Major architectural decision | Create/update an ADR in `decisions/` |
-| New roadmap layer implemented | Update the relevant current-architecture docs only after implementation |
+| New layer implemented | Update the relevant current-architecture docs only after implementation |
 | Test infrastructure change | `engineering/testing-strategy.md` |
 | New CSS architectural rule | `architecture/css-architecture.md` |
-| Future ideas | Stay in `future/` or the roadmap until implemented |
+| Future ideas | Stay in `future/` or the planned until implemented |
 | Historical baseline files | Remain unchanged |

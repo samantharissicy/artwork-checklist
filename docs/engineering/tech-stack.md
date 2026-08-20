@@ -66,7 +66,7 @@ Custom, dependency-free browser test framework built into the app:
 | --- | --- |
 | `js/tests/core/framework.js` | `test(name, fn)` + assertions (`assert`, `assertEqual`, `assertDeepEqual`, `assertClose`, …) |
 | `js/tests/core/helpers.js` | Fixtures (`createTestArtworkMetadata`), snapshot/restore, DOM lookup helpers |
-| `js/tests/core/runner.js` | Snapshot → run 373 tests → restore, console reporting |
+| `js/tests/core/runner.js` | Snapshot → run 378 tests → restore, console reporting |
 | `js/tests/layers/*.test.js` | 12 layer test modules (baseline, B1–G5) |
 
 Entry point: `runArtworkTests()` from DevTools. See [testing-strategy.md](testing-strategy.md).
@@ -108,4 +108,4 @@ Only if real needs appear (documented as future layers, not commitments):
 - High-resolution artwork persistence → IndexedDB or object storage (layer I1).
 - Print/PDF report → `window.print()` first, libraries only if proven necessary (layer J3).
 
-See [future/roadmap-technical-notes.md](../future/roadmap-technical-notes.md) and [decisions/ADR-001-vanilla-web-stack.md](../decisions/ADR-001-vanilla-web-stack.md).
+See [future/layer-planning.md](../future/layer-planning.md) and [decisions/ADR-001-vanilla-web-stack.md](../decisions/ADR-001-vanilla-web-stack.md).

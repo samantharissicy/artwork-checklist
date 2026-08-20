@@ -2,7 +2,7 @@
 // G5 — PANTONE PACK-COPY COMPLIANCE
 // ============================================================
 //
-// Tests owned by this roadmap layer only.
+// Tests owned by this layer only.
 // Shared assertions and fixtures come from window.ArtworkTests.
 //
 // This layer was realigned from the legacy Colour Specification
@@ -1412,10 +1412,9 @@
 
     updateProgress();
 
-    assertEqual(
-      document.getElementById("progress-text").textContent.trim(),
-      "3 / 50 reviewed",
-    );
+    assertEqual(document.getElementById("progress-approved").textContent.trim(), "3");
+
+    assertEqual(document.getElementById("progress-review-pct").textContent.trim(), "6% reviewed");
   });
 
   test("G5R-015 approving only 6i advances the reviewed counter", () => {
@@ -1427,10 +1426,9 @@
 
     updateProgress();
 
-    assertEqual(
-      document.getElementById("progress-text").textContent.trim(),
-      "1 / 50 reviewed",
-    );
+    assertEqual(document.getElementById("progress-approved").textContent.trim(), "1");
+
+    assertEqual(document.getElementById("progress-review-pct").textContent.trim(), "2% reviewed");
   });
 
   test("G5R-016 6i accepts multi-layer pins like other items", () => {
