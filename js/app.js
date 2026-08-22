@@ -8183,6 +8183,12 @@ let toastTimeoutId = null;
  */
 function showToast(message) {
   const toast = document.getElementById("toast");
+  const announcer = document.getElementById("sr-announcer");
+
+  // K2: Announce the same message to screen readers immediately
+  if (announcer) {
+    announcer.textContent = message;
+  }
 
   if (!toast) {
     return;
@@ -8200,7 +8206,29 @@ function showToast(message) {
     toast.classList.remove("show");
 
     toastTimeoutId = null;
+
+    // Clear the live region so assistive tech doesn't re-read it later
+    if (announcer) {
+      setTimeout(() => {
+        announcer.textContent = "";
+      }, 500);
+    }
   }, 2500);
+}
+
+/**
+ * K3 — Mobile / Touch
+ * Rewrites the viewer hint when a coarse pointer (touchscreen) is detected.
+ */
+function updateHintForTouch() {
+  const hintText = document.getElementById("hint-text");
+  if (!hintText) return;
+
+  const isCoarse = window.matchMedia("(pointer: coarse)").matches;
+  if (isCoarse) {
+    hintText.innerHTML =
+      "<strong>Tip:</strong> Tap a checklist item to select it, then tap the artwork to place the pin. Tap a pin to jump to its checklist item.";
+  }
 }
 
 // ============================================================
@@ -9863,7 +9891,7 @@ function bindSignOffUi() {
   canvas?.addEventListener("pointerup", finishDrawing);
   canvas?.addEventListener("pointercancel", finishDrawing);
 
-  document.addEventListener("keydown", (event) => {
+    document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
     }
@@ -9874,6 +9902,10 @@ function bindSignOffUi() {
     } else if (signOffUiState.isOpen) {
       event.preventDefault();
       closeSignOffPanel();
+    } else if (pinTargetItemId) {
+      // K3: Escape cancels the "select item -> click artwork" flow
+      event.preventDefault();
+      clearPinTarget();
     }
   });
 }
@@ -12389,11 +12421,14 @@ function initializeApp() {
 
     renderProductTabs();
 
-  renderAppState();
+    renderAppState();
 
   bindCheckInput();
 
   initializeViewportInteractions();
+
+  // K3: Rewrite hint if we are on a touch device
+  updateHintForTouch();
 
   window.addEventListener("resize", () => {
     clearTimeout(window._camadaIResizeTimeout);

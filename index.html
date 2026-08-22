@@ -411,14 +411,12 @@
           </div>
         </div>
 
-        <div class="hint-bar">
+                <div class="hint-bar">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <strong>Tip:</strong> Drag any checklist item onto the artwork to
-          pin it. Hover over pinned items to see their location. Click a pin
-          to jump to its checklist item.
+          <span id="hint-text"><strong>Tip:</strong> Drag any checklist item onto the artwork to pin it. Hover over pinned items to see their location. Click a pin to jump to its checklist item.</span>
         </div>
       </div>
     </div>
@@ -568,6 +566,10 @@
   </div>
 
   <div class="toast" id="toast">Checklist saved!</div>
+
+
+  <!-- K2: Screen-reader live region for status announcements -->
+  <div id="sr-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
   <!-- ========================================================
      CROSS-FUNCTIONAL SIGN-OFF — H1–H4

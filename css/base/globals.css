@@ -23,3 +23,31 @@ body {
 
   font-size: 13px;
 }
+
+
+/* ==========================================================
+   ACCESSIBILITY UTILITIES — CAMADA K2
+   ========================================================== */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Global focus-visible fallback — K2 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
