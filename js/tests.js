@@ -53,7 +53,9 @@
 
     "layers/ux-section-status-summary.test.js",
 
-    "layers/j-printable-report.test.js",
+        "layers/j-printable-report.test.js",
+
+    "layers/k-quality.test.js",
 
     "layers/baseline-smoke.test.js",
 
